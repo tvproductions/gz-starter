@@ -46,6 +46,11 @@ records November 21 official results at the candidate's hashed tooling inputs.
 All 76 PyPI selections match current stable releases. Audits of both hashed
 lock exports checked 75 packages each with zero advisories or skips.
 
+The first hosted producer run identified a clean-cache fixture setup failure.
+The affected fixtures resolve pinned development tools when generating their
+own locks; all execution after that setup remains locked. Rerun the producer
+and both adopter platforms on the follow-up SHA before accepting the candidate.
+
 ### Installed verifier intent audit
 
 The audit sampled the high-risk path where a correct bootstrap can drift to a

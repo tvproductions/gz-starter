@@ -158,7 +158,7 @@ class VerificationUnittestTests(VerificationProject):
         self.write(".gitignore", ".venv/\n__pycache__/\n")
         hook = self.root / ".pre-commit-config.yaml"
         digest = hashlib.sha256(hook.read_bytes()).digest()
-        for command in (("git", "init"), ("git", "add", "."), ("uv", "lock", "--offline")):
+        for command in (("git", "init"), ("git", "add", "."), ("uv", "lock")):
             setup = run(self.root, *command)
             self.assertEqual(setup.returncode, 0, setup.stderr)
 
@@ -202,7 +202,7 @@ class VerificationUnittestTests(VerificationProject):
             "tests/test_totals.py",
             "import totals\n" + PASSING_TEST.replace("2 + 3", "totals.combine(5)"),
         )
-        lock = run(self.root, "uv", "lock", "--offline")
+        lock = run(self.root, "uv", "lock")
         self.assertEqual(lock.returncode, 0, lock.stderr)
         result = self.verify()
         self.assertEqual(result.returncode, 0, result.stderr)

@@ -419,7 +419,6 @@ def verify_installed_verification(wheel: Path, base_command: Path, directory: Pa
     run(
         "uv",
         "add",
-        "--offline",
         "--dev",
         f"gz-starter[verification] @ {wheel.as_uri()}",
         "pre-commit==4.7.0",
