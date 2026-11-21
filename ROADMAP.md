@@ -233,9 +233,12 @@ Release scope **0.11.6 → 0.12.0 / minor** for the new command, development
 dependency and adoption interface. The [release receipt](docs/evidence/2026-11-21-0.11.6-release.md)
 identifies `v0.11.6` at `6a44715f5fc40048c9767497a313a279dfc3a12a`.
 The version agrees in both metadata owners, the root lock, the CLI,
-packaged bundle and changelog. See the
+packaged bundle and changelog. GitHub published
+[0.12.0](https://github.com/tvproductions/gz-starter/releases/tag/v0.12.0)
+from `7303deff043231d8bcbb789e52efdbdde6b7e2f0` on November 21.
+Included release work remaining is **none**. See the
 [0.12.0 release evidence](docs/evidence/2026-11-21-0.12.0-release.md)
-for release preparation and verification.
+for exact-source verification and the release-time `virtualenv` patch.
 
 Completed work includes consumer diagnosis, design and ADR approvals, the
 [audited implementation plan](docs/superpowers/plans/2026-11-21-bootstrap-verification.md#plan-audit),

@@ -2,41 +2,28 @@
 
 ## Current resume point — November 21, 2026
 
-### Resume with a fresh 0.12.0 release review
+### 0.12.0 published and verified
 
-The maintainer requested this handoff and Git sync so the next session can look
-at **0.12.0** afresh. At this checkpoint, the published baseline is
-[0.11.6](https://github.com/tvproductions/gz-starter/releases/tag/v0.11.6) and the
-pending minor is **0.12.0**. The candidate has conditional acceptance under the
-existing cognitive deferral. Release review and publication are separate steps.
+The maintainer authorized [GZ Starter 0.12.0](https://github.com/tvproductions/gz-starter/releases/tag/v0.12.0).
+It is the latest stable GitHub release at immutable source
+`7303deff043231d8bcbb789e52efdbdde6b7e2f0`. The
+[release receipt](../evidence/2026-11-21-0.12.0-release.md) records the final
+dependency inventory, installed-artifact checks, both exact-source producer
+jobs, private macOS and Windows qualification, tag and archive verification.
 
-- Start with the [selected 0.12.0 scope](../../ROADMAP.md#selected-correction--pre-implementation-verification-november-17-2026),
-  [candidate acceptance receipt](../evidence/2026-11-21-0.12.0-candidate-acceptance.md),
-  and [release procedure](../versioning.md#preparing-and-publishing-a-release).
-  Recheck the live published baseline, clean `main`, the unreleased changelog,
-  and the 0.12.0 version mirrors. Review the complete release delta against the
-  selected bootstrap verifier scope and document any new acceptance gaps.
-- The tested implementation candidate is
-  `0550d84eac172a81ea3b8395379ddaa360bd8348`.
-  Both [producer jobs](https://github.com/tvproductions/gz-starter/actions/runs/44951445071)
-  passed. Before this handoff, `main` and `origin/main` matched at
-  `da4c05cf29787276c753302fd381cdd1f7d953de` with both
-  [exact-commit jobs](https://github.com/tvproductions/gz-starter/actions/runs/44954433177)
-  green. The intervening commits changed documentation. Compare the new
-  release candidate to the tested source and rerun affected checks if inputs
-  or risk change.
-- When repeating hosted controls, use the single manual private workflow. Its
-  [receipt](../evidence/2026-11-21-0.12.0-candidate-acceptance.md#current-private-qualification-workflow)
-  records eight passing assertions on each host in run `44954273423`. Check
-  expected exit statuses and diagnostics within the job and leave the old
-  separate runs as historical evidence.
-- For release preparation, refresh the [official-source inventory and receipt](../engineering/python.md#starter-publisher-inventory-and-receipts)
-  and review the exact candidate with `gzs-quality-gate` and `gzs-intent-audit`
-  where applicable. The [November 21 inventory](../evidence/2026-11-21-0.12.0-candidate-dependencies.json)
-  at 21:15 UTC matched all eight hashed inputs at this checkpoint. This
-  handoff used uv 0.13.9 and managed CPython 3.14.10. Keep the cognitive
-  measurement **DEFERRED / UNKNOWN**, embedded XPPython3 unverified, and
-  Backplane disabled. A tag and GitHub release require publication authority.
+- Check the live release, branch and worktree when resuming. Select the next
+  bounded change from the [roadmap](../../ROADMAP.md#next-work-in-recommended-order).
+  Use `gzs-intent-audit` for a new shipped-behavior or matched instruction
+  delivery review, `gzs-plan-audit` when a scoped change has a draft plan,
+  and `gzs-quality-gate` before the next handoff or release.
+- If verifier inputs change, repeat hosted controls with the single manual
+  private workflow. Run `44958752933` confirmed eight assertions per host
+  against the release source, including expected statuses and diagnostics.
+  Use the [negative-control policy](../engineering/verification-policy.md#control-test-cost-and-repetition).
+- Keep cognitive measurement **DEFERRED / UNKNOWN**, embedded XPPython3
+  unverified, and Backplane disabled. Refresh the
+  [official-source inventory](../engineering/python.md#starter-publisher-inventory-and-receipts)
+  before preparing a subsequent release.
 
 ### Completed GovZero review for 0.12.0
 
@@ -49,9 +36,10 @@ existing cognitive deferral. Release review and publication are separate steps.
    to subprocess, path and exit-status behavior.
 3. **Hosted adopter intent audit complete.** The
    [acceptance receipt](../evidence/2026-11-21-0.12.0-candidate-acceptance.md)
-   records exact-candidate macOS and Windows checkout, transition and coverage
-   results. Pending 0.12.0 is conditionally accepted and unpublished. For
-   instruction-guidance work, scope a separate audit to new matched trials and
+   records candidate macOS and Windows checkout, transition and coverage
+   results. Published 0.12.0 retains conditional acceptance under the standing
+   cognitive deferral. For instruction-guidance work, scope an audit to new
+   matched trials and
    use the existing [task and locked-Python rubric](../evidence/2026-11-21-instruction-delivery-evals.md#locked-python-workflow-replay).
    The 0.11.6 replay already records the sampled drift. Only new comparative
    trials can establish whether a guidance change affects it.

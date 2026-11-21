@@ -1,7 +1,9 @@
 # Template versioning
 
-Release **0.12.0 / minor** adds the bootstrap verifier, its development extra,
-and a supported single-project adopter verification interface. The
+[Release **0.12.0 / minor**](https://github.com/tvproductions/gz-starter/releases/tag/v0.12.0)
+at immutable source `7303deff043231d8bcbb789e52efdbdde6b7e2f0` adds the bootstrap
+verifier, its development extra, and a supported single-project adopter
+verification interface. The
 [selected scope](../ROADMAP.md#selected-correction--pre-implementation-verification-november-17-2026)
 and [release evidence](evidence/2026-11-21-0.12.0-release.md) record acceptance
 and exact-source verification.
@@ -55,8 +57,8 @@ verification and remaining limits. The subsequent maintainer request **“releas
 0.11.3”** authorizes preparation, ordinary main synchronization, immutable
 annotated tag and GitHub publication after the required exact-candidate checks.
 The [release receipt](evidence/2026-11-19-0.11.3-release.md) records verified
-publication. Included release work remaining: **none**. No next implementation
-release is approved; the draft correction below remains independently gated.
+publication. Included release work remaining: **none**. The bootstrap
+correction still required design and architectural review at that checkpoint.
 
 The [bootstrap-verification correction](../ROADMAP.md#selected-correction--pre-implementation-verification-november-17-2026)
 selects **0.12.0 / minor** over **0.11.6**. It adds a
@@ -66,7 +68,8 @@ implementation are reconciled. The
 [candidate acceptance receipt](evidence/2026-11-21-0.12.0-candidate-acceptance.md)
 records conditional acceptance for exact producer and private macOS/Windows
 execution under the standing cognitive deferral.
-See the [current handoff](handoffs/2026-11-17-bootstrap-verification-handoff.md#resume-point-and-authority).
+See the [current handoff](handoffs/2026-11-18-discipline-evaluation-handoff.md#current-resume-point--november-21-2026)
+for the published release and remaining work.
 
 Release **0.11.2 / patch** over published **0.11.1** is selected for the
 maintainer-invoked post-release dependency maintenance. New same-day uv/backend
