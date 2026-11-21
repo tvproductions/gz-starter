@@ -229,11 +229,13 @@ verification development extra, automatic authored-asset transition, owned
 test discovery and shell-only macOS/Windows workflow. Preserve producer tests,
 adopter artifact validation and existing adopter behavior/coverage gates.
 
-Pending version **0.11.6 → 0.12.0 / minor** for the new command, development
+Release scope **0.11.6 → 0.12.0 / minor** for the new command, development
 dependency and adoption interface. The [release receipt](docs/evidence/2026-11-21-0.11.6-release.md)
 identifies `v0.11.6` at `6a44715f5fc40048c9767497a313a279dfc3a12a`.
-The pending version agrees in both metadata owners, the root lock,
-the CLI, packaged bundle and unreleased changelog. **0.12.0 is unpublished.**
+The version agrees in both metadata owners, the root lock, the CLI,
+packaged bundle and changelog. See the
+[0.12.0 release evidence](docs/evidence/2026-11-21-0.12.0-release.md)
+for release preparation and verification.
 
 Completed work includes consumer diagnosis, design and ADR approvals, the
 [audited implementation plan](docs/superpowers/plans/2026-11-21-bootstrap-verification.md#plan-audit),

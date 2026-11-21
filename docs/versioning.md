@@ -1,6 +1,12 @@
 # Template versioning
 
-Current published release **0.11.6 / patch** at immutable source
+Release **0.12.0 / minor** adds the bootstrap verifier, its development extra,
+and a supported single-project adopter verification interface. The
+[selected scope](../ROADMAP.md#selected-correction--pre-implementation-verification-november-17-2026)
+and [release evidence](evidence/2026-11-21-0.12.0-release.md) record acceptance
+and exact-source verification.
+
+Release **0.11.6 / patch** at immutable source
 `6a44715f5fc40048c9767497a313a279dfc3a12a` corrects the project-owned eval's
 handling of the existing locked Python requirement. The
 [bounded scope](../ROADMAP.md#selected-0116-scope--locked-python-eval-correction-november-21-2026)
@@ -53,7 +59,7 @@ publication. Included release work remaining: **none**. No next implementation
 release is approved; the draft correction below remains independently gated.
 
 The [bootstrap-verification correction](../ROADMAP.md#selected-correction--pre-implementation-verification-november-17-2026)
-selects unpublished **0.12.0 / minor** over published **0.11.6**. It adds a
+selects **0.12.0 / minor** over **0.11.6**. It adds a
 supported command, development dependency and adopter interface. The maintainer
 approved the design and separate ADR on November 21. Version mirrors and local
 implementation are reconciled. The

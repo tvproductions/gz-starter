@@ -1,5 +1,10 @@
 # GZ Starter
 
+Release **0.12.0** adds `gz-starter verify` for Python adopters. The same hook
+validates a preparatory checkout and requires real tests when authored assets
+appear. See the [adopter migration](docs/adoption-workflow.md#configure-the-adopter-verifier)
+and [release evidence](docs/evidence/2026-11-21-0.12.0-release.md).
+
 Release **0.11.6** grades locked Python use alongside task outcomes when
 replaying native instruction-delivery traces. See the
 [release receipt](docs/evidence/2026-11-21-0.11.6-release.md) for verified

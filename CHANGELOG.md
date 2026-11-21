@@ -2,11 +2,24 @@
 
 ## Unreleased
 
-The pending **0.12.0** scope is the approved bootstrap-verification correction.
-It adds the opt-in `gz-starter verify` development command, a hook that requires
-adopter tests when authored assets appear, and a shell-only CI example and
-reviewed migration. Platform acceptance is tracked in the
-[release scope](ROADMAP.md#selected-correction--pre-implementation-verification-november-17-2026).
+## 0.12.0 — November 21, 2026
+
+- Add the optional `gz-starter[verification]` development extra and
+  `gz-starter verify --project .`. A locked, preparatory checkout can pass with
+  product tests marked N/A. The same hook requires adopter-owned unittest
+  cases as soon as source, executable tooling, or test assets appear.
+- Check the adopter’s lock, hook, and supported workflow, preserve genuine
+  unittest diagnostics, and report missing or omitted test modules. Independent
+  coverage thresholds remain effective.
+- Supply a shell-only macOS and Windows workflow and a reviewed migration for
+  existing adopters. The new path supports single-project CPython 3.14. Keep
+  workspace and XPPython3 verification with their existing project commands.
+- Refresh the transitive `virtualenv` pin from 21.15.11 to 21.15.12 in the
+  standard and X-Plane reference locks.
+- Verify the installed artifact and the single manual hosted qualification on
+  macOS ARM64 and Windows x64. The jobs assert expected failure exits and
+  diagnostics within green runs. Release acceptance remains conditional under
+  the standing cognitive measurement deferral. [Release evidence](docs/evidence/2026-11-21-0.12.0-release.md)
 
 ## 0.11.6 — November 21, 2026
 
