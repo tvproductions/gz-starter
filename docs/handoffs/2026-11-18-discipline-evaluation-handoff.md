@@ -2,14 +2,43 @@
 
 ## Current resume point — November 21, 2026
 
-### Next GovZero skills for the starter
+### Resume with a fresh 0.12.0 release review
 
-At 19:19 UTC, `main` and `origin/main` were clean and aligned at
-`e1984b31205e2811bb8ef5beafb78512686dc6a5`. Both jobs passed on that
-[November 21 checkpoint](https://github.com/tvproductions/gz-starter/actions/runs/44939742062).
-The published baseline is [0.11.6](https://github.com/tvproductions/gz-starter/releases/tag/v0.11.6).
-The maintainer requested this handoff and Git sync. The selected next work
-remains [0.12.0 bootstrap verification](2026-11-17-bootstrap-verification-handoff.md#resume-point-and-authority).
+The maintainer requested this handoff and Git sync so the next session can look
+at **0.12.0** afresh. At this checkpoint, the published baseline is
+[0.11.6](https://github.com/tvproductions/gz-starter/releases/tag/v0.11.6) and the
+pending minor is **0.12.0**. The candidate has conditional acceptance under the
+existing cognitive deferral. Release review and publication are separate steps.
+
+- Start with the [selected 0.12.0 scope](../../ROADMAP.md#selected-correction--pre-implementation-verification-november-17-2026),
+  [candidate acceptance receipt](../evidence/2026-11-21-0.12.0-candidate-acceptance.md),
+  and [release procedure](../versioning.md#preparing-and-publishing-a-release).
+  Recheck the live published baseline, clean `main`, the unreleased changelog,
+  and the 0.12.0 version mirrors. Review the complete release delta against the
+  selected bootstrap verifier scope and document any new acceptance gaps.
+- The tested implementation candidate is
+  `0550d84eac172a81ea3b8395379ddaa360bd8348`.
+  Both [producer jobs](https://github.com/tvproductions/gz-starter/actions/runs/44951445071)
+  passed. Before this handoff, `main` and `origin/main` matched at
+  `da4c05cf29787276c753302fd381cdd1f7d953de` with both
+  [exact-commit jobs](https://github.com/tvproductions/gz-starter/actions/runs/44954433177)
+  green. The intervening commits changed documentation. Compare the new
+  release candidate to the tested source and rerun affected checks if inputs
+  or risk change.
+- When repeating hosted controls, use the single manual private workflow. Its
+  [receipt](../evidence/2026-11-21-0.12.0-candidate-acceptance.md#current-private-qualification-workflow)
+  records eight passing assertions on each host in run `44954273423`. Check
+  expected exit statuses and diagnostics within the job and leave the old
+  separate runs as historical evidence.
+- For release preparation, refresh the [official-source inventory and receipt](../engineering/python.md#starter-publisher-inventory-and-receipts)
+  and review the exact candidate with `gzs-quality-gate` and `gzs-intent-audit`
+  where applicable. The [November 21 inventory](../evidence/2026-11-21-0.12.0-candidate-dependencies.json)
+  at 21:15 UTC matched all eight hashed inputs at this checkpoint. This
+  handoff used uv 0.13.9 and managed CPython 3.14.10. Keep the cognitive
+  measurement **DEFERRED / UNKNOWN**, embedded XPPython3 unverified, and
+  Backplane disabled. A tag and GitHub release require publication authority.
+
+### Completed GovZero review for 0.12.0
 
 1. **Design and architecture review complete.** The maintainer approved
    [design edition 3](../superpowers/specs/2026-11-21-bootstrap-verification-design-edition-3.md)
@@ -51,13 +80,11 @@ and synthetic controls. Keep the checker out of routine CI.
 Published 0.11.6 from `6a44715f5fc40048c9767497a313a279dfc3a12a` after both
 [exact-source CI jobs](https://github.com/tvproductions/gz-starter/actions/runs/44939599865)
 passed. The release receipt records the local gates and verified tag and
-GitHub source archive. The next advised work is the read-only
+GitHub source archive. At that checkpoint the next advised work was the
 [bootstrap design review](2026-11-17-bootstrap-verification-handoff.md#resume-point-and-authority).
-Review the automatic transition from pre-runtime checks to mandatory real
-tests and the Windows and macOS evidence. Stop before dependent
-implementation until the design and ADR-0003 edition 1 are separately
-approved. A matched instruction experiment remains open for measuring whether
-guidance changes reduce locked-Python drift.
+The approvals, implementation and hosted qualification are recorded above.
+A matched instruction experiment remains open for measuring whether guidance
+changes reduce locked-Python drift.
 
 ### Earlier November 21 maintenance checkpoint
 
