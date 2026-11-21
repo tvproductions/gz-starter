@@ -118,6 +118,13 @@ and recovery. Justify expensive tests by the risk cheaper evidence misses.
 Consolidate/remove tests only with evidence that their useful oracle survives;
 a broad test-quality audit is separate work, not a prelude to every edit.
 
+Run hosted negative controls inside a qualification job that captures and
+asserts the exact subprocess exit and intended diagnostic. A job passes when
+all outcomes match their expectations and fails for a mismatch or execution
+problem. Keep the real adopter verifier and routine hooks unchanged. Use one
+manual fixture qualification workflow for this matrix. Preserve historical CI
+results and keep deliberate failure states out of independent workflow runs.
+
 Run the full gate once for a coherent integration candidate. When commit hooks
 provide that gate, use them as the final run rather than first repeating it by
 hand. Earlier results may support unchanged areas when their inputs and scope

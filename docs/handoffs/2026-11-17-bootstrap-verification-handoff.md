@@ -37,8 +37,10 @@ The maintainer then approved the
 All four tasks are complete for tested candidate
 `0550d84eac172a81ea3b8395379ddaa360bd8348`. The
 [acceptance receipt](../evidence/2026-11-21-0.12.0-candidate-acceptance.md)
-records Git synchronization, the exact producer CI and all 18 private macOS
-and Windows adopter jobs. Release acceptance is conditional under the existing
+records Git synchronization, the exact producer CI and the current private
+macOS and Windows adopter qualification. A single manual workflow now asserts
+the expected negative outcomes within green jobs. The older separate workflow
+results remain historical. Release acceptance is conditional under the existing
 cognitive deferral. Publication requires separate authorization.
 
 The maintainer authorized main synchronization and private fixture execution.
