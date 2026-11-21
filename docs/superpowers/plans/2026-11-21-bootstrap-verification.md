@@ -200,25 +200,25 @@ verifier. Use the roadmap and handoff for ongoing results.
 
 ## Task 4 — Run the actual macOS and Windows acceptance
 
-Local macOS installed-wheel behavior is recorded in the
-[handoff](../../handoffs/2026-11-17-bootstrap-verification-handoff.md#installed-verifier-intent-audit).
-The hosted run and Windows evidence remain open for an accessible exact
-candidate SHA and authorized private adopter fixture.
+Local installed replay and actual private hosted macOS and Windows runs are
+recorded in the
+[candidate acceptance receipt](../../evidence/2026-11-21-0.12.0-candidate-acceptance.md).
+The candidate remains unpublished.
 
-- [ ] Bind the invented qualification adopter to the candidate's full Git SHA
+- [x] Bind the invented qualification adopter to the candidate's full Git SHA
   and record its dev lock and installed version. Use an authorized private
   fixture repository for credentialed CI evidence. Capture GitHub run links
   with `gh run view`/`gh run watch`; identify actual runner OS and architecture,
   expected and checked-out event SHAs, and uv/Python versions. A missing event
   SHA must exit before any gate runs. Keep credentials out of evidence.
-- [ ] On macOS ARM64 use `bash`; on Windows x64 use `pwsh`. On each run the
+- [x] On macOS ARM64 use `bash`; on Windows x64 use `pwsh`. On each run the
   approved workflow steps, `uv sync --locked`, the direct `uv run --locked
   gz-starter verify --project .`, and `uv run --locked pre-commit run
   --all-files`. Exercise the unchanged hook across valid bootstrap, first
   source with missing tests, a reached failure and a reached passing owning
   case. Run the omitted-module, skips-only, and pre-existing coverage-failure
   controls on both platforms. Assert real exit states and diagnostics.
-- [ ] Record exact candidate test results and all pending evidence in the
+- [x] Record exact candidate test results and all pending evidence in the
   bootstrap handoff and release scope. Keep unavailable runner/credential or
   candidate-source results UNKNOWN. Before a release decision, verify exact
   candidate freshness, installed evidence and affected consumer gates. Obtain

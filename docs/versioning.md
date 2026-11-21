@@ -56,8 +56,10 @@ The [bootstrap-verification correction](../ROADMAP.md#selected-correction--pre-i
 selects unpublished **0.12.0 / minor** over published **0.11.6**. It adds a
 supported command, development dependency and adopter interface. The maintainer
 approved the design and separate ADR on November 21. Version mirrors and local
-implementation are reconciled. The installed macOS fixture supplies local
-evidence; actual Windows operation and private hosted acceptance remain pending.
+implementation are reconciled. The
+[candidate acceptance receipt](evidence/2026-11-21-0.12.0-candidate-acceptance.md)
+records conditional acceptance for exact producer and private macOS/Windows
+execution under the standing cognitive deferral.
 See the [current handoff](handoffs/2026-11-17-bootstrap-verification-handoff.md#resume-point-and-authority).
 
 Release **0.11.2 / patch** over published **0.11.1** is selected for the

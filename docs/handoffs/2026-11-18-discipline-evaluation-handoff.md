@@ -14,14 +14,14 @@ remains [0.12.0 bootstrap verification](2026-11-17-bootstrap-verification-handof
 1. **Design and architecture review complete.** The maintainer approved
    [design edition 3](../superpowers/specs/2026-11-21-bootstrap-verification-design-edition-3.md)
    and separately approved [ADR-0003 edition 1](../decisions/ADR-0003-001-own-bootstrap-verification-in-the-starter.md#approval-evidence).
-2. **Plan audit and local implementation complete.** `$gz-skills:gzs-plan-audit` traced the
+2. **Plan audit and implementation complete.** `$gz-skills:gzs-plan-audit` traced the
    [implementation plan](../superpowers/plans/2026-11-21-bootstrap-verification.md#plan-audit)
    to the selected correction. `$gz-skills:gzs-cross-platform-python` was applied
-   to subprocess, path and exit-status behavior. Hosted qualification remains open.
-3. **Continue `$gz-skills:gzs-intent-audit` at the hosted adopter seam.**
-   The [local installed audit](2026-11-17-bootstrap-verification-handoff.md#installed-verifier-intent-audit)
-   proved the first-source transition on macOS. Collect actual Windows and
-   private hosted evidence for the exact candidate. For
+   to subprocess, path and exit-status behavior.
+3. **Hosted adopter intent audit complete.** The
+   [acceptance receipt](../evidence/2026-11-21-0.12.0-candidate-acceptance.md)
+   records exact-candidate macOS and Windows checkout, transition and coverage
+   results. Pending 0.12.0 is conditionally accepted and unpublished. For
    instruction-guidance work, scope a separate audit to new matched trials and
    use the existing [task and locked-Python rubric](../evidence/2026-11-21-instruction-delivery-evals.md#locked-python-workflow-replay).
    The 0.11.6 replay already records the sampled drift. Only new comparative

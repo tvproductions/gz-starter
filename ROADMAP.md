@@ -238,8 +238,10 @@ the CLI, packaged bundle and unreleased changelog. **0.12.0 is unpublished.**
 Completed work includes consumer diagnosis, design and ADR approvals, the
 [audited implementation plan](docs/superpowers/plans/2026-11-21-bootstrap-verification.md#plan-audit),
 local verifier and migration implementation, and installed macOS controls.
-Remaining acceptance requires actual Windows execution and private hosted
-checkout and workflow evidence on both platforms for the exact candidate. Compatibility
+Exact-candidate producer CI and the private macOS and Windows workflow passed
+their acceptance cases, including the required negative controls. See the
+[candidate acceptance receipt](docs/evidence/2026-11-21-0.12.0-candidate-acceptance.md).
+Conditional acceptance retains the standing cognitive deferral. Compatibility
 scope is single-project CPython 3.14 development tooling; keep workspace and
 embedded checks with their existing owners. Preserve the cognitive and native
 limits. Adopter runtime work, native activation and unrelated backlog remain

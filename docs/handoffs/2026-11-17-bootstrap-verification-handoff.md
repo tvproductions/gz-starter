@@ -34,11 +34,12 @@ identifies the reviewed content and exact reply. The unpublished target is
 **0.12.0** over the [0.11.6 published baseline](../evidence/2026-11-21-0.11.6-release.md).
 The maintainer then approved the
 [implementation plan](../superpowers/plans/2026-11-21-bootstrap-verification.md).
-Tasks 1–3 are implemented in the local candidate. Continue Task 4 with an
-authorized private adopter fixture and a reachable exact candidate SHA. Run
-the bundled workflow on macOS ARM64 and Windows x64, including the real test
-transition and coverage controls. Observe hosted checkouts for the exact event
-SHA. Git synchronization and publication are separate actions.
+All four tasks are complete for tested candidate
+`0550d84eac172a81ea3b8395379ddaa360bd8348`. The
+[acceptance receipt](../evidence/2026-11-21-0.12.0-candidate-acceptance.md)
+records Git synchronization, the exact producer CI and all 18 private macOS
+and Windows adopter jobs. Release acceptance is conditional under the existing
+cognitive deferral. Publication requires separate authorization.
 
 The maintainer authorized main synchronization and private fixture execution.
 The [0.12.0 candidate inventory](../evidence/2026-11-21-0.12.0-candidate-dependencies.json)
@@ -48,8 +49,8 @@ lock exports checked 75 packages each with zero advisories or skips.
 
 The first hosted producer run identified a clean-cache fixture setup failure.
 The affected fixtures resolve pinned development tools when generating their
-own locks; all execution after that setup remains locked. Rerun the producer
-and both adopter platforms on the follow-up SHA before accepting the candidate.
+own locks; all execution after that setup remains locked. The producer and
+both adopter platforms repeated their checks on the follow-up SHA.
 
 ### Installed verifier intent audit
 
@@ -64,7 +65,7 @@ to replay. The local host is macOS ARM64 with uv 0.13.9 and CPython 3.14.10.
 | Bootstrap and automatic transition, lines 28–46 and 104–132 | Base wheel reports that verify requires the extra. The extra passes real preparatory artifacts and marks tests N/A. The same hook rejects first source without tests, fails a reached assertion and passes an adopter-owned suite. |
 | Discovery and coverage, lines 338–374 | The installed hook rejects an omitted nested test and skips-only outcome. An adopter coverage report below its 100% threshold still exits `2`. The public suite also covers stale bytecode and replaced test cases. |
 | Configure preservation, lines 376–404 | Installed preview/apply/repeat preserve existing hook, workflow, metadata, lock, handoff and provenance. |
-| Hosted platform qualification, lines 430–454 | UNKNOWN for the exact candidate on Windows and on private hosted macOS/Windows. The local installed replay supplies macOS behavior evidence. |
+| Hosted platform qualification, lines 430–454 | The later private macOS and Windows runs are recorded in the candidate receipt above. This replay supplies local macOS behavior evidence. |
 
 The full starter four-hook gate, catalog validation, resource parity, isolated
 install and scoped Ruff C901/Lizard checks passed. Lizard's ceiling remains 20.
