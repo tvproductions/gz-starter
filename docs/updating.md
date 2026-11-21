@@ -93,6 +93,12 @@ The skill is a compact entry to this method, not a resolver, automatic file
 merger or conformance engine. Use the installed upstream maintenance skill when
 available; its absence does not prevent following the published runbook directly.
 
+If the reviewed release delivers `gz-starter verify`, follow the
+[existing-adopter migration](adoption-workflow.md#migrate-existing-adopters-from-090-or-later).
+Review the hook, CI, independent verifier pin, lock and stale project instructions
+together. Keep the original coverage and runtime-design obligations and record
+the exact adopter result separately from the producer or native discovery result.
+
 ## New adopters and bootstrap for older adopters
 
 Version 0.6's configure preview includes

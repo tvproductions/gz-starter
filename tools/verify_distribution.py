@@ -10,9 +10,11 @@ import tarfile
 import tempfile
 import tomllib
 import zipfile
+from email.parser import BytesParser
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+WORKFLOW = "skills_first_starter/resources/templates/verification/verify-python.yml"
 
 
 def run(
@@ -35,6 +37,9 @@ def verify_archives(wheel: Path, sdist: Path) -> None:
     """Allow only the owned update skill and verify every packaged resource."""
     with zipfile.ZipFile(wheel) as archive:
         names = archive.namelist()
+        if WORKFLOW not in names:
+            raise ValueError("Wheel is missing the supported adopter workflow")
+        verify_extra_metadata(archive)
         skill = "templates/skills/update-gz-template/SKILL.md"
         allowed = f"skills_first_starter/resources/{skill}"
         if {name for name in names if name.endswith("/SKILL.md")} != {allowed}:
@@ -79,6 +84,18 @@ def verify_archives(wheel: Path, sdist: Path) -> None:
                 raise ValueError(f"Source distribution is missing baseline input: {relative}")
         if any("/.venv/" in name for name in names):
             raise ValueError("Source distribution contains a development environment")
+
+
+def verify_extra_metadata(archive: zipfile.ZipFile) -> None:
+    """Assert verification dependencies are selected through the extra only."""
+    entry = next(name for name in archive.namelist() if name.endswith(".dist-info/METADATA"))
+    metadata = BytesParser().parsebytes(archive.read(entry))
+    dependencies = metadata.get_all("Requires-Dist", [])
+    if metadata.get_all("Provides-Extra", []) != ["verification"] or len(dependencies) != 1:
+        raise ValueError("Wheel has the wrong dependency/extra boundary")
+    requirement, _, marker = dependencies[0].lower().replace("'", '"').partition(";")
+    if requirement.strip() != "pyyaml==6.0.4" or marker.strip() != 'extra == "verification"':
+        raise ValueError("Wheel does not declare the exact optional YAML parser")
 
 
 def verify_native_hosts(command: Path, directory: Path) -> None:
@@ -329,6 +346,189 @@ def verify_fixture(sdist: Path) -> None:
             raise ValueError("Installed reference leaked an injected credential")
 
 
+def write_verification_fixture(project: Path, wheel: Path) -> dict[Path, bytes]:
+    """Seed an invented existing adopter using the actual packaged workflow."""
+    project.mkdir()
+    sources = {
+        "README.md": "# Sample totals\n\n[Handoff](docs/handoff.md).\n",
+        "docs/handoff.md": "# Handoff\n\nRuntime design awaits project approval.\n",
+        ".gitignore": ".venv/\n__pycache__/\n",
+        ".python-version": (ROOT / ".python-version").read_text(encoding="utf-8"),
+        "pyproject.toml": (
+            '[project]\nname = "sample-totals"\nversion = "0.1.0"\nreadme = "README.md"\n'
+            'requires-python = ">=3.14,<3.15"\n\n'
+            '[tool.uv]\npackage = false\nrequired-version = ">=0.13.5"\n'
+            'python-preference = "only-managed"\n\n'
+            '[tool.gz-starter.verify]\ntop_level = "."\n'
+        ),
+        ".pre-commit-config.yaml": (
+            "repos:\n  - repo: local\n    hooks:\n"
+            "      - id: unittest\n        name: unittest and bootstrap verification\n"
+            "        entry: uv run --locked gz-starter verify --project .\n"
+            "        language: system\n        pass_filenames: false\n"
+            "        always_run: true\n        stages: [pre-commit]\n"
+        ),
+    }
+    with zipfile.ZipFile(wheel) as archive:
+        sources[".github/workflows/verify-python.yml"] = archive.read(WORKFLOW).decode("utf-8")
+    paths = {}
+    for name, content in sources.items():
+        path = project / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8", newline="\n")
+        paths[path] = path.read_bytes()
+    return paths
+
+
+def assert_verification_fault(
+    project: Path, command: tuple[str, ...], expected: str, env: dict[str, str]
+) -> None:
+    """Require a nonzero result that reached the intended verification fault."""
+    result = subprocess.run(
+        command,
+        cwd=project,
+        env=env,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    output = result.stdout + result.stderr
+    if result.returncode != 1 or expected not in output or "bootstrap PASS" in output:
+        raise ValueError(
+            f"Expected verification failure {expected!r}, got {result.returncode}: {output}"
+        )
+
+
+def verify_installed_verification(wheel: Path, base_command: Path, directory: Path) -> None:
+    """Exercise base and extra installs through the adopter command and hook."""
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if key not in {"PYTHONPATH", "PYTHONHOME", "UV_PROJECT_ENVIRONMENT", "VIRTUAL_ENV", "SKIP"}
+        and not key.startswith("GIT_")
+    }
+    project = directory / "verification-adopter"
+    preserved = write_verification_fixture(project, wheel)
+    assert_verification_fault(
+        project,
+        (str(base_command), "verify", "--project", "."),
+        "install gz-starter[verification]",
+        env,
+    )
+    run(
+        "uv",
+        "add",
+        "--offline",
+        "--dev",
+        f"gz-starter[verification] @ {wheel.as_uri()}",
+        "pre-commit==4.7.0",
+        "coverage==7.17.4",
+        cwd=project,
+        env=env,
+    )
+    for name in ("pyproject.toml", "uv.lock"):
+        path = project / name
+        preserved[path] = path.read_bytes()
+    prefix = ("uv", "run", "--locked")
+    configure = (*prefix, "gz-starter", "configure", "--project", ".", "--starter-ref", "a" * 40)
+    run(*configure, cwd=project, env=env)
+    if any(path.read_bytes() != expected for path, expected in preserved.items()):
+        raise ValueError("Installed preview changed adopter files")
+    run(*configure, "--apply", cwd=project, env=env)
+    provenance = project / ".skills-first/bundle.lock.json"
+    preserved[provenance] = provenance.read_bytes()
+    repeated = run(*configure, "--apply", cwd=project, env=env)
+    if json.loads(repeated.stdout)["writes"]:
+        raise ValueError("Installed adoption failed the existing-adopter no-op check")
+    if any(path.read_bytes() != expected for path, expected in preserved.items()):
+        raise ValueError("Installed configure changed existing adopter files or provenance")
+    run("git", "init", cwd=project, env=env)
+    run("git", "add", ".", cwd=project, env=env)
+    run("uv", "sync", "--locked", cwd=project, env=env)
+    verify_installed_hook(project, env)
+    if any(path.read_bytes() != expected for path, expected in preserved.items()):
+        raise ValueError("Installed verification changed existing adopter files")
+
+
+def verify_installed_hook(project: Path, env: dict[str, str]) -> None:
+    """Exercise the unchanged adopter hook and preserve an existing coverage failure."""
+    prefix = ("uv", "run", "--locked")
+    check = (*prefix, "gz-starter", "verify", "--project", ".")
+    gate = (*prefix, "pre-commit", "run", "--all-files")
+    bootstrap = run(*check, cwd=project, env=env)
+    if "not applicable: pre-implementation" not in bootstrap.stdout:
+        raise ValueError("Installed verifier did not report the real bootstrap status")
+    run(*gate, cwd=project, env=env)
+    (project / "totals.py").write_text(
+        "def combine(a, b):\n    if a > 0:\n        return a + b\n    return b\n",
+        encoding="utf-8",
+    )
+    assert_verification_fault(project, gate, "missing unittest start directory", env)
+    tests = project / "tests"
+    tests.mkdir()
+    (tests / "__init__.py").touch()
+    test = tests / "test_totals.py"
+    template = (
+        "import unittest\nfrom totals import combine\n"
+        "class TotalsTests(unittest.TestCase):\n"
+        "    def test_combines_values(self):\n"
+        "        self.assertEqual(combine(2, 3), {expected}, 'reached installed test')\n"
+    )
+    test.write_text(template.format(expected=6), encoding="utf-8")
+    assert_verification_fault(project, gate, "reached installed test", env)
+    test.write_text(template.format(expected=5), encoding="utf-8")
+    if "behavior PASS" not in run(*check, cwd=project, env=env).stdout:
+        raise ValueError("Installed verifier did not confirm adopter-owned behavior")
+    run(*gate, cwd=project, env=env)
+    hidden = tests / "unimportable"
+    hidden.mkdir()
+    missed = hidden / "test_missed.py"
+    missed.write_text(template.format(expected=6), encoding="utf-8")
+    assert_verification_fault(project, gate, "test_missed.py", env)
+    missed.unlink()
+    hidden.rmdir()
+    skipped = template.format(expected=5).replace(
+        "    def test_combines_values",
+        "    @unittest.skip('fixture skip')\n    def test_combines_values",
+    )
+    test.write_text(skipped, encoding="utf-8")
+    assert_verification_fault(project, gate, "no successful adopter test", env)
+    test.write_text(template.format(expected=5), encoding="utf-8")
+    run(*gate, cwd=project, env=env)
+    assert_existing_coverage_failure(project, env)
+
+
+def assert_existing_coverage_failure(project: Path, env: dict[str, str]) -> None:
+    prefix = ("uv", "run", "--locked", "coverage")
+    run(
+        *prefix,
+        "run",
+        "--source=totals",
+        "--branch",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-t",
+        ".",
+        cwd=project,
+        env=env,
+    )
+    report = subprocess.run(
+        [*prefix, "report", "--fail-under=100"],
+        cwd=project,
+        env=env,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if report.returncode != 2 or "Coverage failure" not in report.stdout:
+        raise ValueError("Installed adopter coverage gate lost its failing outcome")
+
+
 def main() -> None:
     """Inspect archives and exercise the installed helper outside the checkout."""
     metadata = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
@@ -400,6 +600,7 @@ def main() -> None:
         )
         if refused.returncode != 2:
             raise ValueError("Installed helper inferred provenance outside a starter checkout")
+        verify_installed_verification(wheel, command, directory)
     print("Wheel resources, sdist contents and isolated installed CLI checks passed.")
 
 

@@ -53,15 +53,12 @@ publication. Included release work remaining: **none**. No next implementation
 release is approved; the draft correction below remains independently gated.
 
 The [bootstrap-verification correction](../ROADMAP.md#selected-correction--pre-implementation-verification-november-17-2026)
-is in design review. Its proposed supported command/dependency/adoption interface
-would select **0.12.0 / minor** after design approval. The maintainer separately
-requested publication of the completed maintenance as **0.11.2**; the proposed
-minor follows the pending maintenance patch; development metadata is **0.11.5**.
-Reconcile the minor's mirrors only after its design approval.
-No correction implementation, approved
-architecture, completed minor-version reconciliation or release acceptance is
-claimed. The [current handoff](handoffs/2026-11-17-bootstrap-verification-handoff.md)
-distinguishes review direction from required complete-design/ADR approvals.
+selects unpublished **0.12.0 / minor** over published **0.11.6**. It adds a
+supported command, development dependency and adopter interface. The maintainer
+approved the design and separate ADR on November 21. Version mirrors and local
+implementation are reconciled. The installed macOS fixture supplies local
+evidence; actual Windows operation and private hosted acceptance remain pending.
+See the [current handoff](handoffs/2026-11-17-bootstrap-verification-handoff.md#resume-point-and-authority).
 
 Release **0.11.2 / patch** over published **0.11.1** is selected for the
 maintainer-invoked post-release dependency maintenance. New same-day uv/backend

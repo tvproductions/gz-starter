@@ -2,18 +2,18 @@
 id: ADR-0003
 title: Own bootstrap verification in the starter's installed development tooling
 revision: 1
-state: Draft
-decision_date: null
+state: Current
+decision_date: 2026-11-21
 revision_date: 2026-11-17
-approved_by: null
-approved_revision: null
-approval_ref: null
+approved_by: "project maintainer in this conversation"
+approved_revision: 1
+approval_ref: "#approval-evidence"
 ---
 
 # ADR-0003 — Bootstrap verification ownership and distribution
 
-Status: **DRAFT, unapproved**. This is an agent proposal. No implementation or
-architecture approval is inferred from the maintainer's defect-correction request.
+**Current edition 1. Explicit architectural approval recorded November 21, 2026.**
+The exact reviewed proposal and the maintainer's approval are preserved below.
 
 ## Context and scope
 
@@ -92,13 +92,35 @@ macOS and Windows without Node; configuration alone is not platform proof.
 ## Approval and edition history
 
 Edition 1, November 17, 2026: initial proposal, prepared by the agent in response
-to the maintainer's bounded defect request. Human approval is **not obtained**.
-Preserve exact reviewed content and the actual separate architectural approval
-before marking Current or implementing this proposed distribution/interface.
+to the maintainer's bounded defect request. Approval fields were open at that
+checkpoint.
 
 Review direction, November 17: the maintainer endorsed the installed-development
 approach and emphasized accounting for the starter's own testing. Design edition
-2 makes producer and adopter obligations explicit. This narrows the proposal;
-it is not separate approval of identified ADR-0003 edition 1. State and approval
-fields remain unchanged; sync/handoff authorization supplies no architectural
-approval.
+2 makes producer and adopter obligations explicit. The ADR remained open at
+that checkpoint.
+
+## Approval evidence
+
+Source is the project maintainer conversation on November 21, 2026. The
+agent's prompt identified two approvals in separate items and asked for
+approval of bootstrap verifier design edition 3 and, separately, ADR-0003
+edition 1. The maintainer replied verbatim:
+
+> approve both
+
+This is an agent transcription. The conversation has no durable review URL.
+The explicit reply approves both identified editions. The
+[reviewed ADR proposal](approvals/ADR-0003-001-reviewed.txt) has SHA-256
+`b859b87b0a3d5e50bc3919d6a86b12a323894825f9ee7c9f05d56333734e7c69`.
+The [reviewed design edition 3](../superpowers/specs/2026-11-21-bootstrap-verification-design-edition-3.md)
+has SHA-256 `7f0d36db98488dd7d999080d150c094f8de16a4f8c9c3eb6b0128bd68b8c6c07`.
+Its draft wording is preserved in the exact reviewed file. The hashes identify
+the text; the maintainer's reply records approval.
+
+## Administrative capture
+
+On November 21 the working ADR moved to Current, its approval fields were
+filled, and this evidence was added. Edition 1 retains its reviewed choice,
+scope and constraints. The reviewed proposal remains available independently
+of these administrative edits.

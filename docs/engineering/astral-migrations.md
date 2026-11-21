@@ -47,6 +47,11 @@ same locked project commands; installation into Git is a separate observed step.
 
 ### common/.pre-commit-config.yaml
 
+These worked implementation trees already have product tests. For a single
+project adopting before implementation, use the
+[supported adopter verifier](../adoption-workflow.md#configure-the-adopter-verifier)
+in its unittest category. Keep the workspace's own discovery below.
+
 ```yaml
 repos:
   - repo: local

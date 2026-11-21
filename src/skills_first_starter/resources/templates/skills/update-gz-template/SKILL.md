@@ -102,6 +102,10 @@ shortcut is supplied.
 Reconcile the instructions fragment, project policy references, starter
 version/full SHA and managed host tables together. Preserve application
 dependencies/settings, public behavior, explicit lane and local guidance.
+If the reviewed release supplies `gz-starter verify`, use its existing-adopter
+migration in `docs/adoption-workflow.md#configure-the-adopter-verifier` to
+review the separate tool pin, lock, hook, CI and stale requirements together.
+Preserve coverage and runtime-design approval, then run the adopter's own gate.
 Do not overwrite existing AGENTS with a generated example or hand-edit uv.lock.
 Leave native caches to their manager; a template change does not automatically
 authorize plugin activation. Backplane remains subject to its readiness rule.

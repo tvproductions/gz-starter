@@ -114,6 +114,11 @@ does not rewrite these files or resolve Python packages. Review baseline
 freshness at adoption; changing a shared baseline does not migrate existing
 adopters automatically.
 
+For the bootstrap-to-implementation hook, follow the
+[adopter verifier procedure](adoption-workflow.md#configure-the-adopter-verifier)
+and its reviewed existing-adopter migration. Record the verification tool's
+locked source independently of template provenance and native plugin state.
+
 ## Repository-owned installation and brownfield repair
 
 Agents MUST use repository-owned settings for all three hosts. Existing global

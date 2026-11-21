@@ -140,7 +140,9 @@ and `docs/engineering/naming-and-layout.md`. Record informed departures once,
 preserving mandatory requirements and approved ADRs.
 
 Keep routine hooks limited to locked Ruff check/format, ty and unittest through
-pre-commit. Never use pytest. Run applicable deeper analyses, including C901,
+pre-commit. Use `docs/engineering/verification-policy.md#bootstrap-and-implementation-verification-for-adopters`
+for the fixed adopter hook and automatic first-source transition. Keep existing
+coverage and workspace or embedded-host gates. Never use pytest. Run applicable deeper analyses, including C901,
 at adoption, release acceptance and on demand outside routine hooks/CI. Follow
 `docs/engineering/python.md#adoptionrelease-analysis-and-on-demand-hygiene` for
 the adopter minimum and `docs/engineering/python.md#adopter-class-cohesion-requirement`

@@ -669,9 +669,20 @@ def main(argv: list[str] | None = None) -> int:
     status_parser.add_argument("--project", type=Path, required=True)
     backport_parser = sub.add_parser("backport", help="read-only preferred-structure assessment")
     backport_parser.add_argument("--project", type=Path, required=True)
+    verify_parser = sub.add_parser("verify", help="check adopter artifacts and run required tests")
+    verify_parser.add_argument("--project", type=Path, required=True)
     sub.add_parser("validate", help="validate the three bundle pins and both native catalogs")
     sub.add_parser("version", help="show this checkout's template version; not a release receipt")
     args = parser.parse_args(argv)
+    if args.command == "verify":
+        try:
+            from skills_first_starter.verification import verify_project
+        except ModuleNotFoundError as error:
+            if error.name != "yaml":
+                raise
+            print("verification blocked: install gz-starter[verification]", file=sys.stderr)
+            return 1
+        return verify_project(args.project)
     try:
         if args.command == "run-opencode":
             root = _adoption_root(args.project)

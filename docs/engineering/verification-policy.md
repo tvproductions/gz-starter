@@ -43,6 +43,66 @@ boundary and its consequences; retain stronger evidence where the owning workflo
 requires it. Preserve separate approval for actual new architectural choices;
 routine details within approved decisions do not need another ADR.
 
+## Bootstrap and implementation verification for adopters
+
+For an ordinary single-project CPython 3.14 adopter, use the installed
+`gz-starter verify` command through the existing unittest hook category. The
+[bootstrap adoption procedure](../adoption-workflow.md#configure-the-adopter-verifier)
+owns the immutable development pin and migration. Keep the separate Ruff
+check/format and ty hooks. In `.pre-commit-config.yaml`, use this local hook:
+
+```yaml
+- repo: local
+  hooks:
+    - id: unittest
+      name: unittest and bootstrap verification
+      entry: uv run --locked gz-starter verify --project .
+      language: system
+      pass_filenames: false
+      always_run: true
+      stages: [pre-commit]
+```
+
+Run `uv run --locked gz-starter verify --project .` to inspect the direct
+result and `uv run --locked pre-commit run --all-files` to exercise the gate.
+Exit `0` establishes either verified bootstrap artifacts with product tests
+explicitly N/A or a required suite with at least one successful adopter test.
+Exit `1` reports invalid artifacts, unsupported inputs or a failed required
+suite. Exit `2` identifies invalid CLI arguments. Review the printed trigger
+paths, discovery omissions and original unittest diagnostics.
+
+A docs/config-only checkout must still have valid metadata, an exact Python
+pin, an up-to-date lock, centralized tool settings and an eligible unittest hook. Any authored source,
+executable tooling or test asset makes the adopter suite applicable. This
+includes ignored and untracked files. Keep the hook unchanged across the
+transition. Review assertions for relevance and preserve coverage commands,
+source scope, thresholds and cadence. Source- and test-bearing links, unknown
+reparse points and ambiguous or unreadable inputs block verification.
+
+Use `[tool.gz-starter.verify]` in the root pyproject for an existing valid
+unittest layout. Defaults are `start = "tests"`, `pattern = "test*.py"` and
+unittest's implicit top level. `top_level = "."` selects a project root when
+the test directory is an importable package. Keep paths inside the checkout.
+Discovered local test modules must account for the inventoried candidates.
+A package `load_tests` aggregator may return cases from its own inventoried
+children. Check owning gates before migrating a more dynamic layout.
+
+For hosted CI, use the [shell-only adopter workflow](../../src/skills_first_starter/resources/templates/verification/verify-python.yml)
+at `.github/workflows/verify-python.yml`. Match the selected Python pin and
+review the uv version and platform archive digests. It authenticates before
+the fetch and checks the exact event commit on macOS and Windows. It runs the
+direct verifier and the full pre-commit gate. The direct call checks hook
+eligibility independently because pre-commit can exit successfully when a
+hook is absent or disabled. Preserve additional existing checks in CI and
+observe the required jobs for the actual event SHA. CI is optional during
+local bootstrap. An actual workflow run supplies the hosted result.
+
+Keep workspace test/coverage aggregation and the XPPython3 reference or host
+checks with their original owners. The starter itself always runs its existing
+producer suite and installed-distribution checks. A producer pass qualifies the
+tool. Each adopter still verifies its exact checkout and separately records
+adoption, native readiness and product acceptance.
+
 ## Control test cost and repetition
 
 Before adding a test, name the plausible defect and observable consequence it
@@ -90,7 +150,7 @@ environment state requires it, then run the four-hook, catalog and
 installed-artifact gates from the repository root:
 
 ```bash
-uv sync --locked --all-groups
+uv sync --locked --all-groups --extra verification
 uv run --locked pre-commit run --all-files
 uv run --locked gz-starter validate
 uv build --no-sources

@@ -546,8 +546,13 @@ wheels = [
 
 [[package]]
 name = "gz-starter"
-version = "0.11.6"
+version = "0.12.0"
 source = { editable = "." }
+
+[package.optional-dependencies]
+verification = [
+    { name = "pyyaml" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -571,6 +576,8 @@ hygiene = [
 ]
 
 [package.metadata]
+requires-dist = [{ name = "pyyaml", marker = "extra == 'verification'", specifier = "==6.0.4" }]
+provides-extras = ["verification"]
 
 [package.metadata.requires-dev]
 dev = [

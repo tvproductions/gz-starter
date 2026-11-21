@@ -26,6 +26,60 @@ the final exact-commit CI verifies the complete committed candidate.
 
 ## Resume point and authority
 
+**November 21 local implementation checkpoint.** The maintainer explicitly approved
+[design edition 3](../superpowers/specs/2026-11-21-bootstrap-verification-design-edition-3.md)
+and separately approved ADR-0003 edition 1. The
+[approval record](../decisions/ADR-0003-001-own-bootstrap-verification-in-the-starter.md#approval-evidence)
+identifies the reviewed content and exact reply. The unpublished target is
+**0.12.0** over the [0.11.6 published baseline](../evidence/2026-11-21-0.11.6-release.md).
+The maintainer then approved the
+[implementation plan](../superpowers/plans/2026-11-21-bootstrap-verification.md).
+Tasks 1–3 are implemented in the local candidate. Continue Task 4 with an
+authorized private adopter fixture and a reachable exact candidate SHA. Run
+the bundled workflow on macOS ARM64 and Windows x64, including the real test
+transition and coverage controls. Observe hosted checkouts for the exact event
+SHA. Git synchronization and publication are separate actions.
+
+The maintainer authorized main synchronization and private fixture execution.
+The [0.12.0 candidate inventory](../evidence/2026-11-21-0.12.0-candidate-dependencies.json)
+records November 21 official results at the candidate's hashed tooling inputs.
+All 76 PyPI selections match current stable releases. Audits of both hashed
+lock exports checked 75 packages each with zero advisories or skips.
+
+### Installed verifier intent audit
+
+The audit sampled the high-risk path where a correct bootstrap can drift to a
+false pass after a source edit. The installed fixture uses the built wheel, a
+dev lock, actual pre-commit, and the same hook bytes across the transition.
+Use `uv build --no-sources` and `uv run --locked python tools/verify_distribution.py`
+to replay. The local host is macOS ARM64 with uv 0.13.9 and CPython 3.14.10.
+
+| Claim from approved design edition 3 | Observed local result |
+| --- | --- |
+| Bootstrap and automatic transition, lines 28–46 and 104–132 | Base wheel reports that verify requires the extra. The extra passes real preparatory artifacts and marks tests N/A. The same hook rejects first source without tests, fails a reached assertion and passes an adopter-owned suite. |
+| Discovery and coverage, lines 338–374 | The installed hook rejects an omitted nested test and skips-only outcome. An adopter coverage report below its 100% threshold still exits `2`. The public suite also covers stale bytecode and replaced test cases. |
+| Configure preservation, lines 376–404 | Installed preview/apply/repeat preserve existing hook, workflow, metadata, lock, handoff and provenance. |
+| Hosted platform qualification, lines 430–454 | UNKNOWN for the exact candidate on Windows and on private hosted macOS/Windows. The local installed replay supplies macOS behavior evidence. |
+
+The full starter four-hook gate, catalog validation, resource parity, isolated
+install and scoped Ruff C901/Lizard checks passed. Lizard's ceiling remains 20.
+The cognitive measurement stays **DEFERRED / UNKNOWN**. The additional
+unscoped Ruff-format invocation includes a pre-existing Markdown code example
+flag in the unchanged November 16 application foundations plan. The required
+Python formatter hook and explicit source/test/tool formatting passed.
+
+The edition 3 builder review identified three changes now in the draft. Run
+the verifier directly in CI so it can catch a missing or disabled hook. Pin
+pre-release qualification fixtures to the exact unpublished candidate SHA.
+Account for package `load_tests` aggregators and every inventoried child test
+module. On local macOS ARM64, the draft checkout commands obtained and verified
+the public starter commit `259920a` and rejected an unavailable SHA with no
+fallback. The draft uv archive digest, extraction, managed Python selection,
+and locked sync passed. The Windows archive digest and `uv.exe` layout also
+matched. Private hosted checkout and Windows execution still need evidence.
+
+### Historical November 18 resume point
+
 **November 18 release update:** after completed dependency maintenance, the
 maintainer requested “publish 0.11.2”. See the
 [release receipt](../evidence/2026-11-18-0.11.2-release.md) for exact source,

@@ -1,12 +1,15 @@
 [project]
 name = "gz-starter"
-version = "0.11.6"
+version = "0.12.0"
 description = "Project-scoped SP + SP-BP + gz-skills adoption scaffold"
 readme = "README.md"
 requires-python = ">=3.14,<3.15"
 license = "MIT"
 license-files = ["LICENSE", "NOTICE"]
 dependencies = []
+
+[project.optional-dependencies]
+verification = ["pyyaml==6.0.4"]
 
 [project.scripts]
 gz-starter = "skills_first_starter.cli:main"

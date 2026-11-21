@@ -1,0 +1,85 @@
+name: Verify Python project
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  GIT_TERMINAL_PROMPT: '0'
+  SKIP: ''
+  UV_VERSION: '0.13.9'
+  PYTHON_VERSION: '3.14.10'
+jobs:
+  macos:
+    runs-on: macos-15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout event commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git init .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git -c credential.helper= -c 'credential.helper=!gh auth git-credential' fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - name: Provision uv
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UV_SHA256: '5aeca67f2283f75235de40d0bd9c0a5bbc5fce23b6d48b3bf9fa1b2db08382ca'
+        run: |
+          uv_dir=$(mktemp -d "$RUNNER_TEMP/gz-uv.XXXXXX")
+          uv_archive="$uv_dir/uv-aarch64-apple-darwin.tar.gz"
+          gh release download "$UV_VERSION" --repo astral-sh/uv --pattern uv-aarch64-apple-darwin.tar.gz --output "$uv_archive"
+          printf '%s  %s\n' "$UV_SHA256" "$uv_archive" | shasum -a 256 -c -
+          tar -xzf "$uv_archive" -C "$uv_dir"
+          test -x "$uv_dir/uv-aarch64-apple-darwin/uv"
+          printf '%s\n' "$uv_dir/uv-aarch64-apple-darwin" >> "$GITHUB_PATH"
+      - name: Run project gate
+        run: |
+          uv --version
+          uv python install --no-bin --no-registry "$PYTHON_VERSION"
+          uv sync --locked
+          uv run --locked gz-starter verify --project .
+          uv run --locked pre-commit run --all-files
+  windows:
+    runs-on: windows-2025
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout event commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          git init .
+          git remote add origin "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY.git"
+          git -c credential.helper= -c 'credential.helper=!gh auth git-credential' fetch --no-tags --depth=1 origin "$env:GITHUB_SHA"
+          git checkout --detach FETCH_HEAD
+          if ((git rev-parse HEAD) -cne $env:GITHUB_SHA) { throw 'Unexpected checkout SHA' }
+      - name: Provision uv
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UV_SHA256: 'edd61f7f5728a56cc62455386661860bdfc7bab65872f39b0c25bdcc1d8e1beb'
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $uvDir = Join-Path $env:RUNNER_TEMP ([Guid]::NewGuid().ToString())
+          New-Item -ItemType Directory -Path $uvDir | Out-Null
+          $uvArchive = Join-Path $uvDir 'uv-x86_64-pc-windows-msvc.zip'
+          gh release download "$env:UV_VERSION" --repo astral-sh/uv --pattern uv-x86_64-pc-windows-msvc.zip --output "$uvArchive"
+          if ((Get-FileHash -Algorithm SHA256 -LiteralPath $uvArchive).Hash -ine $env:UV_SHA256) { throw 'Unexpected uv archive SHA-256' }
+          Expand-Archive -LiteralPath $uvArchive -DestinationPath $uvDir
+          if (!(Test-Path -PathType Leaf -LiteralPath (Join-Path $uvDir 'uv.exe'))) { throw 'Missing uv.exe' }
+          Add-Content -LiteralPath $env:GITHUB_PATH -Value $uvDir -Encoding utf8
+      - name: Run project gate
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          uv --version
+          uv python install --no-bin --no-registry "$env:PYTHON_VERSION"
+          uv sync --locked
+          uv run --locked gz-starter verify --project .
+          uv run --locked pre-commit run --all-files

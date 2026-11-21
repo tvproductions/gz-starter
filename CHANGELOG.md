@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+The pending **0.12.0** scope is the approved bootstrap-verification correction.
+It adds the opt-in `gz-starter verify` development command, a hook that requires
+adopter tests when authored assets appear, and a shell-only CI example and
+reviewed migration. Platform acceptance is tracked in the
+[release scope](ROADMAP.md#selected-correction--pre-implementation-verification-november-17-2026).
+
 ## 0.11.6 — November 21, 2026
 
 - Grade locked Python invocations alongside task outcomes in instruction-delivery

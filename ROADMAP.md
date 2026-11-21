@@ -222,36 +222,28 @@ Preserve genuine discovery/coverage failures and separate runtime-design approva
 Diagnosis reproduced: managed Python 3.14.10 exits 5 for empty discovery in an
 invented documentation/configuration-only checkout. The runbook permits this
 stage, but the worked hook runs discovery unconditionally. The
-[design edition 2](docs/superpowers/specs/2026-11-17-bootstrap-verification-design.md)
+[design edition 3](docs/superpowers/specs/2026-11-21-bootstrap-verification-design-edition-3.md)
 and [ADR-0003 edition 1](docs/decisions/ADR-0003-001-own-bootstrap-verification-in-the-starter.md)
-are **drafts awaiting separate approvals**; no dependent implementation exists.
-The proposal adds an installed development verification command/extra with owning
-tests and reviewed migration, rather than an allow-empty mode or copied helper.
-The maintainer endorsed that delivery direction and emphasized the starter's
-existing and new owning tests. Preserve producer qualification, adopter artifact
-validation and adopter behavior/coverage as distinct obligations. This review
-direction does not approve the complete design or separately identified ADR.
-Resume that review from the [bootstrap handoff](docs/handoffs/2026-11-17-bootstrap-verification-handoff.md),
-including the still-open transition-rule review and actual platform gates.
+received separate approvals on November 21. The design delivers an installed
+verification development extra, automatic authored-asset transition, owned
+test discovery and shell-only macOS/Windows workflow. Preserve producer tests,
+adopter artifact validation and existing adopter behavior/coverage gates.
 
-Version decision at intake: published **0.11.1** -> proposed **0.12.0 / minor**
-for the new supported command/dependency/adoption interface. The maintainer has
-since selected publication of the completed maintenance as **0.11.2** below;
-the proposed minor therefore advances that patch, rather than folding in an
-unpublished maintenance checkpoint. Development metadata now records **0.11.3**
-for the independent November 19 maintenance;
-planning acceptance MUST reconcile all mirrors after design approval, before
-implementation/closeout. No completed version reconciliation is claimed yet.
+Pending version **0.11.6 → 0.12.0 / minor** for the new command, development
+dependency and adoption interface. The [release receipt](docs/evidence/2026-11-21-0.11.6-release.md)
+identifies `v0.11.6` at `6a44715f5fc40048c9767497a313a279dfc3a12a`.
+The pending version agrees in both metadata owners, the root lock,
+the CLI, packaged bundle and unreleased changelog. **0.12.0 is unpublished.**
 
-Completed: read-only consumer diagnosis, negative reproduction and reviewable
-design/ADR drafts. Remaining: separate approvals, implementation plan, helper/
-consumer regression tests, policy/examples/migration reconciliation, installed
-proof and actual Windows/macOS execution. Excluded: consumer runtime/adopter
-writes, native activation, companion changes, unrelated backlog, Git sync and
-publication. Existing cognitive/native/embedded limits remain explicit.
-The subsequent “write handoff and git sync” request authorizes saving this
-review/maintenance checkpoint on main; it grants no design/ADR approval,
-dependent implementation or publication authority.
+Completed work includes consumer diagnosis, design and ADR approvals, the
+[audited implementation plan](docs/superpowers/plans/2026-11-21-bootstrap-verification.md#plan-audit),
+local verifier and migration implementation, and installed macOS controls.
+Remaining acceptance requires actual Windows execution and private hosted
+checkout and workflow evidence on both platforms for the exact candidate. Compatibility
+scope is single-project CPython 3.14 development tooling; keep workspace and
+embedded checks with their existing owners. Preserve the cognitive and native
+limits. Adopter runtime work, native activation and unrelated backlog remain
+outside this release. See the [handoff](docs/handoffs/2026-11-17-bootstrap-verification-handoff.md#resume-point-and-authority).
 
 ## Selected 0.11.2 scope — post-release dependency maintenance, November 17, 2026
 

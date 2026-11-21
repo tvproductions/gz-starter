@@ -9,26 +9,19 @@ At 19:19 UTC, `main` and `origin/main` were clean and aligned at
 [November 21 checkpoint](https://github.com/tvproductions/gz-starter/actions/runs/44939742062).
 The published baseline is [0.11.6](https://github.com/tvproductions/gz-starter/releases/tag/v0.11.6).
 The maintainer requested this handoff and Git sync. The selected next work
-remains the [0.12.0 bootstrap review](2026-11-17-bootstrap-verification-handoff.md#resume-point-and-authority).
+remains [0.12.0 bootstrap verification](2026-11-17-bootstrap-verification-handoff.md#resume-point-and-authority).
 
-1. **Run `$gz-skills:gzs-architectural-decisions` first.** Start with
-   “Review the starter's bootstrap verification design and ADR-0003 edition 1
-   in read-only mode. Check the executable command and CI contract and the
-   automatic transition from a pre-runtime project to required behavior tests.”
-   Review [design edition 2](../superpowers/specs/2026-11-17-bootstrap-verification-design.md)
-   and [ADR-0003 edition 1](../decisions/ADR-0003-001-own-bootstrap-verification-in-the-starter.md).
-   Report the exact editions, any open design choices, and required macOS
-   and Windows evidence. Stop before implementation until the complete
-   design and the exact ADR edition receive separate approval.
-2. **Run `$gz-skills:gzs-plan-audit` once the approved design has an
-   execution plan.** Trace the plan to the [selected correction](../../ROADMAP.md#selected-correction--pre-implementation-verification-november-17-2026).
-   Check the transition cases, preservation of genuine test failures,
-   existing-adopter migration and actual Windows/macOS acceptance commands.
-   Use `$gz-skills:gzs-cross-platform-python` for a focused review of the
-   helper's subprocess, path and exit-status behavior when code exists.
-3. **Run `$gz-skills:gzs-intent-audit` after a new candidate exists.**
-   Exercise the installed verifier at the adopter seam, from a docs/config-only
-   checkout through the first change that makes behavior tests mandatory. For
+1. **Design and architecture review complete.** The maintainer approved
+   [design edition 3](../superpowers/specs/2026-11-21-bootstrap-verification-design-edition-3.md)
+   and separately approved [ADR-0003 edition 1](../decisions/ADR-0003-001-own-bootstrap-verification-in-the-starter.md#approval-evidence).
+2. **Plan audit and local implementation complete.** `$gz-skills:gzs-plan-audit` traced the
+   [implementation plan](../superpowers/plans/2026-11-21-bootstrap-verification.md#plan-audit)
+   to the selected correction. `$gz-skills:gzs-cross-platform-python` was applied
+   to subprocess, path and exit-status behavior. Hosted qualification remains open.
+3. **Continue `$gz-skills:gzs-intent-audit` at the hosted adopter seam.**
+   The [local installed audit](2026-11-17-bootstrap-verification-handoff.md#installed-verifier-intent-audit)
+   proved the first-source transition on macOS. Collect actual Windows and
+   private hosted evidence for the exact candidate. For
    instruction-guidance work, scope a separate audit to new matched trials and
    use the existing [task and locked-Python rubric](../evidence/2026-11-21-instruction-delivery-evals.md#locked-python-workflow-replay).
    The 0.11.6 replay already records the sampled drift. Only new comparative

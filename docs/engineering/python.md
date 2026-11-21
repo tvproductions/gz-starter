@@ -159,6 +159,12 @@ only against its own declared runtime. A 3.12 pin cannot validate 3.14 syntax/AP
 
 ## Routine engineering
 
+For ordinary single-project CPython 3.14 adoption, use the
+[bootstrap and implementation verifier](verification-policy.md#bootstrap-and-implementation-verification-for-adopters)
+in the unittest hook category. Authored code, tooling and tests activate the
+project's own suite through the same hook. Preserve existing coverage and
+keep workspace and XPPython3 verification with their owning commands.
+
 Use project-locked Ruff check, Ruff format, ty and unittest through uv; never
 pytest. Pre-commit runs the routine checks. Inspect available configuration
 before giving executable commands; report missing tooling rather than claiming
