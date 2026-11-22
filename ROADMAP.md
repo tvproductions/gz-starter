@@ -1,5 +1,36 @@
 # Roadmap
 
+## Selected 0.12.1 scope — starter state directory correction, November 21, 2026
+
+Published baseline **0.12.0**, immutable source
+`7303deff043231d8bcbb789e52efdbdde6b7e2f0` → proposed **0.12.1 / patch**,
+explicitly classified by the maintainer. Correct starter state storage from
+`.skills-first/` to the maintainer-selected `.gz-starter/`, and deliver the
+mandatory migration directive to both adopter lanes. Preserve the existing
+adoption format, provenance, local modifications and native activation scope.
+
+The maintainer approved the revised
+[design](docs/superpowers/specs/2026-11-21-starter-state-directory-design.md)
+with “design approved” in this conversation. The
+[implementation plan](docs/superpowers/plans/2026-11-22-starter-state-directory.md)
+is ready for review. Included work: new-path helper/verifier behavior, safe
+legacy-state detection, reviewed existing-adopter migration guidance, authored
+instructions/update skill, generated resources, owning regressions, installed
+proof and synchronized version mirrors. All implementation and mirror changes
+remain pending plan review/execution; no patch-completion claim is made yet.
+
+Acceptance requires meaningful preservation/negative controls, all three helper
+host selections, correct local ADR references, the required repository gate and
+clean installed behavior. Prove directory-only relocation separately from a
+completed template upgrade; preserve unrelated legacy-directory contents and
+fail on recognized legacy/dual state. Repeat source-bound macOS/Windows hosted
+qualification for the changed verifier inputs. Missing hosted proof remains
+UNKNOWN and blocks patch acceptance, independently of cognitive deferral.
+Exclude a new migration CLI, automatic real-adopter
+changes, unrelated naming cleanup, dependency/native updates and publication.
+Retain conditional cognitive/host limits. No new product decision remains;
+plan review is pending. Existing 0.12.0 and earlier tags remain immutable.
+
 ## Selected 0.11.6 scope — locked Python eval correction, November 21, 2026
 
 Published baseline **0.11.5** at `0d3be366bc3048ed123d36dd6af93ad4d8850b80`

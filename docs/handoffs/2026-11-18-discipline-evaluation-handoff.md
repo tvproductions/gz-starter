@@ -2,6 +2,45 @@
 
 ## Current resume point — November 21, 2026
 
+### Starter state directory correction — design approved November 22
+
+The maintainer selected `.gz-starter/` to replace `.skills-first/` for starter
+state and explicitly classified the correction as **0.12.1 / patch** over
+published 0.12.0. After the three review gaps were revised, the maintainer
+replied **“design approved”**. Read the
+[approved design](../superpowers/specs/2026-11-21-starter-state-directory-design.md)
+and [implementation plan](../superpowers/plans/2026-11-22-starter-state-directory.md).
+Plan review/execution-method selection is the current resume point. No code or
+version-mirror changes have begun. The selected roadmap scope supersedes the
+earlier unselected-work status below. Preserve the migration matrix, truthful
+provenance, required actual hosted qualification and separate publication scope.
+
+**November 22 handoff/save-point request:** the maintainer requested “create
+handoff and git sync” after receiving the plan. This authorizes the four-file
+planning save point (design, plan, roadmap scope and this handoff), ordinary main
+commit/push and exact-commit CI observation. It does not approve the plan, select
+an execution method, start implementation, authorize fixture operations or
+publish 0.12.1. Native execution was recommended; no method was selected yet.
+
+Resume by reviewing the plan and obtaining the maintainer's execution-method
+selection, then apply the chosen SP execution workflow. The design approval is
+already recorded and must not be requested again. All implementation tasks and
+0.12.1 mirror reconciliation remain pending; current package/bundle/lock/CLI
+metadata still describes published 0.12.0. Do not treat this planning sync or its
+green producer CI as proof of the unimplemented directory behavior or required
+candidate-specific macOS/Windows acceptance.
+
+Starting main/remote checkpoint:
+`93ecfae0a5e33b58ad23f3832548bcf1ef9925f6`, “Save completed maintenance session
+handoff”; both jobs in its
+[exact-commit CI](https://github.com/tvproductions/gz-starter/actions/runs/44973105193)
+passed. Fresh fetch found no divergence. Review all four planning artifacts,
+check their references and run the required integration gate with normal hooks.
+No source, dependency, analyzer, native selection or wheel-resource authority
+changes; do not add tests for prose. Report the new commit, push, exact-commit CI
+and final worktree state in the sync response without another receipt-only
+commit. Retain all earlier maintenance evidence and published tags unchanged.
+
 ### Session close — maintenance complete, next work unselected
 
 Latest request: **create handoff + git sync**. This authorizes updating this
