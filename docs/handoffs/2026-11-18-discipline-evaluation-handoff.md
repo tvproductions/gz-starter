@@ -2,6 +2,109 @@
 
 ## Current resume point — November 22, 2026
 
+### First priority — How lite behaves in practice
+
+The maintainer made this the first review question for the next session.
+Start by finishing a concrete adopter walkthrough in the
+[lite records feature design](../superpowers/specs/2026-11-22-lite-records-adoption-design.md).
+The walkthrough should show the actual files, the action the adopter takes,
+what the starter reports, and what changes on disk for each case:
+
+1. **Start a lite project.** Show what explicit lane selection, preview and
+   apply produce. Use one populated example that traces a requirement through
+   backlog, selected work, roadmap and release records. Show where the adopter
+   edits each fact and what appears in the generated Markdown.
+2. **Bring existing work into lite.** Show the proposed mapping, who owns
+   each transferred fact before and after apply, what history remains, and how
+   stale inputs and competing ownership leave adoption pending.
+3. **Work with the records after adoption.** Show an ordinary sidecar edit,
+   a generated view refreshed from it, a manual edit that blocks replacement,
+   and interrupted-write recovery that preserves an independent edit.
+
+Settle the mechanical details listed below in the design and bring the
+maintainer one finished edition to review. The review asks whether the
+walkthrough matches the workflow they want adopters to follow. No maintainer
+input is pending before drafting that edition. The ADR approval is already
+recorded. The separate feature-design approval follows the walkthrough review.
+
+### Lite management records follow-through
+
+The maintainer directed follow-through on the recorded lite decisions.
+The [roadmap scope](../../ROADMAP.md#lite-management-records-and-follow-through)
+now tracks the six named records and their sidecars, typed commit records,
+and verified transfer to Backplane through completion. The six names,
+structured JSON authority, narrative Markdown and manual changelog were
+already selected. The first delivery is a separate compatible minor after
+the pending 0.13.0 skill rename. Its forecast is 0.14.0, subject to the actual
+published baseline when selected.
+
+**ADR-0005 edition 2 is approved and Current.** On November 22 the maintainer
+replied “approve adr-0005” to the exact edition 2 review request. The
+[current ADR and approval evidence](../decisions/ADR-0005-002-own-lite-management-records-in-the-starter.md#approval-evidence)
+link the [exact reviewed proposal](../decisions/approvals/ADR-0005-002-reviewed.txt).
+Its SHA-256 is
+`e3abf2f2bb5590021729a0074ea0f460cc94305eb447e1ae4743bfa3a61f7d7a`.
+Edition 1 remains historical. Continue with the approved layout, ownership
+and recovery boundaries. The [feature design](../superpowers/specs/2026-11-22-lite-records-adoption-design.md)
+still awaits review and approval.
+
+#### Design changes before implementation
+
+1. Define all five v1 schemas, allowed values, stable ID rules and cross-file
+   checks. Include an invented, populated example tracing a requirement through
+   backlog, work, roadmap and a selected release.
+2. Define the exact brownfield preview and apply contract. Bind apply to the
+   reviewed candidate and its source revisions. Specify how old authority is
+   retired for each transferred fact, what proves that transfer and when
+   acceptance remains pending.
+3. Specify routine sidecar editing and deterministic Markdown generation.
+   Define how to identify the previous generated body, refresh a stale view,
+   reject a manual edit in the generated section and retain narrative bytes.
+4. Define the writer guard, transaction manifest and recovery outcomes for
+   all-starting, all-candidate, mixed and independently edited paths. Cover
+   interruption during both apply and recovery. Use the
+   [paired design inputs](2026-11-14-opinionated-cli-design-discussion.md#simultaneous-design-checkpoint)
+   for alignment and retain the starter's local ownership.
+
+#### Implementation and acceptance after design approval
+
+- Apply Superpowers writing-plans to the approved design. Implement the
+  installed records commands and adoption/upgrade instructions through the
+  normal entry points. Keep host setup and explicit profile selection intact.
+- Add owning unittest controls for creation, no-op repeat, stale input,
+  invalid records and references, conflicting ownership, edited views,
+  concurrent writers and reached failures during apply and recovery.
+- Exercise the installed entry point from a fresh lite checkout and a
+  brownfield fixture. Verify tracked files survive a clean checkout, old work
+  and evidence remain available, and each transferred fact has exactly one
+  active owner. Run the affected macOS and Windows qualification and the
+  applicable repository integration and release gates for the exact candidate.
+- Reconcile version mirrors and changelog when the records minor becomes
+  active. Close the deliverable with evidence for the actual released source
+  and adoption behavior. Typed commit records and lite-to-heavy transfer keep
+  their separate design and acceptance obligations in the roadmap.
+
+#### Git sync save point
+
+The maintainer requested the fresh handoff followed by Git sync. At capture,
+local `main` and fetched `origin/main` both identify
+`a87d00d9ed1acc5e79e3a2e7cbee42c19e4ec6b5`. The six local paths for the
+save point are `ROADMAP.md`, this handoff, the current ADR, its reviewed
+proposal, the historical edition 1 proposal and the feature design draft.
+The changes are documentation and approval evidence. No implementation,
+version mirror, packaged resource or runtime change is included.
+Review these paths, keep the normal hooks, and verify the pushed SHA and
+exact-commit CI under
+the [starter sync procedure](../engineering/verification-policy.md#starter-git-synchronization).
+This handoff records the state before sync.
+
+Backplane #23 remains separate. Its original November 1 plan was approved
+for inline execution and still matches the
+[recorded hash](https://github.com/tvproductions/superpowers-backplane/blob/6362be0da9ad9f0eba8889b94bf1047671156f88/docs/superpowers-backplane/plans/2026-11-01-opencode-wrap-approval.json).
+Reuse that approval. The local inventory preflight found the three skills
+with pinned packages, but authenticated native skill loads and the full
+setup and failure matrix remain outstanding.
+
 ### 0.12.1 published and verified
 
 The maintainer reaffirmed publication and separately authorized the
@@ -12,7 +115,8 @@ Both locks select filelock 4.3.0. The
 records exact-source producer CI, private macOS ARM64 and Windows x64
 qualification, and the verified tag and source archive.
 
-The next selected work is the approved 0.13.0 skill rename. Reconcile the
+The independently scoped 0.13.0 release candidate is the approved skill rename.
+Reconcile the
 saved local patch against the published 0.12.1 tree. A dry run against the
 release found a changelog conflict. Preserve the released entry and the
 filelock refresh when integrating. OpenCode 2.2.0 and 2.3.2 still returned

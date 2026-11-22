@@ -547,8 +547,8 @@ dependent implementation. Do not request completed design/ADR approvals again.
 
 ## Next work, in recommended order
 
-These items remain unselected implementation work; the 0.11.1 documentation
-correction does not select a feature release or authorize implementation.
+The [lite management records](#lite-management-records-and-follow-through) are
+active design work. The other items below retain their own recorded status.
 
 ### House naming and layout — deferred enforcement
 
@@ -632,15 +632,27 @@ checks remain in force before reporting automation exists. Prepare a newly
 written 1.0.0 PRD and finite release scope; this feature alone does not establish
 1.0.0 readiness or authorize publication.
 
-### Management records and commit metadata — deferred design
+### Lite management records and follow-through
 
-The selected JSON-sidecar/Markdown split and minimum commit-contract draft remain
-design work in the [November 14 discussion handoff](docs/handoffs/2026-11-14-opinionated-cli-design-discussion.md).
-Schema, Backplane mapping, update/recovery behavior and applicable ADR approval
-remain unresolved. No sidecar manager, commit schema or hook is implemented by
-the rename, ADR-practice or application-foundations releases. Continue through
-the existing design authority before dependent implementation; preserve
-Backplane's lifecycle ownership.
+The maintainer directed completion of the previously selected lite records,
+storage split and associated workflow decisions. Resume the
+[November 14 design](docs/handoffs/2026-11-14-opinionated-cli-design-discussion.md#six-separate-management-artifacts).
+Published baseline is **0.12.1** at
+`a1c3550eac441b0a7beaddc66fb00c58ce0f1e6a`. The existing **0.13.0** pending
+target covers the skill rename. Plan the first records delivery as a separate
+compatible minor, provisionally **0.14.0** if 0.13.0 publishes first.
+Recheck the actual published baseline before selecting its active version and
+reconciling package, bundle, lock, runtime and changelog mirrors.
+
+| Deliverable | Decision and completion evidence | Current status |
+| --- | --- | --- |
+| Six lite records | Deliver `REQUIREMENTS.md`, `BACKLOG.md`, `ROADMAP.md`, `WORK.md`, `RELEASES.md` and a hand-written `CHANGELOG.md`. Five JSON sidecars own structured facts. Markdown owns narrative and presents generated views. Verify the installed greenfield path, brownfield reconciliation and repeated updates. Demonstrate preserved narrative, identity, references and unrelated bytes, plus refusal of invalid or competing authorities and recovery after interrupted writes. | [ADR-0005 edition 2](docs/decisions/ADR-0005-002-own-lite-management-records-in-the-starter.md) is approved and current. The [feature design](docs/superpowers/specs/2026-11-22-lite-records-adoption-design.md) still needs review of exact schemas, adoption and recovery. |
+| Typed commit records | Carry the selected small typed JSON record on each governed new commit. Verify the actual resulting Git commit and its references, including merge, squash, revert and copied-metadata failure cases. Keep the four routine checks. | Outstanding. Finish the encoding, prospective adoption boundary and enforcement design after the record contract is stable. |
+| Lite-to-heavy transfer | Verify an explicit transfer into Backplane's native issue identities and relationships. Preserve criteria, history, evidence and unresolved work, then switch authority with verified arrival. Lite remains independently usable. | Outstanding. Complete the paired mapping and qualify its target with Backplane. |
+
+Close each deliverable against released behavior and actual adopter evidence.
+Carry unfinished obligations and their next gates in the current handoff.
+Backplane retains ownership of its native lifecycle and independent releases.
 
 ## Parallel maintenance: dependency scans and update candidates
 
