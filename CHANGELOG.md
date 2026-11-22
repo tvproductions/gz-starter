@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.12.1 — November 22, 2026
+
 - Store starter-owned state in `.gz-starter/`. Configure, status, activation
   repair, and verification detect legacy state before continuing. Existing
   adopters relocate reviewed artifacts while preserving provenance, local
@@ -10,6 +12,9 @@
 - Clarify brownfield first adoption, activation repair, and template upgrades.
   Use a verifier-capable release in the examples and show how to set up the
   unittest hook before running the adopter gate.
+
+- Refresh the standard and X-Plane dependency locks to filelock 4.3.0.
+  [Candidate verification](docs/evidence/2026-11-22-0.12.1-candidate-acceptance.md)
 
 ## 0.12.0 — November 21, 2026
 

@@ -27,8 +27,9 @@ completed template upgrade; preserve unrelated legacy-directory contents and
 fail on recognized legacy/dual state. Repeat source-bound macOS/Windows hosted
 qualification for the changed verifier inputs. Missing hosted proof remains
 UNKNOWN and blocks patch acceptance, independently of cognitive deferral.
-Exclude a new migration CLI, automatic real-adopter
-changes, unrelated naming cleanup, dependency/native updates and publication.
+Exclude a new migration CLI, automatic real-adopter changes, unrelated naming
+cleanup and native updates. The maintainer separately authorized publication
+and the two-baseline filelock refresh required for release acceptance.
 Retain conditional cognitive/host limits. Existing 0.12.0 and earlier tags
 remain immutable.
 
