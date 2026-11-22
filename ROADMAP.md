@@ -1,9 +1,9 @@
 # Roadmap
 
-## Selected 0.12.1 scope — starter state directory correction, November 21, 2026
+## Published 0.12.1 scope — starter state directory correction, November 21, 2026
 
 Published baseline **0.12.0**, immutable source
-`7303deff043231d8bcbb789e52efdbdde6b7e2f0` → proposed **0.12.1 / patch**,
+`7303deff043231d8bcbb789e52efdbdde6b7e2f0` → published **0.12.1 / patch**,
 explicitly classified by the maintainer. Correct starter state storage from
 `.skills-first/` to the maintainer-selected `.gz-starter/`, and deliver the
 mandatory migration directive to both adopter lanes. Preserve the existing
@@ -18,7 +18,7 @@ legacy-state detection, reviewed existing-adopter migration guidance, authored
 instructions/update skill, generated resources, owning regressions, installed
 proof and synchronized version mirrors. The save point includes the
 implementation and candidate mirrors. The [candidate receipt](docs/evidence/2026-11-22-0.12.1-candidate-acceptance.md)
-records local results and release gates still open.
+records the completed release gates and publication.
 
 Acceptance requires meaningful preservation/negative controls, all three helper
 host selections, correct local ADR references, the required repository gate and
@@ -36,16 +36,17 @@ remain immutable.
 ## Next minor scope — starter-owned skill prefix, November 22, 2026
 
 The maintainer approved `gzt-` for starter-owned skills and the rename to
-`gzt-update-template`. The proposed target is **0.13.0 / minor** after the
-selected 0.12.1 patch. The current published baseline remains 0.12.0. The rename
+`gzt-update-template`. Published **0.12.1** at
+`a1c3550eac441b0a7beaddc66fb00c58ce0f1e6a` advances to **0.13.0 / minor**. The rename
 requires reconciliation of a published skill ID and managed path.
 
 The [approved design](docs/superpowers/specs/2026-11-22-starter-skill-prefix-design.md)
 and [implementation plan](docs/superpowers/plans/2026-11-22-starter-skill-prefix.md)
 cover canonical discovery, safe legacy conflicts, reviewed adopter migration,
 installed artifacts and exact-source native discovery. Existing project edits,
-provenance and native activation remain protected. Keep this scope out of
-0.12.1. Implementation and version mirrors are pending. New skills, upstream
+provenance and native activation remain protected. The implementation and
+0.13.0 version mirrors are in a local checkout and await integration and
+qualification. New skills, upstream
 renames, automatic adopter changes and publication are outside this scope.
 
 ## Selected 0.11.6 scope — locked Python eval correction, November 21, 2026

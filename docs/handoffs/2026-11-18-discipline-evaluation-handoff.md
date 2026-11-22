@@ -2,6 +2,23 @@
 
 ## Current resume point — November 22, 2026
 
+### 0.12.1 published and verified
+
+The maintainer reaffirmed publication and separately authorized the
+dependency refresh. [GZ Starter 0.12.1](https://github.com/tvproductions/gz-starter/releases/tag/v0.12.1)
+is the published baseline at `a1c3550eac441b0a7beaddc66fb00c58ce0f1e6a`.
+Both locks select filelock 4.3.0. The
+[release evidence](../evidence/2026-11-22-0.12.1-candidate-acceptance.md#published-and-verified)
+records exact-source producer CI, private macOS ARM64 and Windows x64
+qualification, and the verified tag and source archive.
+
+The next selected work is the approved 0.13.0 skill rename. Reconcile the
+saved local patch against the published 0.12.1 tree. A dry run against the
+release found a changelog conflict. Preserve the released entry and the
+filelock refresh when integrating. OpenCode 2.2.0 and 2.3.2 still returned
+empty discovery lists for both candidate and control skills. OpenCode
+discovery and hosted 0.13.0 qualification remain pending.
+
 ### November 22 candidate save point
 
 The maintainer requested release of 0.12.1, then directed continued 0.13.0 work
