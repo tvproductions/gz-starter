@@ -68,7 +68,7 @@ implementation are reconciled. The
 [candidate acceptance receipt](evidence/2026-11-21-0.12.0-candidate-acceptance.md)
 records conditional acceptance for exact producer and private macOS/Windows
 execution under the standing cognitive deferral.
-See the [current handoff](handoffs/2026-11-18-discipline-evaluation-handoff.md#current-resume-point--november-21-2026)
+See the [current handoff](handoffs/2026-11-18-discipline-evaluation-handoff.md)
 for the published release and remaining work.
 
 Release **0.11.2 / patch** over published **0.11.1** is selected for the
@@ -492,7 +492,7 @@ schema/migration decision.
 ## Adopter provenance and upgrades
 
 New adoption records the starter's repository, manifest version and full commit
-SHA in `.skills-first/bundle.lock.json`. Configure preview/apply and status expose
+SHA in `.gz-starter/bundle.lock.json`. Configure preview/apply and status expose
 that starter record. Keep the SHA: multiple development commits may share the
 next intended version, and a label alone cannot identify their contents.
 The helper records the supplied/default SHA and manifest label; it does not prove

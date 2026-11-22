@@ -124,7 +124,7 @@ class AdoptionTests(unittest.TestCase):
         p.write_text('[plugins."gz-skills@skills-first-starter"]\nenabled = false\n')
         with self.assertRaises(starter.AdoptionError):
             self.configure(True)
-        self.assertFalse((self.root / ".skills-first").exists())
+        self.assertFalse((self.root / ".gz-starter").exists())
         self.assertFalse((self.root / "AGENTS.md").exists())
         self.assertIn("false", p.read_text())
 
@@ -141,7 +141,7 @@ class AdoptionTests(unittest.TestCase):
             self.configure(True)
         self.assertEqual(config.read_bytes(), original)
         self.assertEqual(list(folder.iterdir()), [config])
-        self.assertFalse((self.root / ".skills-first").exists())
+        self.assertFalse((self.root / ".gz-starter").exists())
 
     def test_later_write_failure_rolls_back_created_and_replaced_files(self):
         for existing in (False, True):
@@ -155,7 +155,7 @@ class AdoptionTests(unittest.TestCase):
                 open_path = Path.open
 
                 def fail_lock(path, *args, root=root, open_path=open_path, **kwargs):
-                    if path == root / ".skills-first/bundle.lock.json" and args == ("xb",):
+                    if path == root / ".gz-starter/bundle.lock.json" and args == ("xb",):
                         raise OSError("fixture lock failure")
                     return open_path(path, *args, **kwargs)
 
@@ -174,7 +174,7 @@ class AdoptionTests(unittest.TestCase):
         config.parent.mkdir()
         original = b'model = "fixture"\r\n'
         config.write_bytes(original)
-        lock = self.root / ".skills-first/bundle.lock.json"
+        lock = self.root / ".gz-starter/bundle.lock.json"
         concurrent = b"Concurrent fixture record.\n"
         replace_file = os.replace
 
@@ -191,6 +191,24 @@ class AdoptionTests(unittest.TestCase):
         self.assertEqual(config.read_bytes(), original)
         self.assertEqual(lock.read_bytes(), concurrent)
         self.assertFalse((self.root / "AGENTS.skills-first.md").exists())
+
+    def test_legacy_state_appearing_during_apply_rolls_back_new_outputs(self):
+        legacy = self.root / ".skills-first/bundle.lock.json"
+        write_candidate = starter._write_candidate
+
+        def introduce_legacy_state(path, payload, current):
+            write_candidate(path, payload, current)
+            if path.name == "bundle.lock.json":
+                legacy.parent.mkdir()
+                legacy.write_bytes(b"concurrent legacy record")
+
+        with (
+            mock.patch.object(starter, "_write_candidate", side_effect=introduce_legacy_state),
+            self.assertRaisesRegex(ValueError, "state migration required"),
+        ):
+            self.configure(True)
+        self.assertEqual(legacy.read_bytes(), b"concurrent legacy record")
+        self.assertEqual([path for path in self.root.rglob("*") if path.is_file()], [legacy])
 
     def test_disabled_alternative_plugin_source_is_preserved(self):
         config = self.root / ".codex/config.toml"
@@ -266,7 +284,7 @@ class AdoptionTests(unittest.TestCase):
         with self.assertRaises(starter.AdoptionError):
             self.configure(True)
         self.assertEqual(p.read_text(), original)
-        self.assertFalse((self.root / ".skills-first").exists())
+        self.assertFalse((self.root / ".gz-starter").exists())
 
     def test_adoption_seeds_only_the_canonical_template_update_skill(self):
         result = self.configure(True)
@@ -274,7 +292,7 @@ class AdoptionTests(unittest.TestCase):
             set(result["writes"]),
             {
                 ".codex/config.toml",
-                ".skills-first/bundle.lock.json",
+                ".gz-starter/bundle.lock.json",
                 "AGENTS.skills-first.md",
                 "AGENTS.md",
                 starter.UPDATE_SKILL_DESTINATION,
@@ -486,7 +504,7 @@ class AdoptionTests(unittest.TestCase):
     def test_adoption_records_canonical_starter_repository(self):
         self.configure(True)
         config = tomllib.loads((self.root / ".codex/config.toml").read_text())
-        lock = json.loads((self.root / ".skills-first/bundle.lock.json").read_bytes())
+        lock = json.loads((self.root / ".gz-starter/bundle.lock.json").read_bytes())
         canonical = "https://github.com/tvproductions/gz-starter.git"
         self.assertEqual(config["marketplaces"]["skills-first-starter"]["source"], canonical)
         self.assertEqual(lock["starter"]["repository"], canonical)
@@ -496,7 +514,7 @@ class AdoptionTests(unittest.TestCase):
         app_metadata = b'[project]\nname = "fixture-app"\nversion = "7.3.2"\n'
         (self.root / "pyproject.toml").write_bytes(app_metadata)
         result = self.configure(True)
-        lock = json.loads((self.root / ".skills-first/bundle.lock.json").read_bytes())
+        lock = json.loads((self.root / ".gz-starter/bundle.lock.json").read_bytes())
         self.assertEqual(lock["starter"]["version"], starter.bundle()["template_version"])
         self.assertEqual(lock["starter"]["version"], metadata["project"]["version"])
         self.assertEqual(lock["starter"]["revision"], REF)
@@ -519,7 +537,7 @@ class AdoptionTests(unittest.TestCase):
 
     def test_legacy_unversioned_lock_requires_review_and_is_preserved(self):
         self.configure(True)
-        path = self.root / ".skills-first/bundle.lock.json"
+        path = self.root / ".gz-starter/bundle.lock.json"
         lock = json.loads(path.read_bytes())
         del lock["starter"]["version"]
         original = (json.dumps(lock, indent=2) + "\n").encode("utf-8")

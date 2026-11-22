@@ -21,7 +21,7 @@ guidance; it is not pending starter work. Downstream migrations remain explicit.
 | CLI | `gz-starter`; `skills-first-starter` remains an equivalent alias |
 | Python import | `skills_first_starter` is retained for compatibility |
 | Native marketplace identity | `skills-first-starter` is retained to preserve configured plugin IDs and overrides; display name is GZ Starter |
-| Adopter record directory | `.skills-first/` remains stable |
+| Adopter record directory | `.gz-starter/` from 0.12.1. Earlier releases use `.skills-first/`. Follow the [reviewed relocation procedure](updating.md#relocate-legacy-starter-state). |
 | Owned update skill | `update-gz-template` remains stable |
 
 Do not mechanically rename compatibility keys, import paths, existing adopted

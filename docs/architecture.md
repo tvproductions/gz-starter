@@ -82,7 +82,7 @@ extensions and reviewed overrides and separates shared baseline maintenance from
 adopter updates. The helper preserves those files; it supplies no application
 settings loader or automatic dependency merge.
 
-`bundle.json` is desired composition. `.skills-first/bundle.lock.json` in an
+`bundle.json` is desired composition. `.gz-starter/bundle.lock.json` in an
 adopter records selected sources. Neither is a runtime readiness receipt. Actual
 loaded skills, native scope, trust, and conformance require a fresh host session.
 

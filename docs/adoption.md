@@ -13,8 +13,8 @@ supplies none. Use [canonical template updates](updating.md) for bootstrap and
 maintenance. Start with the
 [adoption workflow](adoption-workflow.md) and [structure contract](structure.md).
 Project instructions reference upstream and project-owned workflows directly.
-Use the [greenfield/brownfield runbook](adoption-0.5.md) for 0.5 adoption and
-upgrades. Pre-0.3 skill copies additionally require the [legacy migration](migration-0.3.md).
+Use the [greenfield/brownfield runbook](adoption-0.5.md) for first adoption and
+upgrades. Pre-0.3 skill copies also require the [legacy migration](migration-0.3.md).
 
 ## Establish the project boundary
 
@@ -72,12 +72,12 @@ uv run --locked gz-starter configure --project /path/to/project --starter-ref FU
 Add `--host claude` or `--host opencode` for that host; policy access does not
 select a lane or change activation. A new project defaults to link mode if the
 flag is omitted. On repeated configure/status, omission preserves the lock's
-recorded selection. Local mode writes `.skills-first/architectural-decisions.md`
+recorded selection. Local mode writes `.gz-starter/architectural-decisions.md`
 from the exact packaged policy bytes, usable without GitHub or a starter checkout.
 It does not install the portable workflow or make an unreadable approval record
 available. Generated instructions identify the working source and immutable URL.
 
-The existing `.skills-first/bundle.lock.json` records policy mode, source path,
+The existing `.gz-starter/bundle.lock.json` records policy mode, source path,
 original SHA-256 and conditional local path under `adr_policy`, alongside existing
 starter repository/version/full SHA. This additive schema-1 provenance is not
 architectural approval. `status` is read-only and still reports runtime readiness
@@ -433,7 +433,7 @@ If the requested scope is already current and verified, state that no upgrade
 was needed. The binding preserves independent upstream skill ownership and
 unrelated consumers.
 
-1. Read `.skills-first/bundle.lock.json`, project configuration and native manager
+1. Read `.gz-starter/bundle.lock.json`, project configuration and native manager
    inventory. Record the adopted starter SHA, component SHAs, selected versions
    and actual loaded sources. A generated template also carries copied files;
    inventory project changes before comparing them with newer starter material.

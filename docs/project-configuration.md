@@ -38,7 +38,7 @@ they need not invent a settings file or independent global discovery.
 | Exact resolved Python environment | Project-owned `uv.lock` |
 | Application runtime settings | Operator/host-owned `settings.json` or an explicitly reviewed departure |
 | Plugin sources | Reviewed bundle and native marketplace configuration |
-| Adopted template identity | Starter version and exact SHA in `.skills-first/bundle.lock.json` |
+| Adopted template identity | Starter version and exact SHA in `.gz-starter/bundle.lock.json` |
 | gz-skills profile | Its version-specific `.gz-skills/settings.json` contract |
 
 See uv's official [dependency field guide](https://docs.astral.sh/uv/concepts/projects/dependencies/).

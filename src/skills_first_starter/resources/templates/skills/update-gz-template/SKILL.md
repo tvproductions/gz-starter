@@ -13,8 +13,15 @@ to its maintained adoption instructions, not another dependency updater.
 ## Establish the request and current adoption
 
 Read the target project's AGENTS and existing authorities. Confirm its root and
-dirty state; preserve unrelated work. Read `.skills-first/bundle.lock.json` for
-the starter repository, version/full SHA and independent component selections.
+dirty state. Preserve unrelated work. Inspect `.skills-first/` and `.gz-starter/`
+and their `bundle.lock.json`, `architectural-decisions.md`, and `settings.toml`
+entries by metadata before opening either record. Read a reviewed regular lock
+for the starter repository, version/full SHA, and component selections.
+Recognized legacy, linked, or dual state requires reviewed reconciliation. Follow
+`docs/updating.md#relocate-legacy-starter-state` in the target release. Keep review
+mode read-only. During an authorized migration, preserve unrelated content and
+recorded provenance. Report a directory-only move as relocation with template
+reconciliation pending when the managed files still differ.
 Read `.gz-skills/settings.json` for the explicit lite/heavy choice. Absent or
 legacy provenance stays unknown; do not infer it from today's version label.
 Read the lock's selected native `host`; legacy records without it use Codex.

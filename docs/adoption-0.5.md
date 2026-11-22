@@ -1,10 +1,9 @@
-# Adopt or migrate to the Python baseline (0.5 and later)
+# Adopt or migrate to the Python baseline
 
-This is the operational entry for new projects, existing Python projects and
-earlier starter adopters. Version 0.5.0 delivers policy and verified migration
-examples. It does not add an automatic conformance checker or force-upgrade
-command. The helper's `configured` result means its file contract passed, not
-that adoption is complete.
+This runbook covers new projects, existing Python projects and earlier starter
+adopters. Start with the [adoption workflow](adoption-workflow.md) for path
+selection and the command reference. The helper's `configured` result describes
+managed files. The project records acceptance after product and native checks.
 
 For recurring updates, see [the canonical update method](updating.md). The
 0.6 release extends the managed set with
@@ -21,8 +20,8 @@ Published 0.5.0 itself is unchanged and has no native update skill.
 
 ## Shared requirements in both lanes
 
-The pending 0.10.0 binding adds mandatory
-[architectural-decision practice](engineering/architectural-decisions.md).
+Both lanes follow the mandatory
+[architectural-decision policy](engineering/architectural-decisions.md).
 Follow the [policy-access guide](adoption.md#architectural-decision-policy-access)
 for explicit link/local selection, provenance and three-way preservation. Include
 the selected policy copy (if any), lock metadata and generated pointers in
@@ -32,7 +31,7 @@ Configuration-only work reports missing procedure/discovery/behavioral evidence.
 Adopter propagation remains gated on the released qualified combination and
 actual internal use in all three publishers, not this pending implementation.
 
-The 0.7 development policy requires latest stable baseline tooling across
+The baseline policy requires latest stable tooling across
 families and a fresh official-source review at adoption and before release.
 Older ranges are not freshness exemptions. Keep exact pins after verification;
 required stale/unknown evidence blocks acceptance. Explicit Python/host family
@@ -89,28 +88,28 @@ conformance. Do not use existing structure as an exception by itself.
 
 ## Obtain and verify the released starter
 
-Use a separate checkout. These commands are run from its parent directory:
+Check the canonical published releases and select a reviewed tag. Use a separate
+checkout. The example below uses v0.12.0, the first release with the adopter
+verifier. Run these commands from the parent of the new checkout:
 
 ```bash
-git clone --branch v0.6.0 https://github.com/tvproductions/gz-starter.git reviewed-starter-0.6
-cd reviewed-starter-0.6
+gh release view --repo tvproductions/gz-starter
+git clone --branch v0.12.0 https://github.com/tvproductions/gz-starter.git reviewed-starter
+cd reviewed-starter
 git rev-parse HEAD
-git rev-parse 'v0.6.0^{commit}'
+git rev-parse 'v0.12.0^{commit}'
 git status --short
-gh release view v0.6.0 --repo tvproductions/gz-starter
+gh release view v0.12.0 --repo tvproductions/gz-starter
 uv --version
-uv sync --locked --all-groups
 uv run --locked gz-starter version
 uv run --locked gz-starter validate
 ```
 
 The two SHAs must match and the checkout must be clean. Review the GitHub release,
-changelog and [versioning contract](versioning.md). The version command must
-report 0.6.0; keep the full SHA as well. These published-release examples require
-uv 0.13.1. A machine with another uv version can use
-`uv tool run --from uv==0.13.1 uv ...` without replacing its global installation.
-The unreleased 0.7 development checkout instead requires uv 0.13.5; use
-`uv tool run --from uv==0.13.5 uv ...` only when working with that checkout.
+changelog, and [versioning contract](versioning.md). Confirm that `version`
+reports the selected tag's version and save the full SHA. Check the selected
+release's minimum uv requirement in `pyproject.toml`. A failed release lookup
+leaves latest-release status unknown.
 
 This starter's Python/tool pins are its tested execution environment, not an
 evergreen freshness certificate for a new adopter. Verify latest stable patches
@@ -135,24 +134,16 @@ merely to configure the stack. Use the scoped upstream maintenance workflow.
    dependency groups and uv-generated lock, strict Ruff/ty, unittest and the four
    routine pre-commit checks matching CI. Commit product-owned metadata and lock.
    The helper does not generate this engineering baseline for you.
-4. From the clean separate starter checkout, preview configuration for the
-   existing product directory. Replace the example absolute path:
-
-   ```bash
-   uv run --locked gz-starter configure --project /absolute/path/to/product
-   uv run --locked gz-starter configure --project /absolute/path/to/product --apply
-   uv run --locked gz-starter status --project /absolute/path/to/product
-   ```
-
-   Inspect the preview before applying. New locks record the published checkout
-   version/SHA. Existing `AGENTS.md` is preserved; add a reviewed pointer to
-   `AGENTS.skills-first.md`. If configuration precedes product initialization,
-   the directory must exist and Python setup still remains required.
+4. Follow [project configuration](adoption-workflow.md#apply-project-configuration).
+   The target directory must exist. New locks record the published starter
+   version and SHA. Add the reviewed fragment pointer to any existing `AGENTS.md`.
 5. Follow [native installation](adoption.md) for the active host. Load and invoke
    the pinned setup workflow to record the chosen lane if not yet recorded.
    Verify exact loaded SP/gz-skills sources in a fresh session. Do not copy
    upstream skill trees or activate Backplane to make readiness appear complete.
-6. Complete the acceptance/release record below. Use the
+6. [Wire the adopter verifier](adoption-workflow.md#configure-the-adopter-verifier)
+   for single-project CPython 3.14, or exercise the project-owned workspace or
+   XPPython3 gates. Complete the acceptance/release record below. Use the
    [worked migrations](engineering/astral-migrations.md) for executable application,
    typed-library and workspace proofs. Even a new project needs effective tool
    configuration, exact environments, source-independent artifacts and clean
@@ -188,64 +179,69 @@ The same required target baseline and acceptance apply to all three cases.
    extras/groups/markers, source precedence, commands and persisted formats.
    Map flat imports to installed `src/` packaging where needed. Preserve public
    behavior through meaningful unittest checks before and after each slice.
-4. Preview/apply compatible helper configuration as in greenfield. Conflicts are
-   specific reconciliation work, never permission to remove existing installs,
-   delete managed files or force-overwrite. Link the fragment from existing AGENTS.
+4. [Preview, apply, and check project configuration](adoption-workflow.md#apply-project-configuration).
+   Resolve specific conflicts and link the fragment from existing AGENTS.
+   Follow the [selected host procedure](adoption.md#repository-owned-installation-and-brownfield-repair).
+   Use `localize` when inherited activation needs repair. Record the explicit
+   lane through `gzs-project-setup` if still pending.
 5. Migrate in verified slices: packaging/imports; metadata/dependencies/lock;
    effective uv/Ruff/ty configuration; local/hooks/CI; artifacts; applicable
    workspace/host/deployment boundaries. Record migration pending until required
-   proof is complete. Continue product work under the existing authorities;
-   do not describe partial configuration as completed adoption.
+   proof is complete. For single-project CPython 3.14,
+   [wire and run the adopter verifier](adoption-workflow.md#configure-the-adopter-verifier).
+   Keep workspace and XPPython3 verification with the owning project commands.
 6. Complete the acceptance/release record and fresh-session verification.
    Existing released history stays intact. A preexisting 1.x product needs a
    new PRD for its next major, not an invented retrospective PRD for its past 1.0.
 
 ## Brownfield: upgrade an earlier starter adoption
 
+When updating to 0.12.1 or later, follow the
+[state relocation procedure](updating.md#relocate-legacy-starter-state) for
+known files under `.skills-first/` before treating the project as unconfigured.
+
 Do not run `configure --apply` expecting an in-place upgrade. The helper refuses
 different managed records and fragments; even `status` can report that conflict
 when invoked from a newer starter. This is a preservation boundary, not migration.
 
-1. Save the current `.skills-first/bundle.lock.json`, `.codex/config.toml`,
+1. Save the current adoption lock, the selected host's project configuration,
    `AGENTS.skills-first.md`, AGENTS pointer and `.gz-skills/settings.json`, together
    with app metadata/lock and the original Git rollback reference. Read the old
    starter version/SHA; unknown/legacy provenance stays unknown until investigated.
    Retain local additions and review their original rationale.
-2. Compare old and target published starters. For v0.4.1 to v0.6.0, the policy
-   delta includes the native update skill plus stronger Astral evidence; mandatory explicit lane; required deeper
-   analysis at adoption/release; explicit adopter SemVer/major PRDs; and
-   Python-only scope. The plugin/runtime/tool pins and managed-file schema remain
-   unchanged. Earlier adopters also review intervening changelogs; pre-0.3 skill
-   copies follow [their dedicated migration](migration-0.3.md).
+2. Compare the old and target published starters through [the template update procedure](updating.md#canonical-sequence).
+   Review intervening changelogs for policy, pin, and managed-file changes.
+   Pre-0.3 skill copies follow [their dedicated migration](migration-0.3.md).
 3. Generate target candidates in an empty disposable directory, from the clean
-   v0.6.0 checkout. This writes candidates only, not the product:
+   target release checkout. Set `starter_host` and `starter_ref` as in
+   [project configuration](adoption-workflow.md#apply-project-configuration),
+   and use the reviewed `--adr-policy` mode (shown with `link`):
 
    ```bash
    candidate_dir=$(mktemp -d)
-   uv run --locked gz-starter configure --project "$candidate_dir" --apply
+   uv run --locked gz-starter configure --project "$candidate_dir" --host "$starter_host" --starter-ref "$starter_ref" --adr-policy link --apply
    ```
 
-   Retain the printed directory for review. Its lock/fragment and managed Codex
-   tables are the target baseline. Its generated AGENTS file is only an example;
-   do not replace the product's authorities with it.
+   Retain the printed directory for review. Use its lock, fragment, and managed
+   host configuration as target candidates. Keep the product's existing AGENTS.
 4. Perform a three-way review: original starter-managed content, current product
    content, and target candidates. Merge only the starter marketplace/source and
-   activation tables in Codex configuration; preserve unrelated settings/comments.
+   activation settings for the selected host and preserve unrelated settings and comments.
    Reconcile target provenance and component records in the lock, and merge the
    new fragment with reviewed local guidance. Keep profile selection intact;
    pending selection must be completed through upstream setup. Inspect the
    complete product diff before saving it as a reviewed migration commit.
-5. Keep the old provenance in the rollback history; do not relabel the old SHA as
-   v0.6.0. The new lock records the real target version and full SHA only after
+5. Keep the old provenance in the rollback history. The new lock records the
+   actual target version and full SHA after
    its managed content is reconciled. If intentional fragment edits remain,
    document them: the helper will continue reporting a managed-content conflict,
    rather than certifying the edited fragment. Do not erase edits merely to get
    a clean helper result.
 6. Run preview/status again. A clean exact-baseline reconciliation should be a
-   no-op; unresolved conflicts require explicit review. Native installation is
-   separate. Because component pins did not change in this release, do not
-   gratuitously update them; verify the host's actual selected sources and
-   discovery independently. Complete the evidence and migration tasks below.
+   no-op. Review unresolved conflicts, verify the host's selected sources and
+   fresh-session discovery, and run the adopter gates. When introducing the
+   verifier, follow [the existing-adopter migration](adoption-workflow.md#migrate-existing-adopters-from-090-or-later)
+   if applicable. Complete the evidence and migration tasks below.
 
 ## Acceptance and release record: required, not inferred
 
@@ -289,7 +285,5 @@ the installed upstream release workflow when available, within its actual scope.
 Publishing still requires authorization. A release distributing guidance with
 disclosed gaps is not an unqualified claim of strict baseline acceptance.
 
-This runbook's gates are project-owned review obligations in 0.5.0. Automatic
-evidence validation, three-way file merging and PRD adequacy checks are not
-implemented by the helper. Never report automatic enforcement or a completed
-migration merely because these instructions exist.
+The adopter's recorded evidence and review establish acceptance. The CLI's
+configuration and Python verifier results supply evidence for individual checks.

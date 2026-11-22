@@ -81,7 +81,7 @@ missing capability stays visible rather than becoming another starter skill.
 The wheel has six authoritative resource inputs: bundle, two catalogs,
 instructions fragment, owned update skill and architectural-decision policy.
 Configure supports `--adr-policy link|local`; local mode writes the policy under
-`.skills-first/` with provenance in the existing bundle lock. Preserve local
+`.gz-starter/` with provenance in the existing bundle lock. Preserve local
 edits through the canonical update/reconciliation route. A copied policy is
 ordinary documentation, not another skill or a qualification receipt.
 
@@ -114,7 +114,7 @@ the pinned Git source works from both locations without machine-specific paths.
 another editable copy. Git must materialize that symlink as a directory link;
 discovery on hosts that check it out as a plain file is unverified. Use this
 skill with an explicitly identified adopter project. It does not update this
-starter's own source. No `.skills-first/bundle.lock.json`, self-adoption record,
+starter's own source. No `.gz-starter/bundle.lock.json`, self-adoption record,
 or inferred lite/heavy selection is needed for development discovery.
 
 In a trusted checkout, inspect native state:

@@ -11,10 +11,11 @@ from typing import Any
 from urllib.parse import unquote, urlsplit
 
 from skills_first_starter.native_json import document as read_native_json
+from skills_first_starter.paths import BUNDLE_LOCK, STATE_SETTINGS
 
 _JSON_CONFIGS = {
     "bundle.json",
-    ".skills-first/bundle.lock.json",
+    BUNDLE_LOCK,
     ".gz-skills/settings.json",
     ".agents/plugins/marketplace.json",
     ".claude-plugin/marketplace.json",
@@ -22,7 +23,7 @@ _JSON_CONFIGS = {
     "opencode.json",
     "opencode.jsonc",
 }
-_TOML_CONFIGS = {".codex/config.toml", ".skills-first/settings.toml"}
+_TOML_CONFIGS = {".codex/config.toml", STATE_SETTINGS}
 _STANDALONE_TOOL_CONFIGS = {"ruff.toml", ".ruff.toml", "ty.toml", "uv.toml"}
 _LINK_OPEN = re.compile(r"\]\(\s*")
 _MARKDOWN_REFERENCE = re.compile(r"^ {0,3}\[[^\]]+\]:\s*(?:<([^>\n]+)>|(\S+))", re.M)

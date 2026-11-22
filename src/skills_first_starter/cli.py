@@ -26,7 +26,12 @@ from skills_first_starter.native import (
 )
 from skills_first_starter.native_launch import launch as launch_opencode
 from skills_first_starter.native_scope import claude_scope, codex_scope, opencode_scope
-from skills_first_starter.paths import space_free
+from skills_first_starter.paths import (
+    BUNDLE_LOCK,
+    LOCAL_ADR_POLICY,
+    space_free,
+    validate_state_directory,
+)
 
 _SOURCE = Path(__file__).resolve()
 _CHECKOUT = _SOURCE.parents[2]
@@ -43,7 +48,7 @@ UPDATE_SKILL = "update-gz-template"
 UPDATE_SKILL_SOURCE = f"templates/skills/{UPDATE_SKILL}/SKILL.md"
 UPDATE_SKILL_DESTINATION = f".agents/skills/{UPDATE_SKILL}/SKILL.md"
 ADR_POLICY_SOURCE = "docs/engineering/architectural-decisions.md"
-ADR_POLICY_DESTINATION = ".skills-first/architectural-decisions.md"
+ADR_POLICY_DESTINATION = LOCAL_ADR_POLICY
 
 
 class AdoptionError(Exception):
@@ -240,7 +245,7 @@ def _policy_candidates(
     root: Path, ref: str, requested: str | None
 ) -> tuple[dict[str, str], dict[str, str], str]:
     """Resolve policy access and reject unreconciled provenance before writing."""
-    lock_path = check_path(root, ".skills-first/bundle.lock.json")
+    lock_path = check_path(root, BUNDLE_LOCK)
     recorded = None
     if lock_path.exists():
         lock = json.loads(lock_path.read_bytes())
@@ -303,7 +308,7 @@ def _configuration_candidates(
     config = _scoped_config(config, host, ref, bundle()["components"])
     candidates = {
         config_path: config,
-        ".skills-first/bundle.lock.json": json.dumps(lock, indent=2) + "\n",
+        BUNDLE_LOCK: json.dumps(lock, indent=2) + "\n",
         "AGENTS.skills-first.md": fragment,
         update_skill_path(host): space_free(HERE / UPDATE_SKILL_SOURCE).read_text(encoding="utf-8"),
     }
@@ -374,6 +379,7 @@ def _apply_writes(
     before: dict[str, bytes | None],
 ) -> None:
     """Recheck each destination and roll completed writes back on failure."""
+    validate_state_directory(root)
     completed = []
     try:
         for name, payload in writes.items():
@@ -383,13 +389,20 @@ def _apply_writes(
                 raise AdoptionError(f"{name} changed during preview; retry after review")
             _write_candidate(path, payload, current)
             completed.append(name)
+        validate_state_directory(root)
     except BaseException:
         for name in reversed(completed):
+            try:
+                path = check_path(root, name)
+                if path.read_bytes() != writes[name].encode():
+                    continue
+            except AdoptionError, OSError, ValueError:
+                continue
             original = before[name]
             if original is None:
-                paths[name].unlink()
+                path.unlink()
             else:
-                paths[name].write_bytes(original)
+                path.write_bytes(original)
         raise
 
 
@@ -410,6 +423,7 @@ def configure(
             "use a reviewed, published full starter commit SHA; moving branches are not pins"
         )
     root = _adoption_root(project)
+    validate_state_directory(root)
     policy, copies, working_policy = _policy_candidates(root, ref, adr_policy)
     _check_discovery(root, host)
     if host == "claude":
@@ -420,7 +434,7 @@ def configure(
         name: check_path(root, name)
         for name in (
             configuration_path(root, host),
-            ".skills-first/bundle.lock.json",
+            BUNDLE_LOCK,
             ".gz-skills/settings.json",
             "AGENTS.skills-first.md",
             "AGENTS.md",
@@ -458,7 +472,8 @@ def configure(
 def status(project: Path) -> dict:
     """Compare managed project files with this starter's expected content."""
     root = space_free(project).resolve(strict=True)
-    path = check_path(root, ".skills-first/bundle.lock.json")
+    validate_state_directory(root)
+    path = check_path(root, BUNDLE_LOCK)
     if not path.exists():
         return {"status": "not configured", "runtime_readiness": "unverified"}
     lock = json.loads(path.read_text(encoding="utf-8"))
@@ -504,7 +519,8 @@ def localize(project: Path, ref: str, *, host: str, apply: bool = False) -> dict
         raise AdoptionError("select a supported host and a full reviewed starter SHA")
     root = _adoption_root(project)
     parts = bundle()["components"]
-    lock = check_path(root, ".skills-first/bundle.lock.json")
+    validate_state_directory(root)
+    lock = check_path(root, BUNDLE_LOCK)
     if lock.exists():
         parts = json.loads(lock.read_text(encoding="utf-8"))["components"]
         if {p["name"] for p in parts} != {p["name"] for p in bundle()["components"]}:

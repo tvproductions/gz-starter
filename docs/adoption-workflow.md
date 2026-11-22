@@ -1,5 +1,43 @@
 # Adopt the skills stack
 
+Choose the procedure that matches the project:
+
+| Starting point | Procedure |
+| --- | --- |
+| New Python product | [Greenfield](adoption-0.5.md#greenfield-start-a-new-python-product) |
+| Working product with no starter adoption record | [Brownfield first adoption](adoption-0.5.md#brownfield-first-adoption-into-a-working-product) |
+| Existing adopter moving to a different starter revision | [Template update](updating.md#canonical-sequence) and [brownfield upgrade](adoption-0.5.md#brownfield-upgrade-an-earlier-starter-adoption) |
+| Existing setup with inherited plugin activation to repair | [Preview, apply, and verify `localize`](adoption.md#repository-owned-installation-and-brownfield-repair) |
+| Existing project evaluating structure only | [Read-only backport assessment](backport.md) |
+
+## Skills and executable tools
+
+Skills route requests, apply project policy, and review evidence. The
+`gz-starter` CLI handles repeatable inspection, configuration, and verification.
+Use `uv run --locked gz-starter <command> --help` in the reviewed starter
+checkout. Run `verify` from the adopter's locked environment.
+
+| Tool | What it establishes |
+| --- | --- |
+| `backport --project <root>` | Top-level inventory for a migration review. |
+| `configure --project <root> --host <host> --starter-ref <sha>` | Managed-file preview. `--apply` writes the reviewed configuration. |
+| `status --project <root>` | Managed-file state against the matching starter release. |
+| `localize --project <root> --host <host> --starter-ref <sha>` | Project activation repair preview. `--apply` writes local overrides. |
+| `run-opencode --project <root> -- <args>` | A scoped OpenCode session or native discovery command. |
+| `verify --project .` | Artifact and required unittest results for a supported adopter checkout. |
+| `version` and `validate` | The checkout's declared template version and bundle/catalog consistency. Git and GitHub establish release identity. |
+
+The starter owns one skill, `update-gz-template`. It guides release selection,
+three-way reconciliation, and rollback while using Git, `gh`, and the helper
+for executable steps. Upstream `gzs-project-setup` uses its settings helper to
+record the chosen profile. `gzs-quality-gate` runs project-defined checks, and
+`gzs-update-dependencies` uses the owning package and plugin tools. The adopter
+owns its migration mapping, exact ADR approvals, release scope, and acceptance decision.
+Record managed configuration, fresh native discovery, product checks, and
+acceptance evidence in the project's existing records.
+
+## Shared requirements
+
 Both lanes MUST identify deployment/configuration ownership and follow the
 [configuration contract](project-configuration.md) and
 [application foundations](engineering/application-foundations.md). Inventory
@@ -11,10 +49,8 @@ For recurring template updates and pre-skill adopter bootstrap, use
 [canonical template updates](updating.md). Version 0.6 adds one native
 update skill; 0.5 and earlier adopters can bootstrap it from the published release.
 
-For the required greenfield, brownfield first-adoption and existing-adopter
-upgrade paths, start with [the 0.5 runbook](adoption-0.5.md). Explicit lane selection
-and applicable adoption/release analysis are required in both lanes. The helper
-still configures files only; it does not automatically enforce acceptance.
+The [adoption runbook](adoption-0.5.md) defines explicit lane selection and
+applicable adoption/release analysis for both lanes.
 
 Adopt the [outer/inner-loop composition](architecture.md#outer-loop-inner-loop-and-supplemental-disciplines):
 starter supplies the outer loop, SP the inner development loop, and gz-skills
@@ -32,8 +68,7 @@ workflow discovery, behavioral qualification or adoption completion. Propagation
 awaits reviewed released companion contributions and three-publisher evidence.
 
 Read [the adoption guide](adoption.md) for native host loading,
-compatibility checks, updates, and rollback. The helper is
-[starter.py](../starter.py); use its CLI help for current options.
+compatibility checks, updates, and rollback.
 
 For structural adoption in an existing project, read
 [backport guidance](backport.md). Run the read-only assessment, map
@@ -102,8 +137,33 @@ Inspect project instructions, existing plugins and skill discovery, and gzkit
 ownership. Keep app rules and existing user changes. Do not make a copy of an
 upstream skill tree or install the same skill through two discovery contracts.
 
-Run `uv run --locked gz-starter configure --project <root>` from this starter checkout.
-Inspect its preview, then apply the already-authorized adoption with `--apply`.
+## Apply project configuration
+
+Inspect both state directories before configuring an existing project. Follow
+the [legacy state procedure](updating.md#relocate-legacy-starter-state) when
+recognized artifacts are present under `.skills-first/`. The helper writes
+current state under `.gz-starter/` starting with 0.12.1.
+
+From the separate, reviewed starter checkout, substitute the absolute project
+path and the full release commit SHA you verified. Use `codex`, `claude`, or
+`opencode` for the project's host.
+
+```sh
+project_root=/absolute/path/to/product
+starter_ref=FULL_STARTER_SHA
+starter_host=codex
+uv run --locked gz-starter configure --project "$project_root" --host "$starter_host" --starter-ref "$starter_ref"
+```
+
+Review the preview and the [ADR policy access options](adoption.md#architectural-decision-policy-access).
+Supply the same `--adr-policy link` or `--adr-policy local` option on preview
+and apply when selecting an explicit mode. After the preview is reviewed:
+
+```sh
+uv run --locked gz-starter configure --project "$project_root" --host "$starter_host" --starter-ref "$starter_ref" --apply
+uv run --locked gz-starter status --project "$project_root"
+```
+
 A conflict requires reconciliation of the specific source or file; do not remove
 other installations or use a force overwrite to make it pass. Existing AGENTS
 stays untouched: review the generated fragment and add a pointer within scope.
@@ -139,7 +199,7 @@ not prove a published release or cross-harness readiness.
 ## Configure the adopter verifier
 
 Apply this procedure in both lanes for a single-project CPython 3.14 checkout
-after identifying a reviewed starter release that delivers the verifier.
+using a reviewed starter release that delivers the verifier (v0.12.0 or later).
 Keep workspaces and XPPython3 on their existing project-owned verification
 paths. Treat native discovery, runtime-design approval, configuration and
 product acceptance as separate results.
@@ -153,19 +213,28 @@ The first source, tooling or test asset activates behavioral verification
 regardless of this setting. Reconcile package metadata and its lock as soon as
 the product is ready for installation and perform the installed-product checks.
 
-Resolve the reviewed release tag to its full commit SHA with Git. Replace
-`FULL_RELEASE_SHA` with that exact commit in this command:
+From the adopter root, record the current unittest, coverage, and CI commands.
+Resolve the reviewed verifier release tag to its full commit SHA with Git. Add
+the extra as a dev dependency using that exact SHA:
 
 ```sh
 uv add --dev "gz-starter[verification] @ git+https://github.com/tvproductions/gz-starter.git@FULL_RELEASE_SHA"
 uv sync --locked
+```
+
+Set up the [supported unittest hook](engineering/verification-policy.md#bootstrap-and-implementation-verification-for-adopters)
+before running either gate. Reuse the existing unittest hook category and
+configure discovery through `[tool.gz-starter.verify]` if the project uses a
+supported non-default layout. Preserve the other three routine checks and
+existing coverage. Then run:
+
+```sh
 uv run --locked gz-starter verify --project .
 uv run --locked pre-commit run --all-files
 ```
 
 Use the lock generated by uv. Record the verifier tool's immutable pin and
-the adopted template's version and source separately. Preserve the other three
-routine checks and existing coverage. When CI is in scope, adapt the
+the adopted template's version and source separately. When CI is in scope, adapt the
 [shell-only example](../src/skills_first_starter/resources/templates/verification/verify-python.yml)
 at `.github/workflows/verify-python.yml`. Authenticate before fetching private
 source and prove the exact event SHA, supported runner and actual job results.

@@ -196,12 +196,11 @@ independent upstream updates or both, and their own update timing.
 ## Agent: start here
 
 The template has its own version, independent of its plugins and adopter apps.
-`bundle.json` owns `template_version`; `starter.py version` reports it, and new
+`bundle.json` owns `template_version`; `gz-starter version` reports it, and new
 adoption records both version and full commit SHA. See
 [versioning and release policy](docs/versioning.md) and [changelog](CHANGELOG.md).
-The template release is [v0.11.4](https://github.com/tvproductions/gz-starter/releases/tag/v0.11.4).
-Start with the [greenfield/brownfield runbook](docs/adoption-0.5.md), including
-existing-adopter upgrades and explicit acceptance/release requirements.
+Start with the [adoption workflow](docs/adoption-workflow.md) to select the
+greenfield, brownfield first-adoption, or upgrade procedure.
 Verify a published tag and exact commit before adoption; a metadata value
 alone is not proof of a release.
 
@@ -211,7 +210,8 @@ user requested before changing files:
 
 | User's goal | Entry |
 | --- | --- |
-| Adopt into an existing project | Inventory installed sources, preview configuration, preserve existing authorities |
+| Adopt into an existing project | [Brownfield first adoption](docs/adoption-0.5.md#brownfield-first-adoption-into-a-working-product) |
+| Update an existing adoption | [Template update and rollback](docs/updating.md#canonical-sequence) |
 | Backport a preferred structure | [Structure mapping guide](docs/backport.md); make useful changes incrementally |
 | Start a new project | [Use this template](https://github.com/tvproductions/gz-starter/generate), then adapt the copied starter material to the product |
 | Use an already adopted project | Starter outer loop; SP inner development loop; gz-skills supplemental; project-owned skills for domain operations |
@@ -236,12 +236,13 @@ setup, invocation and the boundary against self-adoption.
 The canonical repository and distribution/command are **gz-starter**, shipped
 in 0.10.0 and retained in published 0.11.3. The `skills-first-starter` command
 remains a compatibility alias. The Python import `skills_first_starter`, marketplace key
-`skills-first-starter`, `.skills-first/` provenance directory and
-`update-gz-template` skill ID remain stable compatibility surfaces. See the
+`skills-first-starter`, and `update-gz-template` skill ID remain stable
+compatibility surfaces. See the
 [rename migration](docs/rename-gz-starter.md).
 
-Requires uv >=0.13.5, Python 3.14, Git, and Codex with plugin support. GitHub CLI is useful
-for checking upstream releases; Backplane's GitHub workflows remain deferred. No Python dependencies are needed for this tool.
+The configuration helper requires uv >=0.13.5, Python 3.14, and Git. Use `gh`
+to verify published release metadata. Follow the native instructions for your
+selected host. The adopter verifier uses the optional `verification` extra.
 
 uv uses a minimum-only compatibility requirement; local and hosted versions
 need not match CI's selected 0.13.9. See the
@@ -257,58 +258,35 @@ an installed older patch is not a freshness check. See the
 [baseline rule](docs/engineering/python.md#latest-stable-within-the-selected-family).
 
 ```bash
-git clone --branch v0.11.4 https://github.com/tvproductions/gz-starter.git
+git clone --branch v0.12.0 https://github.com/tvproductions/gz-starter.git
 cd gz-starter
 uv run --locked gz-starter validate
-uv run --locked gz-starter configure --project /path/to/your-project
-uv run --locked gz-starter configure --project /path/to/your-project --apply
 ```
 
-Select the native host explicitly with `--host codex`, `--host claude` or
-`--host opencode` on both configure commands; omitted `--host` retains Codex
-compatibility. The helper writes only the selected host's repository settings.
-For an already configured brownfield project, repair activation independently:
+This example uses [v0.12.0](https://github.com/tvproductions/gz-starter/releases/tag/v0.12.0),
+the first release with the adopter verifier. Follow the
+[release selection and verification steps](docs/adoption-0.5.md#obtain-and-verify-the-released-starter)
+before applying changes to a project.
 
-```bash
-uv run --locked gz-starter localize --project /path/to/your-project --host codex --starter-ref FULL_STARTER_SHA
-uv run --locked gz-starter localize --project /path/to/your-project --host codex --starter-ref FULL_STARTER_SHA --apply
-```
+The v0.12.0 example writes under `.skills-first/`. From 0.12.1, configure writes
+under `.gz-starter/`. Use tools from the reviewed new release for the
+[state relocation procedure](docs/updating.md#relocate-legacy-starter-state).
 
-Use the corresponding Claude/OpenCode host value when repairing those clients.
-Existing global/user copies may remain: the project owns selection and behavior,
-and the repair writes only project overrides. It preserves adoption records and
-uses adopted component pins when present. See the
-[three-host procedure](docs/adoption.md#repository-owned-installation-and-brownfield-repair).
-For OpenCode 2.2.0, use `uv run --locked gz-starter run-opencode
---project /path/to/project -- <native arguments>` from the starter environment.
-This avoids its inherited duplicate-ID failure without modifying OpenCode.
+1. Choose [greenfield](docs/adoption-0.5.md#greenfield-start-a-new-python-product),
+   [brownfield first adoption](docs/adoption-0.5.md#brownfield-first-adoption-into-a-working-product),
+   or [upgrade an existing adopter](docs/updating.md#canonical-sequence).
+2. For first adoption, [preview, apply, and check the managed files](docs/adoption-workflow.md#apply-project-configuration)
+   for Codex, Claude Code, or OpenCode. Review and link the generated fragment
+   from an existing `AGENTS.md`.
+3. Follow [native installation and discovery](docs/adoption.md#repository-owned-installation-and-brownfield-repair)
+   and record an explicit lite/heavy selection. Use `localize` for inherited
+   activation repair. Native installation and activation are project-scoped.
+4. For single-project CPython 3.14, [wire `gz-starter verify` into the unittest hook](docs/adoption-workflow.md#configure-the-adopter-verifier).
+   Exercise the project gates and record [adoption and release acceptance](docs/adoption-0.5.md#acceptance-and-release-record-required-not-inferred).
 
-The first configure command previews paths without writing. The second writes
-project Codex settings, a pinned bundle record and an instructions fragment.
-Configure also seeds the single project-scoped
-`.agents/skills/update-gz-template/SKILL.md`; published 0.5.0 does not. SP and gz-skills are
-enabled; SP-BP is explicitly disabled.
-Existing `AGENTS.md` is preserved; new projects get an entry pointing to the
-fragment. Existing configuration is extended only when it is compatible.
-Conflicts, legacy duplicate skill discovery, symlinked destinations, and gzkit
-projects stop before any writes. Repeating adoption with the same inputs is a
-no-op. Review the configuration before trusting it in Codex.
+See the [command reference](docs/adoption-workflow.md#skills-and-executable-tools)
+for the division between skills, the CLI, and project-owned reviews.
 
-Then follow [native installation and verification](docs/adoption.md). Configuring
-files does **not** install plugins, authenticate GitHub, or prove skill discovery.
-Require repository/project-scoped installation, registration and activation;
-do not install this stack globally or at user scope. Shared native download
-caches are storage, not permission for user-wide activation.
-The native managers own their caches; upstream skills are never copied here.
-Complete the [greenfield/brownfield runbook](docs/adoption-0.5.md), including
-explicit lite/heavy selection and required adoption/release analysis. Configure
-and status do not certify Python conformance or complete an existing migration.
-
-```bash
-uv run --locked gz-starter status --project /path/to/your-project
-```
-
-For agent-guided adoption, read [the adoption workflow](docs/adoption-workflow.md).
 You can also [use this repository as a GitHub template](https://github.com/tvproductions/gz-starter/generate),
 then configure your new checkout from a separate, reviewed starter checkout.
 A generated repository inherits the starter files; simplify it for your product

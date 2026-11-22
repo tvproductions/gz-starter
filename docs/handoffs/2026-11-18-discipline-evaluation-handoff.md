@@ -1,6 +1,41 @@
 # Starter discipline evaluation — handoff, November 18, 2026
 
-## Current resume point — November 21, 2026
+## Current resume point — November 22, 2026
+
+### November 22 candidate save point
+
+The maintainer requested release of 0.12.1, then directed continued 0.13.0 work
+while patch publication was blocked. This save point brings the 0.12.1 candidate,
+its regression tests, version mirrors, and brownfield guidance to `main`.
+Publication and the two release candidates remain separate. Published baseline
+is **0.12.0** at `7303deff043231d8bcbb789e52efdbdde6b7e2f0`.
+
+Local integration, installed-artifact checks, and a macOS rehearsal using a
+released 0.12.0 adopter passed. Independent review led to regressions and fixes
+for unreadable state and legacy state appearing during apply. See the
+[0.12.1 candidate receipt](../evidence/2026-11-22-0.12.1-candidate-acceptance.md).
+
+Release freshness identified `filelock` 4.3.0 in both baselines. Separate
+maintenance authority was requested because dependency updates were excluded
+from the approved patch scope. Once resolved, rerun affected gates on the exact
+release candidate. Complete producer CI and the existing private qualification
+on macOS ARM64 and Windows x64 before publishing. The expanded private fixture
+controls were rehearsed locally and have not run on the candidate SHA.
+
+The approved [0.13.0 plan](../superpowers/plans/2026-11-22-starter-skill-prefix.md)
+has a local implementation in the ignored checkout
+`.superpowers/sdd/starter-skill-prefix/checkout`. Its adjacent
+`0.13.0-skill-prefix.patch` is a delta over the local 0.12.1 snapshot, Git tree
+`f860c33d8a9e459cdd528b9fdc410c08c052cc09` in that checkout. The delta was
+checked against the patch workspace. Review it against the final 0.12.1 release
+before integrating. The checkout and delta are local to this machine.
+
+The 0.13.0 candidate passed the four hooks, including 137 unittest cases with
+one Windows-only skip, and the build and installed-distribution checks. An
+upgrade and rollback rehearsal preserved adopter changes. Local Codex and
+Claude Code sessions each found exactly one `gzt-update-template`, and outside
+controls found neither name. OpenCode returned no skills including its control.
+OpenCode discovery and exact-source hosted qualification remain pending.
 
 ### Starter state directory correction — design approved November 22
 

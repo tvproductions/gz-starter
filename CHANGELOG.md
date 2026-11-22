@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Store starter-owned state in `.gz-starter/`. Configure, status, activation
+  repair, and verification detect legacy state before continuing. Existing
+  adopters relocate reviewed artifacts while preserving provenance, local
+  policy changes, and unrelated files. [Migration procedure](docs/updating.md#relocate-legacy-starter-state)
+
+- Clarify brownfield first adoption, activation repair, and template upgrades.
+  Use a verifier-capable release in the examples and show how to set up the
+  unittest hook before running the adopter gate.
+
 ## 0.12.0 — November 21, 2026
 
 - Add the optional `gz-starter[verification]` development extra and

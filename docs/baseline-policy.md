@@ -49,7 +49,7 @@ Astral recommendations are the default to adopt and verify; configuration-only
 helper success does not establish full baseline or native-host acceptance.
 
 This is the adopter-facing authority for version selection. Read it at the
-reviewed starter version/SHA recorded in `.skills-first/bundle.lock.json`, then
+reviewed starter version/SHA recorded in `.gz-starter/bundle.lock.json`, then
 compare it with later published releases during maintenance. A copied exact pin
 is evidence of one tested environment; it is not the template's permanent
 requirement for every adopter.

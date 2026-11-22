@@ -8,7 +8,7 @@ Preserve failing results. Verify installed revisions and discovery separately
 from configuration.
 
 **Resolve starter references from the source, version and exact SHA in
-`.skills-first/bundle.lock.json`.** Read the named `docs/` sections in that
+`.gz-starter/bundle.lock.json`.** Read the named `docs/` sections in that
 reviewed starter checkout, or use a project-owned reconciliation with recorded
 provenance. If the governing source is unavailable, report the gap and leave
 dependent decisions unresolved. Recognize **GZ Starter**, **starter** and
@@ -16,6 +16,12 @@ dependent decisions unresolved. Recognize **GZ Starter**, **starter** and
 commands and provenance. Route “update the starter” or “check the starter
 template” through `update-gz-template` or `docs/updating.md` in the corresponding
 update or review mode. Clarify only if the reference is ambiguous.
+
+Both lanes MUST store starter state in `.gz-starter/`. Before first adoption
+or an upgrade, inspect `.skills-first/` for legacy state. Follow
+`docs/updating.md#relocate-legacy-starter-state` to review, back up, relocate,
+and verify recognized artifacts. Preserve recorded provenance, local edits,
+and unrelated content. Resolve linked or dual state before retrying.
 
 **Dependency maintenance MUST complete migration to the latest stable versions
 of every in-scope dependency and tool, including new families.** Bare
@@ -71,7 +77,7 @@ lifecycle.
 During design, execution and review in either lane, follow the
 [identified ADR policy]({{ADR_POLICY_WORKING_SOURCE}}). Preserve its
 [immutable canonical source]({{ADR_POLICY_CANONICAL_URL}}) and the version, full
-SHA, content hash and link/local choice in `.skills-first/bundle.lock.json`.
+SHA, content hash and link/local choice in `.gz-starter/bundle.lock.json`.
 Honor the selected working copy, preserve local adaptations and report source
 conflicts. Identify and retain the project's existing ADR collection and reuse
 approved entries. Obtain separate explicit human approval of the exact new or

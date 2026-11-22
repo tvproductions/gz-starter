@@ -10,7 +10,7 @@ do not contain it; use the bootstrap below or follow the
 
 Accept **starter** and **starter template** as conversational references to the
 adopted `gz-starter` template. Resolve the source and recorded
-version/full SHA through `.skills-first/bundle.lock.json` and project adoption
+version/full SHA through `.gz-starter/bundle.lock.json` and project adoption
 context; require clarification only if another template makes the reference
 ambiguous. "Update the starter" selects template migration; "check the starter
 template" selects review without updates. Route either to `update-gz-template`
@@ -57,7 +57,9 @@ updates as pending instead of changing scope.
 
 ## Canonical sequence
 
-1. Read project authorities and `.skills-first/bundle.lock.json`. Record current
+1. Read project authorities. Inspect the metadata of both state directories
+   and recognized entries before opening a record. If legacy, linked, or dual
+   state is present, follow the relocation procedure below. Record current
    starter version/full SHA, component pins, explicit lane and local changes.
    Unknown provenance requires investigation, not a guessed version.
 2. Query canonical published releases. Respect the requested release or select
@@ -98,6 +100,33 @@ If the reviewed release delivers `gz-starter verify`, follow the
 Review the hook, CI, independent verifier pin, lock and stale project instructions
 together. Keep the original coverage and runtime-design obligations and record
 the exact adopter result separately from the producer or native discovery result.
+
+## Relocate legacy starter state
+
+From 0.12.1, both adopter lanes store starter-owned state only in `.gz-starter/`.
+The legacy files are `.skills-first/bundle.lock.json`,
+`.skills-first/architectural-decisions.md`, and `.skills-first/settings.toml`.
+Recognized legacy entries require review even when malformed. Linked or dual
+state blocks the helper and verifier.
+
+1. Inventory both directories and active references. Capture the previous Git
+   revision and back up affected tracked and untracked files outside both
+   locations. Resolve dual state and unsafe links before moving files. Preserve
+   unrelated old-directory contents.
+2. For a directory-only relocation, move only the reviewed starter artifacts
+   to `.gz-starter/`. Update `adr_policy.local_path` and working references when
+   applicable. Preserve the actual starter and component sources, policy source
+   and hash, local edits, host, and profile.
+3. For a template upgrade, generate candidates from the reviewed released target
+   with the explicit host and ADR policy. Compare the original, current, and
+   candidate files. Reconcile the moved state, fragment, skill, and native
+   settings together. Record the target version and full SHA after consuming it.
+4. Check that recognized legacy artifacts are gone and working references
+   resolve. Run the applicable verifier from 0.12.1 or later and check native discovery. If a
+   directory-only move produces a managed-content conflict with the new release,
+   record relocation complete and template reconciliation pending. On an exact
+   target, require configured status and no writes on a repeated configure.
+   Restore the saved paths, contents, and references together for rollback.
 
 ## New adopters and bootstrap for older adopters
 

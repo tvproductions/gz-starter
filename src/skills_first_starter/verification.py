@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from skills_first_starter.paths import space_free
+from skills_first_starter.paths import space_free, validate_state_directory
 from skills_first_starter.verification_artifacts import (
     declared_readme,
     entry_points,
@@ -85,6 +85,7 @@ def verify_project(project: Path) -> int:
     """Expose one fail-closed verification entry point for the adopter."""
     try:
         root = _project_root(project)
+        validate_state_directory(root)
         inventory = inventory_project(root)
         paths = set(inventory.paths)
         missing = _REQUIRED - paths

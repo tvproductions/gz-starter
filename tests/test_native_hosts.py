@@ -106,7 +106,7 @@ class NativeHostTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     starter.configure(root, REF, host=host, apply=True)
                 self.assertEqual(path.read_bytes(), original)
-                self.assertFalse((root / ".skills-first").exists())
+                self.assertFalse((root / ".gz-starter").exists())
                 self.assertFalse((root / "AGENTS.md").exists())
 
     def test_opencode_jsonc_is_preserved_instead_of_shadowed(self):
@@ -126,7 +126,7 @@ class NativeHostTests(unittest.TestCase):
             starter.configure(self.root, REF, host="claude", apply=True)
         self.assertEqual(path.read_bytes(), original)
         self.assertFalse((self.root / ".claude/settings.json").exists())
-        self.assertFalse((self.root / ".skills-first").exists())
+        self.assertFalse((self.root / ".gz-starter").exists())
 
     def test_host_switch_requires_reconciliation_before_writing_other_host_settings(self):
         starter.configure(self.root, REF, host="claude", apply=True)

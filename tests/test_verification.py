@@ -87,6 +87,21 @@ class VerificationProject(unittest.TestCase):
 
 
 class VerificationCliTests(VerificationProject):
+    def test_canonical_bootstrap_validates_state_and_legacy_cannot_pass(self):
+        self.write(".gz-starter/bundle.lock.json", "{}")
+        state = self.write(".gz-starter/settings.toml", "invalid TOML")
+        self.assert_blocked(".gz-starter/settings.toml")
+        state.write_text("enabled = true\n", encoding="utf-8")
+        self.write(".skills-first/other.md", "# Unrelated\n")
+        result = self.verify()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        legacy = self.write(".skills-first/settings.toml", "enabled = true\n")
+        self.assert_blocked(".skills-first/settings.toml", "migration")
+        self.assertEqual(legacy.read_bytes(), b"enabled = true\n")
+        state.unlink()
+        (self.root / ".gz-starter/bundle.lock.json").unlink()
+        self.assert_blocked(".skills-first/settings.toml", "migration")
+
     def test_locked_docs_config_and_supported_workflow_pass(self):
         for trigger_key in ("on:", "'on':"):
             with self.subTest(trigger_key=trigger_key):
@@ -264,11 +279,30 @@ class VerificationCliTests(VerificationProject):
     def test_windows_junction_is_rejected_before_traversal(self):
         target = self.root / "elsewhere"
         target.mkdir()
-        junction = self.root / "linked"
-        result = run(self.root, "cmd", "/d", "/c", "mklink", "/J", str(junction), str(target))
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.addCleanup(junction.rmdir)
-        self.assert_blocked("linked")
+        sentinel = target / "sentinel.txt"
+        sentinel.write_bytes(b"external content")
+        for name in ("linked", ".skills-first", ".gz-starter"):
+            with self.subTest(name=name):
+                junction = self.root / name
+                result = run(
+                    self.root, "cmd", "/d", "/c", "mklink", "/J", str(junction), str(target)
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                try:
+                    self.assert_blocked(name)
+                    self.assertEqual(sentinel.read_bytes(), b"external content")
+                finally:
+                    junction.rmdir()
+
+    @unittest.skipIf(os.name == "nt", "Windows junction coverage runs separately")
+    def test_state_links_are_rejected_before_verification_reads_files(self):
+        state = self.root / ".skills-first"
+        state.mkdir()
+        external = self.write("elsewhere/sentinel.txt", "external content")
+        marker = state / "settings.toml"
+        marker.symlink_to(external)
+        self.assert_blocked("starter state symlink", ".skills-first/settings.toml")
+        self.assertEqual(external.read_bytes(), b"external content")
 
 
 if __name__ == "__main__":
