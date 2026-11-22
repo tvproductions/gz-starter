@@ -2,6 +2,22 @@
 
 ## Current resume point — November 21, 2026
 
+### Post-release dependency maintenance
+
+The new `gzs-update-dependencies` invocation rechecked all 77 registry projects,
+both Python baselines, Actions and bundled components against official sources.
+All repository selections were already current. Native Codex discovery still
+loaded gz-skills 0.13.0; the maintainer explicitly directed its update. Refreshing
+the named native marketplace and resolving a fresh session installed 0.14.0 at
+the selected SHA. Root/nested discovery and an outside-project control pass;
+user settings and project activation are unchanged. See the
+[maintenance receipt](../evidence/2026-11-21-post-release-maintenance.md) for
+the exact inputs, audits and verification. Retain published 0.12.0 and select
+no new version target. The subsequent `gzs-git-sync` invocation authorizes the
+ordinary main commit/push and exact-commit CI observation for these three
+evidence/handoff files. It grants no tag or release-publication authority.
+The roadmap resume point below remains unchanged.
+
 ### 0.12.0 published and verified
 
 The maintainer authorized [GZ Starter 0.12.0](https://github.com/tvproductions/gz-starter/releases/tag/v0.12.0).
