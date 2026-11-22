@@ -2,6 +2,32 @@
 
 ## Current resume point — November 21, 2026
 
+### Session close — maintenance complete, next work unselected
+
+Latest request: **create handoff + git sync**. This authorizes updating this
+existing continuation record, ordinary commit/push on `main` and observation
+of CI for that exact commit. No implementation, additional dependency/native
+update, companion/adopter change, tag or release is requested.
+
+Starting checkpoint: **`524dc5de0cff4cc085a0961a9989d5882a0ee93c`**, "Record
+post-release maintenance and gz-skills update verification". The previous sync
+pushed all three maintenance evidence/handoff files; local and remote matched,
+ahead/behind was 0/0 and the worktree was clean. Both jobs in its
+[exact-commit CI](https://github.com/tvproductions/gz-starter/actions/runs/44970194015)
+passed. Fresh fetch for this handoff found no new divergence.
+
+The maintenance and native gz-skills migration below are complete. Do not
+repeat them as unfinished work. Published **0.12.0** and all version mirrors
+remain unchanged, with no pending release target selected. This handoff-only
+closeout selects no new product or policy scope. Report its final commit, push,
+exact-commit CI and worktree in the response; do not add another receipt-only
+commit to record this handoff's own SHA.
+
+On continuation, recheck live state and follow the roadmap/resume guidance
+below. Choose the next bounded task before implementation. No further task is
+selected by this handoff. Preserve the existing architecture approval rules,
+cognitive deferral, embedded-host limits and deferred Backplane status.
+
 ### Post-release dependency maintenance
 
 The new `gzs-update-dependencies` invocation rechecked all 77 registry projects,
@@ -12,11 +38,21 @@ the named native marketplace and resolving a fresh session installed 0.14.0 at
 the selected SHA. Root/nested discovery and an outside-project control pass;
 user settings and project activation are unchanged. See the
 [maintenance receipt](../evidence/2026-11-21-post-release-maintenance.md) for
-the exact inputs, audits and verification. Retain published 0.12.0 and select
-no new version target. The subsequent `gzs-git-sync` invocation authorizes the
-ordinary main commit/push and exact-commit CI observation for these three
-evidence/handoff files. It grants no tag or release-publication authority.
-The roadmap resume point below remains unchanged.
+the exact inputs, audits and verification. The completed save point is recorded
+above. Retain published 0.12.0 and select no new version target. The roadmap
+resume point below remains unchanged.
+
+Observed local maintenance/save-point gates used uv **0.13.9** and managed
+CPython **3.14.10**: all four routine hooks, **128 tests** with one Windows-only
+skip, catalogs/resources, source-independent build and isolated installed
+CLI/example checks passed. The independent **3.12.16** X-Plane reference
+controls passed. Each locked security audit covered **75 registry packages**,
+with zero known vulnerabilities and zero skips. Both locks remained unchanged;
+all **77** registry selections were current at the receipt's checked time.
+Fresh native root/nested discovery found 21 gz-skills and 15 SP skills with
+zero errors; the outside control found no enabled starter plugins and user
+configuration hashes remained equal. These are bounded observed results,
+not universal model, desktop, other-host or embedded-runtime qualification.
 
 ### 0.12.0 published and verified
 
