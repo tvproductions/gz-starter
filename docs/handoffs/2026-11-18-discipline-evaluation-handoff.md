@@ -2,69 +2,71 @@
 
 ## Current resume point — November 22, 2026
 
-### First priority — How lite behaves in practice
+### First priority — Review ADR-0005 edition 3
 
-The maintainer made this the first review question for the next session.
-Start by finishing a concrete adopter walkthrough in the
-[lite records feature design](../superpowers/specs/2026-11-22-lite-records-adoption-design.md).
-The walkthrough should show the actual files, the action the adopter takes,
-what the starter reports, and what changes on disk for each case:
+The maintainer directed structured changelog entries with the same
+validation as the other lite records. Review the exact
+[ADR-0005 edition 3 proposal](../superpowers/specs/ADR-0005-003-own-lite-management-records-in-the-starter.md).
+It adds `changelog.json` as the sixth sidecar, makes `CHANGELOG.md` a
+generated view with preserved narrative and published history, and keeps
+a GitHub Issue Artifact as a view of related entries. Its
+[research and justification](../superpowers/specs/ADR-0005-003-own-lite-management-records-in-the-starter.md#review-of-the-edition-decision)
+record traditional supersession guidance, the UK GDS precedent for a
+reviewed revision of an unimplemented decision, and the local source and
+installed CLI checks that found no implementation of the edition 2 contract.
+The maintainer directed keeping this change within ADR-0005. The general
+ADR policy was outside this review's scope.
 
-1. **Start a lite project.** Show what explicit lane selection, preview and
-   apply produce. Use one populated example that traces a requirement through
-   backlog, selected work, roadmap and release records. Show where the adopter
-   edits each fact and what appears in the generated Markdown.
-2. **Bring existing work into lite.** Show the proposed mapping, who owns
-   each transferred fact before and after apply, what history remains, and how
-   stale inputs and competing ownership leave adoption pending.
-3. **Work with the records after adoption.** Show an ordinary sidecar edit,
-   a generated view refreshed from it, a manual edit that blocks replacement,
-   and interrupted-write recovery that preserves an independent edit.
+**Edition 2 remains approved and Current.** Its
+[recorded approval](../decisions/ADR-0005-002-own-lite-management-records-in-the-starter.md#approval-evidence)
+identifies the [exact reviewed text](../decisions/approvals/ADR-0005-002-reviewed.txt),
+SHA-256 `e3abf2f2bb5590021729a0074ea0f460cc94305eb447e1ae4743bfa3a61f7d7a`.
+The maintainer agreed to the edition approach and requested this handoff
+and Git sync. Separate approval of the exact edition 3 text is pending.
+No lite-records implementation has started in this checkout.
 
-Settle the mechanical details listed below in the design and bring the
-maintainer one finished edition to review. The review asks whether the
-walkthrough matches the workflow they want adopters to follow. No maintainer
-input is pending before drafting that edition. The ADR approval is already
-recorded. The separate feature-design approval follows the walkthrough review.
+### Feature design review — How lite behaves in practice
+
+The [feature design](../superpowers/specs/2026-11-22-lite-records-adoption-design.md)
+now has three walkthroughs for starting lite, reconciling existing work, and
+editing or recovering records. Paper Finch and all its identities, requirements,
+issues and release values are fictional fixtures. Keep actual Starter feature
+and release authority in the existing roadmap, approved designs and evidence.
+
+- The maintainer confirmed staged brownfield cutover. Put the required lite
+  files in place for inspection, keep the existing authority until verified
+  transfer, and maintain one editable owner for each transferred field. Use
+  the reviewed preview digest and exact source observations on init apply.
+  Adopters can keep using GitHub Issues and link them to the local records.
+- The maintainer confirmed direct routine `records render --apply` with an
+  optional preview. Reuse validation, the writer guard, edited-view detection
+  and interrupted-write recovery. The saved preview remains part of init.
+- Each sidecar is a collection of current records. An issue relates to specific
+  entries. Issue Artifacts are the preferred GitHub presentation to qualify.
+  GitHub currently documents them in public preview. Decide whether first
+  delivery requires the Artifact round trip. Creation, update and retrieval
+  of the exact earlier version remain unverified. The lite file contract
+  requires verified semantic correspondence at the selected SP-BP revision.
+- The November 14 [Starter draft](../superpowers/specs/2026-11-14-lite-record-and-commit-contract-draft.md#validation-and-unresolved-engineering)
+  identifies Pydantic for strict models and schema generation as a candidate.
+  The maintainer recalls a firmer choice. The raw November 14 conversation
+  was unavailable in the checked local history. Confirm Pydantic and its
+  dependency boundary before implementation.
+
+After edition 3 approval, reconcile the feature design and roadmap with the
+sixth schema, twelve paths, changelog migration and recovery, and a fictional
+entry shown on its related issue. Keep adopter behavior, exact schemas and
+acceptance in the feature design. Bring that edition for separate feature
+approval. No implementation or version reconciliation has started.
 
 ### Lite management records follow-through
 
-The maintainer directed follow-through on the recorded lite decisions.
-The [roadmap scope](../../ROADMAP.md#lite-management-records-and-follow-through)
-now tracks the six named records and their sidecars, typed commit records,
-and verified transfer to Backplane through completion. The six names,
-structured JSON authority, narrative Markdown and manual changelog were
-already selected. The first delivery is a separate compatible minor after
-the pending 0.13.0 skill rename. Its forecast is 0.14.0, subject to the actual
-published baseline when selected.
-
-**ADR-0005 edition 2 is approved and Current.** On November 22 the maintainer
-replied “approve adr-0005” to the exact edition 2 review request. The
-[current ADR and approval evidence](../decisions/ADR-0005-002-own-lite-management-records-in-the-starter.md#approval-evidence)
-link the [exact reviewed proposal](../decisions/approvals/ADR-0005-002-reviewed.txt).
-Its SHA-256 is
-`e3abf2f2bb5590021729a0074ea0f460cc94305eb447e1ae4743bfa3a61f7d7a`.
-Edition 1 remains historical. Continue with the approved layout, ownership
-and recovery boundaries. The [feature design](../superpowers/specs/2026-11-22-lite-records-adoption-design.md)
-still awaits review and approval.
-
-#### Design changes before implementation
-
-1. Define all five v1 schemas, allowed values, stable ID rules and cross-file
-   checks. Include an invented, populated example tracing a requirement through
-   backlog, work, roadmap and a selected release.
-2. Define the exact brownfield preview and apply contract. Bind apply to the
-   reviewed candidate and its source revisions. Specify how old authority is
-   retired for each transferred fact, what proves that transfer and when
-   acceptance remains pending.
-3. Specify routine sidecar editing and deterministic Markdown generation.
-   Define how to identify the previous generated body, refresh a stale view,
-   reject a manual edit in the generated section and retain narrative bytes.
-4. Define the writer guard, transaction manifest and recovery outcomes for
-   all-starting, all-candidate, mixed and independently edited paths. Cover
-   interruption during both apply and recovery. Use the
-   [paired design inputs](2026-11-14-opinionated-cli-design-discussion.md#simultaneous-design-checkpoint)
-   for alignment and retain the starter's local ownership.
+The [roadmap](../../ROADMAP.md#lite-management-records-and-follow-through)
+tracks the six records, typed commit records and verified lite-to-heavy
+transfer. Published baseline is 0.12.1. The independently scoped 0.13.0
+skill rename is pending. Lite records remain a separate compatible minor,
+forecast as 0.14.0 if the rename publishes first. Verify the actual published
+baseline when the records release becomes active.
 
 #### Implementation and acceptance after design approval
 
@@ -86,17 +88,14 @@ still awaits review and approval.
 
 #### Git sync save point
 
-The maintainer requested the fresh handoff followed by Git sync. At capture,
-local `main` and fetched `origin/main` both identify
-`a87d00d9ed1acc5e79e3a2e7cbee42c19e4ec6b5`. The six local paths for the
-save point are `ROADMAP.md`, this handoff, the current ADR, its reviewed
-proposal, the historical edition 1 proposal and the feature design draft.
-The changes are documentation and approval evidence. No implementation,
-version mirror, packaged resource or runtime change is included.
-Review these paths, keep the normal hooks, and verify the pushed SHA and
-exact-commit CI under
-the [starter sync procedure](../engineering/verification-policy.md#starter-git-synchronization).
-This handoff records the state before sync.
+The maintainer requested the handoff update and ordinary Git sync. Before
+staging, local `main` and fetched `origin/main` both identify
+`a7af3fbebf5998206c8cb3a92fdee2f08235e88f`, with divergence 0/0. Scope is this
+handoff, the feature design and proposed ADR-0005 edition 3. These are
+documentation changes. Follow the
+[starter sync procedure](../engineering/verification-policy.md#starter-git-synchronization),
+keep normal hooks and observe CI for the exact pushed SHA. No release
+acceptance or publication is authorized by this save point.
 
 Backplane #23 remains separate. Its original November 1 plan was approved
 for inline execution and still matches the
