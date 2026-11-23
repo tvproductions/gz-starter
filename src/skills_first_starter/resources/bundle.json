@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "name": "gz-starter",
-  "template_version": "0.12.1",
+  "template_version": "0.12.2",
   "components": [
     {
       "name": "superpowers",

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Refresh ty to 0.0.108, coverage to 7.17.5, charset-normalizer to 3.5.3,
+  filelock to 4.3.1, and python-discovery to 1.9.7 in both Python baselines.
+  [Maintenance evidence](docs/evidence/2026-11-23-dependency-maintenance.md)
+
 ## 0.12.1 — November 22, 2026
 
 - Store starter-owned state in `.gz-starter/`. Configure, status, activation

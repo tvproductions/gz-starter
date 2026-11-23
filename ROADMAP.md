@@ -1,5 +1,21 @@
 # Roadmap
 
+## Selected 0.12.2 patch scope — dependency maintenance, November 23, 2026
+
+Published baseline **0.12.1** at
+`a1c3550eac441b0a7beaddc66fb00c58ce0f1e6a` advances to **0.12.2 / patch**
+for the maintainer-invoked dependency refresh. Restore the existing
+latest-stable tooling commitment across the standalone standard and X-Plane
+baselines. Refresh the two locks and reconcile the starter version mirrors.
+The [maintenance receipt](docs/evidence/2026-11-23-dependency-maintenance.md)
+records the official inventory, owning verification and remaining limits.
+
+Acceptance requires reproducible locks, the starter checkout gate, standalone
+X-Plane checks, changed-tool controls and audits of both locked exports.
+Keep the approved Python families, embedded-host boundary and adopter contract.
+The separately scoped 0.13.0 skill rename awaits integration and qualification.
+Publication remains pending separate authorization and exact-source acceptance.
+
 ## Published 0.12.1 scope — starter state directory correction, November 21, 2026
 
 Published baseline **0.12.0**, immutable source

@@ -15,7 +15,7 @@ python-preference = "only-managed"
 [dependency-groups]
 dev = [
     "ruff==0.17.6",
-    "ty==0.0.107",
+    "ty==0.0.108",
     "pre-commit==4.7.0",
     "uv_build==0.13.9",
 ]
@@ -24,7 +24,7 @@ hygiene = [
     # Defect reproducer only; not qualified cognitive acceptance authority.
     "complexipy==9.0.0",
     "cosmic-ray==8.9.0",
-    "coverage==7.17.4",
+    "coverage==7.17.5",
     "deptry==0.25.1",
     "import-linter==2.17",
     "interrogate==1.7.0",

@@ -1,6 +1,29 @@
 # Starter discipline evaluation — handoff, November 18, 2026
 
-## Current resume point — November 22, 2026
+## Current resume point — November 23, 2026
+
+### 0.12.2 dependency maintenance save point
+
+The maintainer requested this handoff and ordinary Git sync of the
+[0.12.2 maintenance patch](../../ROADMAP.md#selected-0122-patch-scope--dependency-maintenance-november-23-2026).
+Local `main` and fetched `origin/main` started at
+`93a5eeca112e1480dc8bb5fd09c3f69adb71282b`. The save point includes both
+Python manifests and locks, the starter version mirrors, changelog, roadmap,
+handoff, and maintenance evidence. Both baselines select ty 0.0.108,
+coverage 7.17.5, charset-normalizer 3.5.3, filelock 4.3.1, and
+python-discovery 1.9.7. The November 23 [maintenance receipt](../evidence/2026-11-23-dependency-maintenance.md)
+records reproducible locks, compatibility controls, audits and fresh Codex
+discovery of gz-skills 0.14.0. Backplane remains disabled. Cognitive measurement
+remains deferred and the embedded XPPython3 runtime remains unverified.
+
+Use the [starter Git sync procedure](../engineering/verification-policy.md#starter-git-synchronization)
+and observe CI for the exact pushed SHA. **0.12.1 remains the published
+baseline.** The 0.12.2 candidate awaits separately authorized release
+acceptance and publication. At that checkpoint recheck freshness and apply
+the [release procedure](../versioning.md#preparing-and-publishing-a-release)
+to the exact candidate. The independently scoped 0.13.0 skill rename still
+awaits integration and qualification. Reconcile its saved patch against the
+then-current changelog, locks and version mirrors.
 
 ### First priority — Review ADR-0005 edition 3
 
@@ -86,7 +109,7 @@ baseline when the records release becomes active.
   and adoption behavior. Typed commit records and lite-to-heavy transfer keep
   their separate design and acceptance obligations in the roadmap.
 
-#### Git sync save point
+#### November 22 Git sync save point
 
 The maintainer requested the handoff update and ordinary Git sync. Before
 staging, local `main` and fetched `origin/main` both identify

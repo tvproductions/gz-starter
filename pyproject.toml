@@ -1,6 +1,6 @@
 [project]
 name = "gz-starter"
-version = "0.12.1"
+version = "0.12.2"
 description = "Project-scoped SP + SP-BP + gz-skills adoption scaffold"
 readme = "README.md"
 requires-python = ">=3.14,<3.15"
@@ -48,7 +48,7 @@ select = ["E4", "E7", "E9", "F", "I", "UP", "B", "SIM", "RUF"]
 dev = [
     "example-foundations==0.1.0",
     "ruff==0.17.6",
-    "ty==0.0.107",
+    "ty==0.0.108",
     "pre-commit==4.7.0",
 ]
 hygiene = [
@@ -56,7 +56,7 @@ hygiene = [
     # Defect reproducer only; not qualified as cognitive acceptance authority.
     "complexipy==9.0.0",
     "cosmic-ray==8.9.0",
-    "coverage==7.17.4",
+    "coverage==7.17.5",
     "deptry==0.25.1",
     "detect-secrets==1.5.0",
     "import-linter==2.17",
