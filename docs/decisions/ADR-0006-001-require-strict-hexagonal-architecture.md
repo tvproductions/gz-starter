@@ -2,12 +2,12 @@
 id: ADR-0006
 title: Require strict hexagonal architecture in every adopter
 revision: 1
-state: Proposed
+state: Current
 decision_date: 2026-11-26
 revision_date: 2026-11-26
-approved_by: ""
-approved_revision: ""
-approval_ref: ""
+approved_by: "project maintainer in this conversation"
+approved_revision: 1
+approval_ref: "#approval-evidence"
 ---
 
 # ADR-0006 edition 1 — Require strict hexagonal architecture in every adopter
@@ -72,7 +72,8 @@ belong to "strict" is an open question for a later edition.
 ## Consequences
 
 - `docs/engineering/python.md` changes "favor" to "require" and states the
-  rules above.
+  rules above. `docs/engineering/application-foundations.md` replaces its
+  right-sized section and defers to this ADR for hexagonal exceptions.
 - This supersedes the application-foundations row "Mandatory hexagon structure
   at every size: Adapt" and its related crosswalk dispositions.
 - Existing adopters (gzfactory, gzyoke, gz-cartridge, gzcontractor) report their
@@ -89,7 +90,19 @@ mocks, and every exception is an approved, unexpired entry in its register.
 
 ## Approval evidence
 
-None yet. This edition is Proposed until the maintainer approves revision 1.
+Source is the gzfactory project conversation on November 26, 2026. This is an
+agent transcription. The agent walked the maintainer through the seven rules
+one at a time; the maintainer kept each, asked for a strong import-rule test and
+careful scrutiny of exceptions, and those changes were applied in commit
+81fb73e. The agent then asked: "Do you approve ADR-0006 revision 1?" The
+maintainer replied verbatim:
+
+> approve
+
+The [reviewed proposal](approvals/ADR-0006-001-reviewed.txt) preserves the exact
+proposal bytes with SHA-256
+`a092f14fcbab9bd6936fe5836ac210902c263a9ba4a4f27aba0d684513a3247d`.
+The maintainer's response approves the architectural decision.
 
 ## Amendment history
 
