@@ -176,10 +176,17 @@ select ALL, suppress findings or loosen thresholds to pass. Complete the
 exact environment selection, tool provenance and installed-artifact evidence.
 
 Combine TDD, BDD and DDD for consequential behavior: first demonstrate a failure
-at a public seam, describe observable outcomes and model domain meanings. Favor
-hexagonal architecture: the domain core performs no I/O, defines ports, and
-adapters own external effects. Skills orchestrate commands and hold no domain
-logic. Use the available SP and gz-skills workflows for their portable design
+at a public seam, describe observable outcomes and model domain meanings. Require
+strict hexagonal architecture in every adopter, whatever its size, as set by
+[ADR-0006](../decisions/ADR-0006-001-require-strict-hexagonal-architecture.md):
+driving adapters, input ports, handlers, a pure domain, output ports and driven
+adapters, wired by one configurator. Ports are `typing.Protocol` types owned by
+the application. The domain performs no I/O and reads no clock, environment or
+randomness. Driving adapters call input ports; only handlers call output
+ports. Hexagon tests use hand-written fakes, not mocks. An import-rule test
+covers every region, runs in CI and fails the build. Exceptions need the
+maintainer's approval and an entry in the exceptions register. Skills orchestrate commands and
+hold no domain logic. Use the available SP and gz-skills workflows for their portable design
 and engineering disciplines; this policy supplies the Python-specific binding.
 
 Prefer the standard library, including `sqlite3` for SQLite. Pydantic is allowed.

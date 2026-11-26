@@ -25,23 +25,24 @@ Official classification and OS-location sources and their November 16 review
 dates are preserved in the [approved design](../superpowers/specs/2026-11-16-application-foundations-design.md#astral-project-model-application-interface-and-deployment).
 The [naming/layout guidance](naming-and-layout.md) covers all 15 related topics.
 
-## Right-sized architecture and whole-system coverage
+## Strict hexagonal architecture and whole-system coverage
 
-Keep domain decisions pure: receive values for configuration, time, randomness
-and external results. Application handlers coordinate effects; ports express
-needed behavior; adapters translate external types and failures. One outer
-configurator selects concrete implementations at initialization. A small product
-may use functions/modules instead of classes, buses, containers or a kernel.
-Use Protocol only when an explicit interface earns its place. Models may be
-stdlib types, dataclasses or justified dependencies; no universal Pydantic model,
-error-return style or package-layer count is required.
+Apply strict hexagonal architecture in every adopter, whatever its size, as set
+by [ADR-0006](../decisions/ADR-0006-001-require-strict-hexagonal-architecture.md).
+That ADR, not the November 16 design's right-sized disposition, is the
+authority. Keep domain decisions pure: receive values for configuration, time,
+randomness and external results. Driving adapters call input ports; handlers
+coordinate effects and alone call output ports; ports are application-owned
+`typing.Protocol` types; adapters translate external types and failures. One
+outer configurator selects concrete implementations at initialization.
 
 Map actual source to responsibilities, including commands, callbacks, plugins,
 scripts and startup code. Inspect configuration/effect placement, dependency
 construction, external types crossing ports and business rules in adapters.
 A clean import graph alone misses effectful callbacks and omitted modules.
-Use behavior tests at real consumers with fakes; optional architectural checks
-warn by default unless a project explicitly promotes them to a gate.
+Use behavior tests at real consumers with hand-written fakes, never mocks. The
+import-rule test covers every region in the package map, runs in CI and fails
+the build; existing violations sit in a shrink-only baseline.
 
 The complete disposition of GZKit's 108 candidates is in the approved design.
 Reuse the selected gz-skills audit as a general coupling audit, without claiming
@@ -59,7 +60,9 @@ Tests and library callers can then receive process-dependent results. Resolve
 it at startup and pass message as a value.” Record an informed operator choice
 once in the existing design, instructions or applicable ADR and continue within
 that scope. Revisit only for materially changed inputs/evidence. Do not add a
-warning registry, recurring challenge or runtime approval prompt.
+warning registry, recurring challenge or runtime approval prompt. Exceptions to
+the hexagonal rules are the one difference: under ADR-0006 each needs the
+maintainer's approval and an entry in the project's exceptions register.
 
 Worked review, invented: an operator accepts one combined startup/orchestration
 module for a small CLI instead of separate layer packages. Record “combined
