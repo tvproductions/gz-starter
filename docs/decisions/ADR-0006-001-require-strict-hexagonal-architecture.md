@@ -51,11 +51,18 @@ Every adopter applies strict hexagonal architecture, whatever its size:
   application; adapters satisfy them by shape;
 - the domain is pure: no files, network, subprocesses, environment, clock or
   randomness; what it needs is passed in as values;
-- only handlers call ports, and handlers hold no business decisions;
+- driving adapters call input ports, and only handlers call output ports;
+  handlers coordinate a use case and hold no business decisions;
 - hexagon tests use hand-written fakes, never mocks, so each driven port has a
   second adapter from its first test;
-- an import-rule test enforces which region may import which;
-- each exception is recorded as a named departure with its reason.
+- an import-rule test enforces which region may import which. A package map
+  names every region; the test covers all of them, runs in routine CI and fails
+  the build on any violation, never only warning. Existing violations sit in a
+  baseline that may only shrink;
+- an exception exists only as a named departure in one exceptions register.
+  Each entry records the exact rule and code it covers, the reason, and a
+  review date, and needs the maintainer's explicit approval. An agent never
+  grants one.
 
 The structure and rules follow GZKit's `docs/governance/hexagonal-architecture.md`.
 The starter does not import GZKit. This edition does not mandate GZKit's kernel
@@ -77,8 +84,8 @@ belong to "strict" is an open question for a later edition.
 ## Confirmation
 
 An adopter conforms when its package map names each region, its import-rule test
-passes, its hexagon tests contain no mocks, and every exception is a recorded
-departure.
+passes in CI with a baseline no larger than before, its hexagon tests contain no
+mocks, and every exception is an approved, unexpired entry in its register.
 
 ## Approval evidence
 

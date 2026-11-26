@@ -182,9 +182,10 @@ strict hexagonal architecture in every adopter, whatever its size, as set by
 driving adapters, input ports, handlers, a pure domain, output ports and driven
 adapters, wired by one configurator. Ports are `typing.Protocol` types owned by
 the application. The domain performs no I/O and reads no clock, environment or
-randomness. Only handlers call ports. Hexagon tests use hand-written fakes, not
-mocks. An import-rule test enforces which region may import which. Record any
-exception as a named departure with its reason. Skills orchestrate commands and
+randomness. Driving adapters call input ports; only handlers call output
+ports. Hexagon tests use hand-written fakes, not mocks. An import-rule test
+covers every region, runs in CI and fails the build. Exceptions need the
+maintainer's approval and an entry in the exceptions register. Skills orchestrate commands and
 hold no domain logic. Use the available SP and gz-skills workflows for their portable design
 and engineering disciplines; this policy supplies the Python-specific binding.
 
