@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gz-starter release history",
+  "description": "What each tagged gz-starter (formerly skills-first-starter) release's configure wrote, generated from tags v0.1.0 to v0.13.0 by tools/build_release_history.py. Templates are raw text with {{...}} placeholders left in place.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "releases", "revisions"],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "releases": {
+      "description": "One entry per release tag, in version order.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/release"
+      }
+    },
+    "revisions": {
+      "description": "Every commit reachable from v0.13.0 that has a release tag among its ancestors, mapped to the latest such tag (the tag itself for a tagged commit). Commits that predate v0.1.0 are absent and therefore not in the history.",
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[0-9a-f]{40}$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/tag"
+      }
+    }
+  },
+  "$defs": {
+    "tag": {
+      "type": "string",
+      "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "nullable_string": {
+      "type": ["string", "null"]
+    },
+    "managed_path": {
+      "description": "A repository-relative POSIX path, optionally prefixed by a marker and a colon. No marker: the whole file is managed and always written with the release's template. 'if-absent:' written only when the file did not exist, then project-owned. 'merged:' host configuration into which configure merged its marketplace and plugin entries while preserving other content. 'merged-if-exists:' used instead of the host's 'merged:' path when this file already existed (OpenCode opencode.jsonc). 'adr-local:' written only when the lock's adr_policy.mode is 'local'.",
+      "type": "string",
+      "pattern": "^(?:(?:if-absent|merged|merged-if-exists|adr-local):)?[^:]+$"
+    },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "tag",
+        "revision",
+        "origin",
+        "state_directory",
+        "marketplace",
+        "fragment_template",
+        "update_skill",
+        "update_skill_template",
+        "adr_placeholders",
+        "hosts",
+        "managed_paths",
+        "front_door_skill",
+        "front_door_skill_template",
+        "agents_md_template",
+        "lock_keys",
+        "adr_policy_source",
+        "adr_policy_template",
+        "adr_policy_url"
+      ],
+      "properties": {
+        "version": {
+          "description": "bundle.json template_version at the tag.",
+          "type": "string"
+        },
+        "tag": {
+          "$ref": "#/$defs/tag"
+        },
+        "revision": {
+          "description": "Commit the tag points to.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "origin": {
+          "description": "ORIGIN written to the lock's starter.repository and the marketplace source.",
+          "type": "string"
+        },
+        "state_directory": {
+          "description": "Directory holding bundle.lock.json.",
+          "type": "string"
+        },
+        "marketplace": {
+          "description": "Native catalog name used in host configuration and plugin keys.",
+          "type": "string"
+        },
+        "fragment_template": {
+          "description": "AGENTS.skills-first.md as read by configure (UTF-8, LF).",
+          "type": "string"
+        },
+        "update_skill": {
+          "description": "Name of the managed update skill, or null before v0.6.0.",
+          "$ref": "#/$defs/nullable_string"
+        },
+        "update_skill_template": {
+          "description": "The update skill's SKILL.md (UTF-8, LF), or null.",
+          "$ref": "#/$defs/nullable_string"
+        },
+        "adr_placeholders": {
+          "description": "True when configure replaced {{ADR_POLICY_WORKING_SOURCE}} and {{ADR_POLICY_CANONICAL_URL}} in the fragment.",
+          "type": "boolean"
+        },
+        "hosts": {
+          "description": "Hosts configure accepted, sorted. A lock without a host key means codex.",
+          "type": "array",
+          "items": {
+            "enum": ["claude", "codex", "opencode"]
+          }
+        },
+        "managed_paths": {
+          "description": "Per host, in configure's write order, every path configure wrote.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/managed_path"
+            }
+          }
+        },
+        "front_door_skill": {
+          "description": "Starter front-door skill written under .agents/skills (v0.1.0 and v0.2.0 only), or null.",
+          "$ref": "#/$defs/nullable_string"
+        },
+        "front_door_skill_template": {
+          "description": "The front-door skill's SKILL.md (UTF-8, LF), or null.",
+          "$ref": "#/$defs/nullable_string"
+        },
+        "agents_md_template": {
+          "description": "AGENTS.md text written when the project had none.",
+          "type": "string"
+        },
+        "lock_keys": {
+          "description": "Top-level lock keys in write order; 'host' is written only for a host other than codex.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "adr_policy_source": {
+          "description": "Starter path of the ADR policy recorded in the lock's adr_policy.source_path, or null before v0.10.0.",
+          "$ref": "#/$defs/nullable_string"
+        },
+        "adr_policy_template": {
+          "description": "The ADR policy's exact text, copied byte for byte in local mode, or null.",
+          "$ref": "#/$defs/nullable_string"
+        },
+        "adr_policy_url": {
+          "description": "Canonical policy URL with {ref} standing for the adopter's recorded revision, or null.",
+          "$ref": "#/$defs/nullable_string"
+        }
+      }
+    }
+  }
+}
