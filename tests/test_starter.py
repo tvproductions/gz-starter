@@ -121,7 +121,7 @@ class AdoptionTests(unittest.TestCase):
     def test_conflict_blocks_all_writes(self):
         (self.root / ".codex").mkdir()
         p = self.root / ".codex/config.toml"
-        p.write_text('[plugins."gz-skills@skills-first-starter"]\nenabled = false\n')
+        p.write_text('[plugins."gz-skills@gz-starter-0-13-0"]\nenabled = false\n')
         with self.assertRaises(starter.AdoptionError):
             self.configure(True)
         self.assertFalse((self.root / ".gz-starter").exists())
@@ -270,16 +270,14 @@ class AdoptionTests(unittest.TestCase):
     def test_backplane_is_pinned_but_disabled(self):
         self.configure(True)
         data = tomllib.loads((self.root / ".codex/config.toml").read_text())
-        self.assertIs(
-            data["plugins"]["superpowers-backplane@skills-first-starter"]["enabled"], False
-        )
-        self.assertIs(data["plugins"]["superpowers@skills-first-starter"]["enabled"], True)
-        self.assertIs(data["plugins"]["gz-skills@skills-first-starter"]["enabled"], True)
+        self.assertIs(data["plugins"]["superpowers-backplane@gz-starter-0-13-0"]["enabled"], False)
+        self.assertIs(data["plugins"]["superpowers@gz-starter-0-13-0"]["enabled"], True)
+        self.assertIs(data["plugins"]["gz-skills@gz-starter-0-13-0"]["enabled"], True)
 
     def test_active_backplane_is_not_silently_disabled(self):
         (self.root / ".codex").mkdir()
         p = self.root / ".codex/config.toml"
-        original = '[plugins."superpowers-backplane@skills-first-starter"]\nenabled = true\n'
+        original = '[plugins."superpowers-backplane@gz-starter-0-13-0"]\nenabled = true\n'
         p.write_text(original)
         with self.assertRaises(starter.AdoptionError):
             self.configure(True)
@@ -506,7 +504,7 @@ class AdoptionTests(unittest.TestCase):
         config = tomllib.loads((self.root / ".codex/config.toml").read_text())
         lock = json.loads((self.root / ".gz-starter/bundle.lock.json").read_bytes())
         canonical = "https://github.com/tvproductions/gz-starter.git"
-        self.assertEqual(config["marketplaces"]["skills-first-starter"]["source"], canonical)
+        self.assertEqual(config["marketplaces"]["gz-starter-0-13-0"]["source"], canonical)
         self.assertEqual(lock["starter"]["repository"], canonical)
 
     def test_adoption_records_template_version_and_exact_revision(self):

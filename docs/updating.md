@@ -101,6 +101,28 @@ Review the hook, CI, independent verifier pin, lock and stale project instructio
 together. Keep the original coverage and runtime-design obligations and record
 the exact adopter result separately from the producer or native discovery result.
 
+## Versioned native marketplace name
+
+Releases through 0.12.1 publish one shared catalog name, `skills-first-starter`.
+Codex caches one checkout per marketplace name, so projects pinned to different
+starter revisions overwrote each other's cached copy. Later releases name the
+catalog after the release, for example `gz-starter-0-13-0`. Projects on the same
+release share a cache slot; other releases never collide.
+
+When `configure` moves a project to such a release, it removes the earlier
+starter marketplace entry and its plugin activations, then writes the new
+names. It does so only when the entry is exactly what the starter wrote and
+every activation still holds the starter default. Anything else stops the
+update with nothing written: another source behind an earlier starter name, an
+explicit Claude `autoUpdate`, a disabled Superpowers or gz-skills, an enabled
+Backplane, or an active earlier activation in `.claude/settings.local.json`.
+An earlier activation with no earlier marketplace entry in the same file is a
+duplicate suppression and is kept. `localize` keeps the name published by the
+release recorded in the project lock, and refuses a lock with no recorded
+release. Plugin IDs therefore change once per starter upgrade; review user
+or local overrides that name an earlier `@skills-first-starter` or
+`@gz-starter-*` identity.
+
 ## Relocate legacy starter state
 
 From 0.12.1, both adopter lanes store starter-owned state only in `.gz-starter/`.

@@ -1,5 +1,12 @@
 # Roadmap
 
+## Selected 0.13.0 minor scope — versioned native marketplace name, November 27, 2026
+
+The maintainer selected **0.13.0 / minor** on November 27, 2026. It carries the
+unreleased 0.12.2 dependency refresh below. The native catalog is now named
+after each release (`gz-starter-0-13-0`), so plugin IDs change once per upgrade.
+See [the update note](docs/updating.md#versioned-native-marketplace-name).
+
 ## Selected 0.12.2 patch scope — dependency maintenance, November 23, 2026
 
 Published baseline **0.12.1** at

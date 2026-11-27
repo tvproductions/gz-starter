@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Name the native marketplace after each starter release, for example
+  `gz-starter-0-13-0`, instead of the shared `skills-first-starter`. Codex
+  caches one checkout per name, so projects pinned to different starter
+  revisions overwrote each other. `configure` retires earlier starter tables
+  that still hold starter defaults and stops on differing project choices.
+  Plugin IDs change once per upgrade. [Update note](docs/updating.md#versioned-native-marketplace-name)
 - Refresh ty to 0.0.108, coverage to 7.17.5, charset-normalizer to 3.5.3,
   filelock to 4.3.1, and python-discovery to 1.9.7 in both Python baselines.
   [Maintenance evidence](docs/evidence/2026-11-23-dependency-maintenance.md)
