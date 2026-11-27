@@ -4,11 +4,12 @@ import os
 import stat
 from pathlib import Path
 
-STATE_DIRECTORY = ".gz-starter"
+STATE_DIRECTORY = ".gzlite"
 BUNDLE_LOCK = f"{STATE_DIRECTORY}/bundle.lock.json"
 LOCAL_ADR_POLICY = f"{STATE_DIRECTORY}/architectural-decisions.md"
 STATE_SETTINGS = f"{STATE_DIRECTORY}/settings.toml"
-_LEGACY_DIRECTORY = ".skills-first"
+MIGRATED_DIRECTORY = f"{STATE_DIRECTORY}/migrated"
+LEGACY_DIRECTORIES = (".gz-starter", ".skills-first")
 _STATE_FILENAMES = tuple(
     Path(name).name for name in (BUNDLE_LOCK, LOCAL_ADR_POLICY, STATE_SETTINGS)
 )
@@ -34,10 +35,13 @@ def _state_entry(root: Path, relative: str) -> int | None:
 
 
 def validate_state_directory(root: Path) -> None:
-    """Reject unsafe or unreconciled state without reading state contents."""
+    """Reject unsafe or legacy state without reading state contents.
+
+    Legacy folders are only reconciled by ``gzlite migrate``; every other
+    command refuses them rather than guess which state is authoritative.
+    """
     legacy = []
-    current = []
-    for directory, entries in ((_LEGACY_DIRECTORY, legacy), (STATE_DIRECTORY, current)):
+    for directory in LEGACY_DIRECTORIES:
         root_mode = _state_entry(root, directory)
         if root_mode is None:
             continue
@@ -45,18 +49,23 @@ def validate_state_directory(root: Path) -> None:
             raise ValueError(f"starter state must be a directory: {directory}")
         for name in _STATE_FILENAMES:
             relative = f"{directory}/{name}"
-            mode = _state_entry(root, relative)
-            if mode is None:
-                continue
-            if directory == STATE_DIRECTORY and not stat.S_ISREG(mode):
-                raise ValueError(f"starter state must be a regular file: {relative}")
-            entries.append(relative)
+            if _state_entry(root, relative) is not None:
+                legacy.append(relative)
     if legacy:
-        existing = f"; current state also present: {', '.join(current)}" if current else ""
         raise ValueError(
-            f"starter state migration required: {', '.join(legacy)}{existing}. "
-            "Follow docs/updating.md to reconcile before retrying."
+            f"starter state migration required: {', '.join(legacy)}; "
+            "run gzlite migrate before retrying."
         )
+    root_mode = _state_entry(root, STATE_DIRECTORY)
+    if root_mode is None:
+        return
+    if not stat.S_ISDIR(root_mode):
+        raise ValueError(f"starter state must be a directory: {STATE_DIRECTORY}")
+    for name in _STATE_FILENAMES:
+        relative = f"{STATE_DIRECTORY}/{name}"
+        mode = _state_entry(root, relative)
+        if mode is not None and not stat.S_ISREG(mode):
+            raise ValueError(f"starter state must be a regular file: {relative}")
 
 
 def space_free(path: Path) -> Path:

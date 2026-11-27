@@ -14,7 +14,7 @@ from gzlite import cli as starter
 
 REF = "a" * 40
 POLICY = "docs/engineering/architectural-decisions.md"
-LOCAL = ".gz-starter/architectural-decisions.md"
+LOCAL = ".gzlite/architectural-decisions.md"
 URL = f"https://github.com/tvproductions/gzlite/blob/{REF}/{POLICY}"
 
 
@@ -50,7 +50,7 @@ class ADRPolicyTests(unittest.TestCase):
         return code, output.getvalue(), errors.getvalue()
 
     def lock(self, root=None):
-        return json.loads(((root or self.root) / ".gz-starter/bundle.lock.json").read_bytes())
+        return json.loads(((root or self.root) / ".gzlite/bundle.lock.json").read_bytes())
 
     def files(self):
         return {
@@ -144,10 +144,10 @@ class ADRPolicyTests(unittest.TestCase):
                 with tempfile.TemporaryDirectory() as adopter:
                     root = Path(adopter).resolve()
                     if leaf:
-                        (root / ".gz-starter").mkdir()
+                        (root / ".gzlite").mkdir()
                         (root / LOCAL).symlink_to(external / "policy.md")
                     else:
-                        (root / ".gz-starter").symlink_to(external, target_is_directory=True)
+                        (root / ".gzlite").symlink_to(external, target_is_directory=True)
                     code, _, errors = self.configure(root=root, mode="local", apply=True)
                     self.assertEqual(code, 2)
                     self.assertIn("symlink", errors)
@@ -264,7 +264,7 @@ class ADRPolicyTests(unittest.TestCase):
         self.assertEqual(code, 0, errors)
         lock = self.lock()
         del lock["adr_policy"]
-        (self.root / ".gz-starter/bundle.lock.json").write_bytes(json.dumps(lock).encode())
+        (self.root / ".gzlite/bundle.lock.json").write_bytes(json.dumps(lock).encode())
         before = self.files()
         code, _, errors = self.configure(apply=True)
         self.assertEqual(code, 2)
@@ -285,7 +285,7 @@ class ADRPolicyTests(unittest.TestCase):
         ):
             with self.subTest(patch=patch):
                 lock = {**original_lock, "adr_policy": {**original_lock["adr_policy"], **patch}}
-                (self.root / ".gz-starter/bundle.lock.json").write_bytes(json.dumps(lock).encode())
+                (self.root / ".gzlite/bundle.lock.json").write_bytes(json.dumps(lock).encode())
                 before = self.files()
                 code, _, errors = self.configure(apply=True)
                 self.assertEqual(code, 2)

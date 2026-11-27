@@ -86,19 +86,22 @@ class VerificationProject(unittest.TestCase):
 
 class VerificationCliTests(VerificationProject):
     def test_canonical_bootstrap_validates_state_and_legacy_cannot_pass(self):
-        self.write(".gz-starter/bundle.lock.json", "{}")
-        state = self.write(".gz-starter/settings.toml", "invalid TOML")
-        self.assert_blocked(".gz-starter/settings.toml")
+        self.write(".gzlite/bundle.lock.json", "{}")
+        state = self.write(".gzlite/settings.toml", "invalid TOML")
+        self.assert_blocked(".gzlite/settings.toml")
         state.write_text("enabled = true\n", encoding="utf-8")
         self.write(".skills-first/other.md", "# Unrelated\n")
         result = self.verify()
         self.assertEqual(result.returncode, 0, result.stderr)
-        legacy = self.write(".skills-first/settings.toml", "enabled = true\n")
-        self.assert_blocked(".skills-first/settings.toml", "migration")
-        self.assertEqual(legacy.read_bytes(), b"enabled = true\n")
+        for directory in (".skills-first", ".gz-starter"):
+            legacy = self.write(f"{directory}/settings.toml", "enabled = true\n")
+            self.assert_blocked(f"{directory}/settings.toml", "run gzlite migrate")
+            self.assertEqual(legacy.read_bytes(), b"enabled = true\n")
+            legacy.unlink()
         state.unlink()
-        (self.root / ".gz-starter/bundle.lock.json").unlink()
-        self.assert_blocked(".skills-first/settings.toml", "migration")
+        (self.root / ".gzlite/bundle.lock.json").unlink()
+        self.write(".skills-first/settings.toml", "enabled = true\n")
+        self.assert_blocked(".skills-first/settings.toml", "run gzlite migrate")
 
     def test_locked_docs_config_and_supported_workflow_pass(self):
         for trigger_key in ("on:", "'on':"):

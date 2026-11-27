@@ -166,7 +166,7 @@ class UpgradeTests(unittest.TestCase):
         with self.assertRaises(starter.AdoptionError):
             starter.configure(self.root, REF, apply=True)
         self.assertEqual(path.read_text(), original)
-        self.assertFalse((self.root / ".gz-starter").exists())
+        self.assertFalse((self.root / ".gzlite").exists())
 
     def test_codex_upgrade_refuses_an_explicit_legacy_disable(self):
         original = self.legacy_codex().replace(
@@ -206,7 +206,7 @@ class UpgradeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             starter.configure(self.root, REF, host="claude", apply=True)
         self.assertEqual(path.read_bytes(), original)
-        self.assertFalse((self.root / ".gz-starter").exists())
+        self.assertFalse((self.root / ".gzlite").exists())
 
     def test_claude_upgrade_refuses_an_explicit_auto_update(self):
         settings = self.legacy_claude()
@@ -222,7 +222,7 @@ class UpgradeTests(unittest.TestCase):
         self.assert_claude_refused(self.legacy_claude(), name="settings.local.json")
 
     def test_localize_refuses_a_lock_without_a_recorded_release(self):
-        lock = self.root / ".gz-starter/bundle.lock.json"
+        lock = self.root / ".gzlite/bundle.lock.json"
         lock.parent.mkdir()
         lock.write_text(
             json.dumps({"schema_version": 1, "components": starter.bundle()["components"]})
@@ -233,7 +233,7 @@ class UpgradeTests(unittest.TestCase):
         self.assertEqual(path.read_text(), 'model = "fixture"\n')
 
     def test_localize_keeps_the_name_published_by_the_recorded_release(self):
-        lock = self.root / ".gz-starter/bundle.lock.json"
+        lock = self.root / ".gzlite/bundle.lock.json"
         lock.parent.mkdir()
         lock.write_text(
             json.dumps(

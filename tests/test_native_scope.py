@@ -37,7 +37,7 @@ class NativeScopeTests(unittest.TestCase):
             self.assertIs(plugins["gz-skills@gzlite-0-14-0"]["enabled"], True)
             self.assertEqual(starter.localize(self.root, REF, host="codex")["writes"], [])
         self.assertEqual(json.dumps(inherited), snapshot)
-        self.assertFalse((self.root / ".gz-starter/bundle.lock.json").exists())
+        self.assertFalse((self.root / ".gzlite/bundle.lock.json").exists())
 
     def test_codex_repairs_local_boolean_without_losing_other_tables_or_pin(self):
         path = self.root / ".codex/config.toml"
@@ -101,7 +101,7 @@ class NativeScopeTests(unittest.TestCase):
 
     def test_scope_repair_preserves_adopted_component_versions_and_lock_bytes(self):
         starter.configure(self.root, REF, host="opencode", apply=True)
-        path = self.root / ".gz-starter/bundle.lock.json"
+        path = self.root / ".gzlite/bundle.lock.json"
         lock = json.loads(path.read_bytes())
         part = next(p for p in lock["components"] if p["name"] == "gz-skills")
         part["revision"] = "c" * 40

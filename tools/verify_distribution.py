@@ -122,7 +122,7 @@ def verify_native_hosts(command: Path, directory: Path) -> None:
             raise ValueError(f"Installed helper omitted {host} update skill")
         if json.loads(run(*args, "--apply", cwd=directory).stdout)["writes"]:
             raise ValueError(f"Installed {host} configuration is not idempotent")
-        lock = (target / ".gz-starter/bundle.lock.json").read_bytes()
+        lock = (target / ".gzlite/bundle.lock.json").read_bytes()
         run(
             str(command),
             "localize",
@@ -135,7 +135,7 @@ def verify_native_hosts(command: Path, directory: Path) -> None:
             "--apply",
             cwd=directory,
         )
-        if (target / ".gz-starter/bundle.lock.json").read_bytes() != lock:
+        if (target / ".gzlite/bundle.lock.json").read_bytes() != lock:
             raise ValueError(f"Installed {host} scope repair changed adoption provenance")
 
 
@@ -160,12 +160,12 @@ def verify_policy_modes(command: Path, directory: Path) -> None:
             if list(target.iterdir()):
                 raise ValueError("Installed policy preview wrote files")
             run(*args, "--adr-policy", mode, "--apply", cwd=directory)
-            local = target / ".gz-starter/architectural-decisions.md"
+            local = target / ".gzlite/architectural-decisions.md"
             if mode == "local" and local.read_bytes() != source:
                 raise ValueError("Installed local policy differs from the canonical bytes")
             if mode == "link" and local.exists():
                 raise ValueError("Installed link mode created a policy copy")
-            lock = json.loads((target / ".gz-starter/bundle.lock.json").read_bytes())
+            lock = json.loads((target / ".gzlite/bundle.lock.json").read_bytes())
             if lock["adr_policy"]["source_sha256"] != hashlib.sha256(source).hexdigest():
                 raise ValueError("Installed policy provenance hash differs")
             if json.loads(run(*args, "--apply", cwd=directory).stdout)["writes"]:
@@ -178,65 +178,36 @@ def verify_policy_modes(command: Path, directory: Path) -> None:
 
 
 def verify_state_directory(command: Path, directory: Path) -> None:
-    """Exercise relocation and legacy refusal with the installed helper."""
+    """Exercise legacy-state refusal and the canonical state folder with the installed helper."""
     target = directory / "relocation"
     target.mkdir()
     configure = (str(command), "configure", "--project", str(target), "--starter-ref", "a" * 40)
     status = (str(command), "status", "--project", str(target))
-    legacy = target / ".skills-first"
-    current = target / ".gz-starter"
-    legacy.mkdir()
-    marker = legacy / "bundle.lock.json"
-    marker.write_bytes(b"legacy marker")
+    current = target / ".gzlite"
 
-    def refused(args: tuple[str, ...], diagnostic: str) -> None:
+    def refused(args: tuple[str, ...]) -> None:
         result = subprocess.run(args, cwd=directory, capture_output=True, text=True, check=False)
-        if result.returncode != 2 or diagnostic not in result.stderr:
-            raise ValueError(f"Installed state check did not report {diagnostic}: {result.stderr}")
+        if result.returncode != 2 or "run gzlite migrate" not in result.stderr:
+            raise ValueError(f"Installed state check did not request migration: {result.stderr}")
 
-    refused((*configure, "--apply"), "migration required")
-    if current.exists() or marker.read_bytes() != b"legacy marker":
-        raise ValueError("Installed helper changed state during a refused legacy adoption")
-    marker.unlink()
+    for name in (".gz-starter", ".skills-first"):
+        legacy = target / name
+        legacy.mkdir()
+        marker = legacy / "bundle.lock.json"
+        marker.write_bytes(b"legacy marker")
+        refused((*configure, "--apply"))
+        refused(status)
+        if current.exists() or marker.read_bytes() != b"legacy marker":
+            raise ValueError("Installed helper changed state during a refused legacy command")
+        marker.unlink()
+        legacy.rmdir()
     run(*configure, "--adr-policy", "local", "--apply", cwd=directory)
-    lock_file = current / marker.name
-    target_lock = lock_file.read_bytes()
-    marker.write_bytes(b"legacy marker")
-    refused(status, "current state also present")
-    if lock_file.read_bytes() != target_lock or marker.read_bytes() != b"legacy marker":
-        raise ValueError("Installed helper changed dual state during refusal")
-    marker.unlink()
-
-    previous = json.loads(target_lock)
-    previous["starter"].update(version="0.12.0", revision="b" * 40)
-    previous["adr_policy"]["local_path"] = ".skills-first/architectural-decisions.md"
-    config = target / ".codex/config.toml"
-    target_config = config.read_bytes()
-    config.write_bytes(target_config.replace(b"a" * 40, b"b" * 40))
-    policy = current / "architectural-decisions.md"
-    old_policy = legacy / policy.name
-    edited = b"# Project-local policy edit\n"
-    policy_source = policy.read_bytes()
-    lock_file.rename(marker)
-    policy.rename(old_policy)
-    marker.write_text(json.dumps(previous), encoding="utf-8")
-    old_policy.write_bytes(edited)
-    refused(status, "migration required")
-    marker.rename(lock_file)
-    old_policy.rename(policy)
-    previous["adr_policy"]["local_path"] = ".gz-starter/architectural-decisions.md"
-    lock_file.write_text(json.dumps(previous), encoding="utf-8")
-    refused(status, "reconcile")
-    if json.loads(lock_file.read_bytes()) != previous or policy.read_bytes() != edited:
-        raise ValueError("Installed helper changed relocation-only provenance or policy")
-
-    lock_file.write_bytes(target_lock)
-    config.write_bytes(target_config)
-    policy.write_bytes(policy_source)
+    if not (current / "bundle.lock.json").is_file():
+        raise ValueError("Installed helper did not write the canonical state folder")
     if json.loads(run(*status, cwd=directory).stdout)["status"] != "configured":
-        raise ValueError("Installed helper did not recognize a reconciled target")
+        raise ValueError("Installed helper did not recognize a configured target")
     if json.loads(run(*configure, "--apply", cwd=directory).stdout)["writes"]:
-        raise ValueError("Installed helper changed a reconciled target")
+        raise ValueError("Installed helper changed a configured target")
 
 
 def verify_fixture(sdist: Path) -> None:
@@ -494,7 +465,7 @@ def verify_installed_verification(wheel: Path, base_command: Path, directory: Pa
     if any(path.read_bytes() != expected for path, expected in preserved.items()):
         raise ValueError("Installed preview changed adopter files")
     run(*configure, "--apply", cwd=project, env=env)
-    provenance = project / ".gz-starter/bundle.lock.json"
+    provenance = project / ".gzlite/bundle.lock.json"
     preserved[provenance] = provenance.read_bytes()
     repeated = run(*configure, "--apply", cwd=project, env=env)
     if json.loads(repeated.stdout)["writes"]:

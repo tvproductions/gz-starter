@@ -124,7 +124,7 @@ class AdoptionTests(unittest.TestCase):
         p.write_text('[plugins."gz-skills@gzlite-0-14-0"]\nenabled = false\n')
         with self.assertRaises(starter.AdoptionError):
             self.configure(True)
-        self.assertFalse((self.root / ".gz-starter").exists())
+        self.assertFalse((self.root / ".gzlite").exists())
         self.assertFalse((self.root / "AGENTS.md").exists())
         self.assertIn("false", p.read_text())
 
@@ -141,7 +141,7 @@ class AdoptionTests(unittest.TestCase):
             self.configure(True)
         self.assertEqual(config.read_bytes(), original)
         self.assertEqual(list(folder.iterdir()), [config])
-        self.assertFalse((self.root / ".gz-starter").exists())
+        self.assertFalse((self.root / ".gzlite").exists())
 
     def test_later_write_failure_rolls_back_created_and_replaced_files(self):
         for existing in (False, True):
@@ -155,7 +155,7 @@ class AdoptionTests(unittest.TestCase):
                 open_path = Path.open
 
                 def fail_lock(path, *args, root=root, open_path=open_path, **kwargs):
-                    if path == root / ".gz-starter/bundle.lock.json" and args == ("xb",):
+                    if path == root / ".gzlite/bundle.lock.json" and args == ("xb",):
                         raise OSError("fixture lock failure")
                     return open_path(path, *args, **kwargs)
 
@@ -174,7 +174,7 @@ class AdoptionTests(unittest.TestCase):
         config.parent.mkdir()
         original = b'model = "fixture"\r\n'
         config.write_bytes(original)
-        lock = self.root / ".gz-starter/bundle.lock.json"
+        lock = self.root / ".gzlite/bundle.lock.json"
         concurrent = b"Concurrent fixture record.\n"
         replace_file = os.replace
 
@@ -282,7 +282,7 @@ class AdoptionTests(unittest.TestCase):
         with self.assertRaises(starter.AdoptionError):
             self.configure(True)
         self.assertEqual(p.read_text(), original)
-        self.assertFalse((self.root / ".gz-starter").exists())
+        self.assertFalse((self.root / ".gzlite").exists())
 
     def test_adoption_seeds_only_the_canonical_template_update_skill(self):
         result = self.configure(True)
@@ -290,7 +290,7 @@ class AdoptionTests(unittest.TestCase):
             set(result["writes"]),
             {
                 ".codex/config.toml",
-                ".gz-starter/bundle.lock.json",
+                ".gzlite/bundle.lock.json",
                 "AGENTS.skills-first.md",
                 "AGENTS.md",
                 starter.UPDATE_SKILL_DESTINATION,
@@ -505,7 +505,7 @@ class AdoptionTests(unittest.TestCase):
     def test_adoption_records_canonical_starter_repository(self):
         self.configure(True)
         config = tomllib.loads((self.root / ".codex/config.toml").read_text())
-        lock = json.loads((self.root / ".gz-starter/bundle.lock.json").read_bytes())
+        lock = json.loads((self.root / ".gzlite/bundle.lock.json").read_bytes())
         canonical = "https://github.com/tvproductions/gzlite.git"
         self.assertEqual(config["marketplaces"]["gzlite-0-14-0"]["source"], canonical)
         self.assertEqual(lock["starter"]["repository"], canonical)
@@ -527,7 +527,7 @@ class AdoptionTests(unittest.TestCase):
         app_metadata = b'[project]\nname = "fixture-app"\nversion = "7.3.2"\n'
         (self.root / "pyproject.toml").write_bytes(app_metadata)
         result = self.configure(True)
-        lock = json.loads((self.root / ".gz-starter/bundle.lock.json").read_bytes())
+        lock = json.loads((self.root / ".gzlite/bundle.lock.json").read_bytes())
         self.assertEqual(lock["starter"]["version"], starter.bundle()["template_version"])
         self.assertEqual(lock["starter"]["version"], metadata["project"]["version"])
         self.assertEqual(lock["starter"]["revision"], REF)
@@ -550,7 +550,7 @@ class AdoptionTests(unittest.TestCase):
 
     def test_legacy_unversioned_lock_requires_review_and_is_preserved(self):
         self.configure(True)
-        path = self.root / ".gz-starter/bundle.lock.json"
+        path = self.root / ".gzlite/bundle.lock.json"
         lock = json.loads(path.read_bytes())
         del lock["starter"]["version"]
         original = (json.dumps(lock, indent=2) + "\n").encode("utf-8")
