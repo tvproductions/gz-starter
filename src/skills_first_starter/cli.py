@@ -438,8 +438,15 @@ def configure(
     if host == "claude":
         local = check_path(root, ".claude/settings.local.json")
         if local.exists():
+            # Only checked, never written: earlier starter activations here must be
+            # reconciled by hand rather than silently left active.
             project_json(
-                local.read_text(encoding="utf-8"), host, ref, bundle()["components"], marketplace()
+                local.read_text(encoding="utf-8"),
+                host,
+                ref,
+                bundle()["components"],
+                marketplace(),
+                retire=False,
             )
     paths = {
         name: check_path(root, name)
@@ -537,7 +544,12 @@ def localize(project: Path, ref: str, *, host: str, apply: bool = False) -> dict
         record = json.loads(lock.read_text(encoding="utf-8"))
         parts = record["components"]
         # The pinned catalog keeps the name its own release published.
-        catalog = marketplace_name(record.get("starter", {}).get("version", template_version()))
+        version = record.get("starter", {}).get("version")
+        if not isinstance(version, str):
+            raise AdoptionError(
+                "the lock records no starter release; reconcile its provenance before repair"
+            )
+        catalog = marketplace_name(version)
         if {p["name"] for p in parts} != {p["name"] for p in bundle()["components"]}:
             raise AdoptionError("existing adoption components need explicit reconciliation")
         if any(not SHA.fullmatch(p["revision"]) for p in parts):

@@ -126,6 +126,77 @@ class UpgradeTests(unittest.TestCase):
         self.assertIs(data["fixture"], True)
         self.assertEqual(starter.configure(self.root, REF, host="claude")["writes"], [])
 
+    def assert_codex_refused(self, original):
+        path = self.write_codex(original)
+        with self.assertRaises(starter.AdoptionError):
+            starter.configure(self.root, REF, apply=True)
+        self.assertEqual(path.read_text(), original)
+        self.assertFalse((self.root / ".gz-starter").exists())
+
+    def test_codex_upgrade_refuses_an_explicit_legacy_disable(self):
+        original = self.legacy_codex().replace(
+            '[plugins."gz-skills@skills-first-starter"]\nenabled = true',
+            '[plugins."gz-skills@skills-first-starter"]\nenabled = false',
+        )
+        self.assertNotEqual(original, self.legacy_codex())
+        self.assert_codex_refused(original)
+
+    def test_codex_upgrade_refuses_a_legacy_name_on_a_fork(self):
+        original = self.legacy_codex().replace(SOURCE, "https://example.invalid/fork.git")
+        self.assert_codex_refused(original)
+
+    def test_codex_keeps_a_duplicate_suppression_without_a_legacy_source(self):
+        path = self.write_codex('[plugins."gz-skills@skills-first-starter"]\nenabled = false\n')
+        starter.configure(self.root, REF, apply=True)
+        data = tomllib.loads(path.read_text())
+        self.assertIs(data["plugins"]["gz-skills@skills-first-starter"]["enabled"], False)
+        self.assertIs(data["plugins"]["gz-skills@" + self.current]["enabled"], True)
+
+    def legacy_claude(self):
+        return {
+            "extraKnownMarketplaces": {
+                "skills-first-starter": {
+                    "source": {"source": "git", "url": SOURCE, "ref": OLD_REF},
+                    "autoUpdate": False,
+                }
+            },
+            "enabledPlugins": {"gz-skills@skills-first-starter": True},
+        }
+
+    def assert_claude_refused(self, settings, name="settings.json"):
+        path = self.root / ".claude" / name
+        path.parent.mkdir(exist_ok=True)
+        original = json.dumps(settings).encode()
+        path.write_bytes(original)
+        with self.assertRaises(ValueError):
+            starter.configure(self.root, REF, host="claude", apply=True)
+        self.assertEqual(path.read_bytes(), original)
+        self.assertFalse((self.root / ".gz-starter").exists())
+
+    def test_claude_upgrade_refuses_an_explicit_auto_update(self):
+        settings = self.legacy_claude()
+        settings["extraKnownMarketplaces"]["skills-first-starter"]["autoUpdate"] = True
+        self.assert_claude_refused(settings)
+
+    def test_claude_upgrade_refuses_an_explicit_legacy_disable(self):
+        settings = self.legacy_claude()
+        settings["enabledPlugins"]["gz-skills@skills-first-starter"] = False
+        self.assert_claude_refused(settings)
+
+    def test_claude_upgrade_refuses_active_legacy_local_settings(self):
+        self.assert_claude_refused(self.legacy_claude(), name="settings.local.json")
+
+    def test_localize_refuses_a_lock_without_a_recorded_release(self):
+        lock = self.root / ".gz-starter/bundle.lock.json"
+        lock.parent.mkdir()
+        lock.write_text(
+            json.dumps({"schema_version": 1, "components": starter.bundle()["components"]})
+        )
+        path = self.write_codex('model = "fixture"\n')
+        with self.assertRaises(starter.AdoptionError):
+            starter.localize(self.root, OLD_REF, host="codex", apply=True)
+        self.assertEqual(path.read_text(), 'model = "fixture"\n')
+
     def test_localize_keeps_the_name_published_by_the_recorded_release(self):
         lock = self.root / ".gz-starter/bundle.lock.json"
         lock.parent.mkdir()

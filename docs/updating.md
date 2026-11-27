@@ -110,11 +110,16 @@ catalog after the release, for example `gz-starter-0-13-0`. Projects on the same
 release share a cache slot; other releases never collide.
 
 When `configure` moves a project to such a release, it removes the earlier
-starter marketplace table and the earlier plugin activations that still hold the
-starter default, then writes the new names. A project choice that differs from
-the default, such as an enabled Backplane, stops the update for review; nothing
-is written. `localize` keeps the name published by the release recorded in the
-project lock. Plugin IDs therefore change once per starter upgrade; review user
+starter marketplace entry and its plugin activations, then writes the new
+names. It does so only when the entry is exactly what the starter wrote and
+every activation still holds the starter default. Anything else stops the
+update with nothing written: another source behind an earlier starter name, an
+explicit Claude `autoUpdate`, a disabled Superpowers or gz-skills, an enabled
+Backplane, or an active earlier activation in `.claude/settings.local.json`.
+An earlier activation with no earlier marketplace entry in the same file is a
+duplicate suppression and is kept. `localize` keeps the name published by the
+release recorded in the project lock, and refuses a lock with no recorded
+release. Plugin IDs therefore change once per starter upgrade; review user
 or local overrides that name an earlier `@skills-first-starter` or
 `@gz-starter-*` identity.
 

@@ -41,9 +41,12 @@ def _merge_object(data: dict, key: str, additions: dict) -> None:
         current[name] = value
 
 
-def _claude_settings(data: dict, ref: str, parts: list[dict], marketplace: str) -> None:
+def _claude_settings(
+    data: dict, ref: str, parts: list[dict], marketplace: str, retire: bool
+) -> None:
     """Reconcile Claude's project marketplace and activation maps."""
-    retire_claude(data, marketplace, parts)
+    if retire:
+        retire_claude(data, marketplace, parts)
     _merge_object(
         data,
         "extraKnownMarketplaces",
@@ -86,12 +89,24 @@ def _opencode_settings(data: dict, parts: list[dict]) -> None:
             plugins.append(target)
 
 
-def project_json(existing: str, host: str, ref: str, parts: list[dict], marketplace: str) -> str:
-    """Preserve unrelated JSON settings and require immutable project sources."""
+def project_json(
+    existing: str,
+    host: str,
+    ref: str,
+    parts: list[dict],
+    marketplace: str,
+    *,
+    retire: bool = True,
+) -> str:
+    """Preserve unrelated JSON settings and require immutable project sources.
+
+    With ``retire`` false, earlier starter activations are judged rather than
+    removed, for settings this call only checks and never writes.
+    """
     data, _ = document(existing)
     before = json.dumps(data, sort_keys=True)
     if host == "claude":
-        _claude_settings(data, ref, parts, marketplace)
+        _claude_settings(data, ref, parts, marketplace, retire)
     elif host == "opencode":
         _opencode_settings(data, parts)
     else:

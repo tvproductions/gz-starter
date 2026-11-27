@@ -37,17 +37,72 @@ def _retired(name: str, current: str) -> bool:
     return name != current and is_starter_marketplace(name)
 
 
-def _retirable_plugins(plugins: dict, current: str, parts: list[dict]) -> set[str]:
-    """Select earlier starter activations that still hold the starter default."""
+def _codex_entry_is_starter(table: object) -> bool:
+    """Match exactly the marketplace table an earlier starter release wrote."""
+    return (
+        isinstance(table, dict)
+        and set(table) == {"source_type", "source", "ref"}
+        and table["source_type"] == "git"
+        and table["source"] in STARTER_SOURCES
+        and isinstance(table["ref"], str)
+    )
+
+
+def _claude_entry_is_starter(entry: object) -> bool:
+    """Match exactly the marketplace entry an earlier starter release wrote."""
+    if not isinstance(entry, dict) or set(entry) != {"source", "autoUpdate"}:
+        return False
+    source = entry["source"]
+    return (
+        entry["autoUpdate"] is False
+        and isinstance(source, dict)
+        and set(source) == {"source", "url", "ref"}
+        and source["source"] == "git"
+        and source["url"] in STARTER_SOURCES
+        and isinstance(source["ref"], str)
+    )
+
+
+def _owned_earlier(marketplaces: object, current: str, is_starter) -> set[str]:
+    """Name earlier starter marketplaces declared here; refuse any that differ."""
+    owned = set()
+    if not isinstance(marketplaces, dict):
+        return owned
+    for name, entry in marketplaces.items():
+        if not _retired(name, current):
+            continue
+        if not is_starter(entry):
+            raise ValueError(
+                f"earlier starter marketplace {name} differs from what the starter wrote; "
+                "reconcile it first; no files changed"
+            )
+        owned.add(name)
+    return owned
+
+
+def _retirable_plugins(plugins: object, owned: set[str], parts: list[dict]) -> set[str]:
+    """Select activations of the retired marketplaces; refuse non-default choices.
+
+    Activations naming an earlier starter marketplace that this file does not
+    declare are left alone: they suppress a duplicate inherited from user
+    settings, and the activation check judges them.
+    """
     defaults = {p["name"]: p["enabled_by_default"] for p in parts}
     found = set()
+    if not isinstance(plugins, dict):
+        return found
     for identity, value in plugins.items():
         name, _, source = identity.partition("@")
+        if name not in defaults or source not in owned:
+            continue
         # Codex writes a table holding only "enabled"; Claude writes the bare boolean.
         if isinstance(value, dict) and set(value) == {"enabled"}:
             value = value["enabled"]
-        if name in defaults and _retired(source, current) and value is defaults[name]:
-            found.add(identity)
+        if value is not defaults[name]:
+            raise ValueError(
+                f"{identity} differs from the starter default; reconcile it first; no files changed"
+            )
+        found.add(identity)
     return found
 
 
@@ -68,14 +123,11 @@ def _header(line: str) -> tuple[str, str] | None:
 def retire_codex(text: str, current: str, parts: list[dict]) -> str:
     """Remove earlier starter tables that hold only starter-written values."""
     data = tomllib.loads(text)
-    doomed = {
-        ("marketplaces", name)
-        for name, table in data.get("marketplaces", {}).items()
-        if _retired(name, current) and table.get("source") in STARTER_SOURCES
-    }
+    owned = _owned_earlier(data.get("marketplaces", {}), current, _codex_entry_is_starter)
+    doomed = {("marketplaces", name) for name in owned}
     doomed |= {
         ("plugins", identity)
-        for identity in _retirable_plugins(data.get("plugins", {}), current, parts)
+        for identity in _retirable_plugins(data.get("plugins", {}), owned, parts)
     }
     if not doomed:
         return text
@@ -100,12 +152,11 @@ def retire_codex(text: str, current: str, parts: list[dict]) -> str:
 def retire_claude(data: dict, current: str, parts: list[dict]) -> None:
     """Drop earlier starter entries from Claude settings in place."""
     known = data.get("extraKnownMarketplaces")
-    if isinstance(known, dict):
-        for name in [n for n in known if _retired(n, current)]:
-            source = known[name].get("source", {}) if isinstance(known[name], dict) else {}
-            if isinstance(source, dict) and source.get("url") in STARTER_SOURCES:
-                del known[name]
+    owned = _owned_earlier(known, current, _claude_entry_is_starter)
     plugins = data.get("enabledPlugins")
-    if isinstance(plugins, dict):
-        for identity in _retirable_plugins(plugins, current, parts):
+    for identity in _retirable_plugins(plugins, owned, parts):
+        if isinstance(plugins, dict):
             del plugins[identity]
+    for name in owned:
+        if isinstance(known, dict):
+            del known[name]
