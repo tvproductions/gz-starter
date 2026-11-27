@@ -24,6 +24,7 @@ from gzlite.gitenv import clean_git_env
 SOURCE_REPOSITORY = "https://github.com/tvproductions/gz-skills.git"
 LOCK_FILENAME = "gz-skills.lock.json"
 CACHE_ENV = "GZLITE_VENDOR_CACHE"
+REPOSITORY_ENV = "GZLITE_VENDOR_REPOSITORY"
 SURFACES = {
     "agents": Path(".agents/skills"),
     "claude": Path(".claude/skills"),
@@ -168,10 +169,10 @@ def cache_root() -> Path:
 
 
 def resolve_source(
-    revision: str,
+    revision: str | None,
     *,
     source: Path | None,
-    repository: str = SOURCE_REPOSITORY,
+    repository: str | None = None,
     cache_root: Path | None = None,
 ) -> Path:
     """Return a checkout of gz-skills: ``source`` if given, else a cached clone.
@@ -182,8 +183,11 @@ def resolve_source(
     """
     if source is not None:
         return source
+    if not revision:
+        raise VendorError("no source given and no revision to fetch")
     if not _SAFE_REVISION.fullmatch(revision) or ".." in revision:
         raise VendorError(f"unsafe revision {revision!r}")
+    repository = repository or os.environ.get(REPOSITORY_ENV) or SOURCE_REPOSITORY
     root = cache_root_default() if cache_root is None else cache_root
     entry = root / revision
     # The marker sits beside the clone so it never dirties the checkout.
@@ -448,8 +452,8 @@ def update(
     *,
     apply: bool,
     source: Path | None = None,
-    revision: str = "main",
-    repository: str = SOURCE_REPOSITORY,
+    revision: str | None = None,
+    repository: str | None = None,
 ) -> dict:
     """Preview, or with ``apply`` perform, every safe update a lock represents.
 
@@ -491,8 +495,8 @@ def propagate(
     *,
     apply: bool,
     source: Path | None = None,
-    revision: str = "main",
-    repository: str = SOURCE_REPOSITORY,
+    revision: str | None = None,
+    repository: str | None = None,
 ) -> dict:
     """Preview or apply updates for every consumer lock below ``root``."""
     lock_paths = find_locks(root)

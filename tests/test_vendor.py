@@ -65,6 +65,18 @@ class Fixture(unittest.TestCase):
         self.project = self.root / "project"
         self.target = self.project / ".agents" / "skills"
         self.lock = self.project / "gz-skills.lock.json"
+        # Fail closed: a call that forgets --source or a cache override reaches
+        # only the local fixture and a temporary cache, never GitHub.
+        self.cache = self.root / "env-cache"
+        patcher = mock.patch.dict(
+            os.environ,
+            {
+                vendor.REPOSITORY_ENV: self.repo.as_uri(),
+                vendor.CACHE_ENV: str(self.cache),
+            },
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def install_alpha(self):
         return vendor.install(self.repo, ["gzs-alpha"], self.target, lock=self.lock, force=False)
@@ -249,6 +261,30 @@ class VendorCliTests(Fixture):
         code, out, _ = self.run_cli("propagate", str(self.project), "--source", str(self.repo))
         self.assertEqual(code, 0)
         self.assertEqual(len(json.loads(out)["locks"]), 1)
+
+    def test_default_revision_is_the_bundle_pin_and_fetches_offline(self):
+        with mock.patch("gzlite.cli._gz_skills_pin", return_value=self.revision):
+            code, out, _ = self.run_cli("list")
+        self.assertEqual(code, 0)
+        self.assertEqual(len(json.loads(out)), 2)
+        self.assertTrue((self.cache / self.revision).is_dir())
+
+    def test_pin_comes_from_bundle_json(self):
+        from gzlite import cli
+
+        expected = next(p for p in cli.bundle()["components"] if p["name"] == "gz-skills")
+        self.assertEqual(cli._gz_skills_pin(), expected["revision"])
+        self.assertRegex(cli._gz_skills_pin(), r"[0-9a-f]{40}\Z")
+
+    def test_invalid_arguments_refuse_before_any_fetch(self):
+        code, _, _ = self.run_cli("install", "--project", str(self.project))
+        self.assertEqual(code, 2)
+        empty = self.root / "empty"
+        empty.mkdir()
+        code, out, _ = self.run_cli("propagate", str(empty))
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(out)["locks"], [])
+        self.assertFalse(self.cache.exists())
 
     def test_status_exits_1_when_anything_is_not_current(self):
         self.install_alpha()

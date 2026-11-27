@@ -682,7 +682,9 @@ def _add_vendor_parser(sub) -> None:
     def source_arguments(parser: argparse.ArgumentParser) -> None:
         parser.add_argument("--source", type=Path, help="local gz-skills checkout")
         parser.add_argument(
-            "--revision", default="main", help="gz-skills revision to fetch when no --source"
+            "--revision",
+            help="gz-skills revision to fetch when no --source; default is the bundle.json pin "
+            "(a branch or tag name is an explicit opt-in to a moving ref)",
         )
 
     source_arguments(actions.add_parser("list", help="list the skills a source offers"))
@@ -712,36 +714,54 @@ def _add_vendor_parser(sub) -> None:
     source_arguments(propagate_parser)
 
 
+def _gz_skills_pin() -> str:
+    """The gz-skills commit this release pins in bundle.json."""
+    for part in bundle()["components"]:
+        if part["name"] == "gz-skills":
+            return part["revision"]
+    raise AdoptionError("bundle.json has no gz-skills component")
+
+
 def _vendor(args: argparse.Namespace) -> tuple[object, int]:
-    """Run a vendor subcommand; return its result and exit status."""
+    """Run a vendor subcommand; return its result and exit status.
+
+    Arguments are validated before any fetch, and the source is resolved only
+    when needed. Without --source the pinned gz-skills revision is fetched.
+    """
     command = args.vendor_command
     if command == "status":
         report = vendor_commands.status(args.lock)
         return report, 0 if report["current"] else 1
-    source = vendor_commands.resolve_source(args.revision, source=args.source)
-    if command == "list":
-        return vendor_commands.list_skills(source), 0
-    if command == "install":
-        if args.all == bool(args.skills):
-            raise ValueError("name skills or use --all, not both or neither")
-        names = (
-            [skill["name"] for skill in vendor_commands.list_skills(source)]
-            if args.all
-            else args.skills
-        )
-        target, lock = vendor_commands.resolve_destination(
-            project=args.project,
-            user=args.user,
-            target=args.target,
-            surface=args.surface,
-            lock=args.lock,
-        )
-        return vendor_commands.install(source, names, target, lock=lock, force=args.force), 0
+    revision = args.revision or _gz_skills_pin()
     if command == "update":
-        report = vendor_commands.update(args.lock, apply=args.apply, source=source)
-    else:
-        report = vendor_commands.propagate(args.root, apply=args.apply, source=source)
-    return report, 1 if report["blocked"] else 0
+        report = vendor_commands.update(
+            args.lock, apply=args.apply, source=args.source, revision=revision
+        )
+        return report, 1 if report["blocked"] else 0
+    if command == "propagate":
+        report = vendor_commands.propagate(
+            args.root, apply=args.apply, source=args.source, revision=revision
+        )
+        return report, 1 if report["blocked"] else 0
+    if command == "list":
+        source = vendor_commands.resolve_source(revision, source=args.source)
+        return vendor_commands.list_skills(source), 0
+    if args.all == bool(args.skills):
+        raise ValueError("name skills or use --all, not both or neither")
+    target, lock = vendor_commands.resolve_destination(
+        project=args.project,
+        user=args.user,
+        target=args.target,
+        surface=args.surface,
+        lock=args.lock,
+    )
+    source = vendor_commands.resolve_source(revision, source=args.source)
+    names = (
+        [skill["name"] for skill in vendor_commands.list_skills(source)]
+        if args.all
+        else args.skills
+    )
+    return vendor_commands.install(source, names, target, lock=lock, force=args.force), 0
 
 
 def main(argv: list[str] | None = None) -> int:
