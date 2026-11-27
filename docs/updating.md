@@ -106,7 +106,7 @@ the exact adopter result separately from the producer or native discovery result
 Releases through 0.12.1 publish one shared catalog name, `skills-first-starter`.
 Codex caches one checkout per marketplace name, so projects pinned to different
 starter revisions overwrote each other's cached copy. Later releases name the
-catalog after the release, for example `gz-starter-0-12-2`. Projects on the same
+catalog after the release, for example `gz-starter-0-13-0`. Projects on the same
 release share a cache slot; other releases never collide.
 
 When `configure` moves a project to such a release, it removes the earlier

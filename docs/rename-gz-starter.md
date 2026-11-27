@@ -20,7 +20,7 @@ guidance; it is not pending starter work. Downstream migrations remain explicit.
 | Python distribution | `gz-starter`, shipped in 0.10.0 |
 | CLI | `gz-starter`; `skills-first-starter` remains an equivalent alias |
 | Python import | `skills_first_starter` is retained for compatibility |
-| Native marketplace identity | `skills-first-starter` through 0.12.1; later releases use a per-release name such as `gz-starter-0-12-2` ([versioned name](updating.md#versioned-native-marketplace-name)); display name is GZ Starter |
+| Native marketplace identity | `skills-first-starter` through 0.12.1; later releases use a per-release name such as `gz-starter-0-13-0` ([versioned name](updating.md#versioned-native-marketplace-name)); display name is GZ Starter |
 | Adopter record directory | `.gz-starter/` from 0.12.1. Earlier releases use `.skills-first/`. Follow the [reviewed relocation procedure](updating.md#relocate-legacy-starter-state). |
 | Owned update skill | `update-gz-template` remains stable |
 

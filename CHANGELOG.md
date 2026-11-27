@@ -3,7 +3,7 @@
 ## Unreleased
 
 - Name the native marketplace after each starter release, for example
-  `gz-starter-0-12-2`, instead of the shared `skills-first-starter`. Codex
+  `gz-starter-0-13-0`, instead of the shared `skills-first-starter`. Codex
   caches one checkout per name, so projects pinned to different starter
   revisions overwrote each other. `configure` retires earlier starter tables
   that still hold starter defaults and stops on differing project choices.
