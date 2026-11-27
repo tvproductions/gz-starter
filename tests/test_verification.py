@@ -74,9 +74,7 @@ class VerificationProject(unittest.TestCase):
         return target
 
     def verify(self):
-        return run(
-            self.root, sys.executable, "-m", "skills_first_starter", "verify", "--project", "."
-        )
+        return run(self.root, sys.executable, "-m", "gzlite", "verify", "--project", ".")
 
     def assert_blocked(self, *messages):
         result = self.verify()

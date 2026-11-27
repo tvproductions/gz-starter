@@ -10,8 +10,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlsplit
 
-from skills_first_starter.native_json import document as read_native_json
-from skills_first_starter.paths import BUNDLE_LOCK, STATE_SETTINGS
+from gzlite.native_json import document as read_native_json
+from gzlite.paths import BUNDLE_LOCK, STATE_SETTINGS
 
 _JSON_CONFIGS = {
     "bundle.json",

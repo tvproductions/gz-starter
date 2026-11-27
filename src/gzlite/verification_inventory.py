@@ -9,7 +9,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from skills_first_starter.paths import space_free
+from gzlite.paths import space_free
 
 _CODE_SUFFIXES = {".py", ".pyw", ".pyi", ".sh", ".bash", ".ps1", ".cmd", ".bat"}
 _SENSITIVE_SUFFIXES = {".key", ".pem", ".p12", ".pfx", ".kdbx"}

@@ -4,8 +4,8 @@ import json
 import re
 import tomllib
 
-from skills_first_starter.native import project_json
-from skills_first_starter.native_json import document, replace_fields
+from gzlite.native import project_json
+from gzlite.native_json import document, replace_fields
 
 
 def _plugin_states(parts: list[dict], sources: list[dict], marketplace: str) -> dict[str, bool]:

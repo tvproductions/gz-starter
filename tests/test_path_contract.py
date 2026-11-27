@@ -8,8 +8,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from skills_first_starter import cli
-from skills_first_starter.native_launch import launch
+from gzlite import cli
+from gzlite.native_launch import launch
 
 REF = "a" * 40
 
@@ -52,7 +52,7 @@ class PathContractTests(unittest.TestCase):
                 mock.patch.object(Path, "open", guarded),
                 mock.patch.object(builtins, "open", guarded_builtin),
                 mock.patch.object(cli, "_apply_writes") as writes,
-                mock.patch("skills_first_starter.native_launch.subprocess.run") as process,
+                mock.patch("gzlite.native_launch.subprocess.run") as process,
             ):
                 for call in calls:
                     with self.subTest(call=call), self.assertRaisesRegex(ValueError, "space"):

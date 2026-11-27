@@ -5,8 +5,8 @@ import tomllib
 import unittest
 from pathlib import Path
 
-from skills_first_starter import cli as starter
-from skills_first_starter.native_identity import (
+from gzlite import cli as starter
+from gzlite.native_identity import (
     LEGACY_MARKETPLACE,
     is_starter_marketplace,
     marketplace_name,

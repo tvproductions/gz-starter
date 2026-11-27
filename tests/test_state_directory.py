@@ -23,7 +23,7 @@ class StateDirectoryTests(unittest.TestCase):
         if action in ("configure", "localize"):
             args.extend(("--host", "codex", "--starter-ref", REF))
         return subprocess.run(
-            [sys.executable, "-m", "skills_first_starter", *args, *options],
+            [sys.executable, "-m", "gzlite", *args, *options],
             capture_output=True,
             text=True,
             check=False,

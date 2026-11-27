@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from skills_first_starter import cli as starter
+from gzlite import cli as starter
 
 REF = "a" * 40
 POLICY = "docs/engineering/architectural-decisions.md"

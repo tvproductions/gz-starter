@@ -149,9 +149,7 @@ def _normalized_recipe(value: dict[str, Any]) -> dict[str, Any]:
 def validate_workflow(data: bytes, python_pin: str, uv_floor: str) -> None:
     """Accept the reviewed workflow shape and version/digest parameters."""
     parsed = read_yaml(data, WORKFLOW_PATH)
-    reference = files("skills_first_starter").joinpath(
-        "resources/templates/verification/verify-python.yml"
-    )
+    reference = files("gzlite").joinpath("resources/templates/verification/verify-python.yml")
     expected = read_yaml(reference.read_bytes(), WORKFLOW_PATH)
     try:
         version = parsed["env"]["UV_VERSION"]

@@ -19,7 +19,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
-    destination = ROOT / "src/skills_first_starter/resources"
+    destination = ROOT / "src/gzlite/resources"
     stale = []
     for relative in RESOURCE_PATHS:
         source = ROOT / relative

@@ -41,7 +41,7 @@ each adopter must establish its own enforcement and artifact verification.
 | Location | Responsibility |
 | --- | --- |
 | `bundle.json` and native marketplace catalogs | Independent upstream identities, immutable component pins and default activation |
-| `src/skills_first_starter/` | Installed helper package, CLI and generated wheel resources |
+| `src/gzlite/` | Installed helper package, CLI and generated wheel resources |
 | `starter.py` | Compatibility launcher for the installed helper |
 | `templates/AGENTS.skills-first.md` | Adopter instructions: workflow routing, baseline policy and maintenance obligations |
 | `docs/adoption-workflow.md` and `docs/adoption.md` | Adoption procedure and host verification |

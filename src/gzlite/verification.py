@@ -7,8 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from skills_first_starter.paths import space_free, validate_state_directory
-from skills_first_starter.verification_artifacts import (
+from gzlite.paths import space_free, validate_state_directory
+from gzlite.verification_artifacts import (
     declared_readme,
     entry_points,
     project_table,
@@ -17,9 +17,9 @@ from skills_first_starter.verification_artifacts import (
     validate_markdown,
     validate_tool_configuration,
 )
-from skills_first_starter.verification_inventory import inventory_project
-from skills_first_starter.verification_unittest import discovery_selection, run_adopter_tests
-from skills_first_starter.verification_yaml import (
+from gzlite.verification_inventory import inventory_project
+from gzlite.verification_unittest import discovery_selection, run_adopter_tests
+from gzlite.verification_yaml import (
     HOOK_PATH,
     WORKFLOW_PATH,
     additional_workflow_runs,

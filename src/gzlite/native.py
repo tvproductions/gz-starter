@@ -3,9 +3,9 @@
 import json
 from pathlib import Path
 
-from skills_first_starter.native_identity import retire_claude
-from skills_first_starter.native_json import document, replace_fields
-from skills_first_starter.paths import space_free
+from gzlite.native_identity import retire_claude
+from gzlite.native_json import document, replace_fields
+from gzlite.paths import space_free
 
 HOST_PATHS = {
     "codex": ".codex/config.toml",

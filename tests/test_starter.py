@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from skills_first_starter import cli as starter
+from gzlite import cli as starter
 
 MODULE = Path(__file__).parents[1] / "starter.py"
 REF = "a" * 40
@@ -435,7 +435,7 @@ class AdoptionTests(unittest.TestCase):
             },
             {
                 starter.UPDATE_SKILL_SOURCE,
-                f"src/skills_first_starter/resources/{starter.UPDATE_SKILL_SOURCE}",
+                f"src/gzlite/resources/{starter.UPDATE_SKILL_SOURCE}",
             },
         )
 
@@ -506,6 +506,18 @@ class AdoptionTests(unittest.TestCase):
         canonical = "https://github.com/tvproductions/gz-starter.git"
         self.assertEqual(config["marketplaces"]["gz-starter-0-13-0"]["source"], canonical)
         self.assertEqual(lock["starter"]["repository"], canonical)
+
+    def test_console_scripts_are_gzlite_with_bridge_aliases(self):
+        metadata = tomllib.loads((MODULE.parent / "pyproject.toml").read_text(encoding="utf-8"))
+        self.assertEqual(metadata["project"]["name"], "gzlite")
+        self.assertEqual(
+            metadata["project"]["scripts"],
+            {
+                "gzlite": "gzlite.cli:main",
+                "gz-starter": "gzlite.cli:main",
+                "skills-first-starter": "gzlite.cli:main",
+            },
+        )
 
     def test_adoption_records_template_version_and_exact_revision(self):
         metadata = tomllib.loads((MODULE.parent / "pyproject.toml").read_text(encoding="utf-8"))

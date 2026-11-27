@@ -6,8 +6,8 @@ import unittest
 from pathlib import Path, PureWindowsPath
 from unittest import mock
 
-from skills_first_starter import cli as starter
-from skills_first_starter.native import HOST_PATHS, update_skill_path
+from gzlite import cli as starter
+from gzlite.native import HOST_PATHS, update_skill_path
 
 REF = "a" * 40
 

@@ -14,7 +14,7 @@ from email.parser import BytesParser
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-WORKFLOW = "skills_first_starter/resources/templates/verification/verify-python.yml"
+WORKFLOW = "gzlite/resources/templates/verification/verify-python.yml"
 
 
 def run(
@@ -41,15 +41,12 @@ def verify_archives(wheel: Path, sdist: Path) -> None:
             raise ValueError("Wheel is missing the supported adopter workflow")
         verify_extra_metadata(archive)
         skill = "templates/skills/update-gz-template/SKILL.md"
-        allowed = f"skills_first_starter/resources/{skill}"
+        allowed = f"gzlite/resources/{skill}"
         if {name for name in names if name.endswith("/SKILL.md")} != {allowed}:
             raise ValueError("Wheel must contain exactly the template-owned update skill")
         if any(name.startswith(("tests/", "tools/")) for name in names):
             raise ValueError("Unexpected development files or skills in wheel")
-        if (
-            "skills_first_starter/resources/docs/engineering/architectural-decisions.md"
-            not in names
-        ):
+        if "gzlite/resources/docs/engineering/architectural-decisions.md" not in names:
             raise ValueError("Wheel is missing the canonical ADR policy")
         for relative in (
             "bundle.json",
@@ -59,7 +56,7 @@ def verify_archives(wheel: Path, sdist: Path) -> None:
             skill,
             "docs/engineering/architectural-decisions.md",
         ):
-            content = archive.read(f"skills_first_starter/resources/{relative}")
+            content = archive.read(f"gzlite/resources/{relative}")
             if content != (ROOT / relative).read_bytes():
                 raise ValueError(f"Wheel resource differs from authority: {relative}")
     with tarfile.open(sdist) as archive:
@@ -475,14 +472,14 @@ def verify_installed_verification(wheel: Path, base_command: Path, directory: Pa
     assert_verification_fault(
         project,
         (str(base_command), "verify", "--project", "."),
-        "install gz-starter[verification]",
+        "install gzlite[verification]",
         env,
     )
     run(
         "uv",
         "add",
         "--dev",
-        f"gz-starter[verification] @ {wheel.as_uri()}",
+        f"gzlite[verification] @ {wheel.as_uri()}",
         "pre-commit==4.7.0",
         "coverage==7.17.4",
         cwd=project,
@@ -605,7 +602,7 @@ def main() -> None:
         run("uv", "venv", "--python", sys.executable, str(environment), cwd=directory)
         scripts = environment / ("Scripts" if os.name == "nt" else "bin")
         python = scripts / ("python.exe" if os.name == "nt" else "python")
-        command = scripts / ("gz-starter.exe" if os.name == "nt" else "gz-starter")
+        command = scripts / ("gzlite.exe" if os.name == "nt" else "gzlite")
         run(
             "uv",
             "pip",
@@ -618,15 +615,14 @@ def main() -> None:
             cwd=directory,
         )
         run(str(command), "validate", cwd=directory)
-        legacy = scripts / (
-            "skills-first-starter.exe" if os.name == "nt" else "skills-first-starter"
-        )
-        if (
-            run(str(legacy), "version", cwd=directory).stdout
-            != run(str(command), "version", cwd=directory).stdout
-        ):
-            raise ValueError("Legacy command alias differs from the canonical command")
-        result = run(str(python), "-I", "-m", "skills_first_starter", "version", cwd=directory)
+        for alias in ("gz-starter", "skills-first-starter"):
+            bridge = scripts / (f"{alias}.exe" if os.name == "nt" else alias)
+            if (
+                run(str(bridge), "version", cwd=directory).stdout
+                != run(str(command), "version", cwd=directory).stdout
+            ):
+                raise ValueError(f"Bridge alias {alias} differs from the canonical command")
+        result = run(str(python), "-I", "-m", "gzlite", "version", cwd=directory)
         if json.loads(result.stdout)["template_version"] != version:
             raise ValueError("Installed version differs from project metadata")
         target = directory / "adopter"

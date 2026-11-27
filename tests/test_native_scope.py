@@ -7,8 +7,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from skills_first_starter import cli as starter
-from skills_first_starter.native import HOST_PATHS
+from gzlite import cli as starter
+from gzlite.native import HOST_PATHS
 
 REF = "b" * 40
 

@@ -5,9 +5,9 @@ import os
 import subprocess
 from pathlib import Path
 
-from skills_first_starter.native import configuration_path
-from skills_first_starter.native_json import document
-from skills_first_starter.paths import space_free
+from gzlite.native import configuration_path
+from gzlite.native_json import document
+from gzlite.paths import space_free
 
 
 def _merge(base: dict, override: dict) -> dict:

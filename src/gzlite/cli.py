@@ -18,16 +18,16 @@ import tempfile
 import tomllib
 from pathlib import Path
 
-from skills_first_starter.native import (
+from gzlite.native import (
     HOST_PATHS,
     configuration_path,
     project_json,
     update_skill_path,
 )
-from skills_first_starter.native_identity import STARTER_SOURCES, marketplace_name, retire_codex
-from skills_first_starter.native_launch import launch as launch_opencode
-from skills_first_starter.native_scope import claude_scope, codex_scope, opencode_scope
-from skills_first_starter.paths import (
+from gzlite.native_identity import STARTER_SOURCES, marketplace_name, retire_codex
+from gzlite.native_launch import launch as launch_opencode
+from gzlite.native_scope import claude_scope, codex_scope, opencode_scope
+from gzlite.paths import (
     BUNDLE_LOCK,
     LOCAL_ADR_POLICY,
     space_free,
@@ -706,11 +706,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "verify":
         try:
-            from skills_first_starter.verification import verify_project
+            from gzlite.verification import verify_project
         except ModuleNotFoundError as error:
             if error.name != "yaml":
                 raise
-            print("verification blocked: install gz-starter[verification]", file=sys.stderr)
+            print("verification blocked: install gzlite[verification]", file=sys.stderr)
             return 1
         return verify_project(args.project)
     try:
