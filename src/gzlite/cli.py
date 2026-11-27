@@ -18,6 +18,7 @@ import tempfile
 import tomllib
 from pathlib import Path
 
+from gzlite import vendor as vendor_commands
 from gzlite.native import (
     HOST_PATHS,
     configuration_path,
@@ -671,6 +672,78 @@ def source_revision() -> str:
     return git("rev-parse", "HEAD")
 
 
+def _add_vendor_parser(sub) -> None:
+    """Register ``vendor`` and its subcommands."""
+    vendor_parser = sub.add_parser(
+        "vendor", help="vendor pinned gz-skills snapshots and keep them current"
+    )
+    actions = vendor_parser.add_subparsers(dest="vendor_command", required=True)
+
+    def source_arguments(parser: argparse.ArgumentParser) -> None:
+        parser.add_argument("--source", type=Path, help="local gz-skills checkout")
+        parser.add_argument(
+            "--revision", default="main", help="gz-skills revision to fetch when no --source"
+        )
+
+    source_arguments(actions.add_parser("list", help="list the skills a source offers"))
+    install_parser = actions.add_parser("install", help="install pinned skill snapshots")
+    install_parser.add_argument("skills", nargs="*")
+    install_parser.add_argument("--all", action="store_true", help="install every skill")
+    install_parser.add_argument("--force", action="store_true")
+    install_parser.add_argument(
+        "--surface", choices=sorted(vendor_commands.SURFACES), default="agents"
+    )
+    install_parser.add_argument("--lock", type=Path)
+    where = install_parser.add_mutually_exclusive_group(required=True)
+    where.add_argument("--project", type=Path)
+    where.add_argument("--user", action="store_true")
+    where.add_argument("--target", type=Path, help="exact skills directory")
+    source_arguments(install_parser)
+    actions.add_parser("status", help="compare a lock with its installed trees").add_argument(
+        "--lock", type=Path, required=True
+    )
+    update_parser = actions.add_parser("update", help="preview or apply updates for one lock")
+    update_parser.add_argument("--lock", type=Path, required=True)
+    update_parser.add_argument("--apply", action="store_true")
+    source_arguments(update_parser)
+    propagate_parser = actions.add_parser("propagate", help="update every lock below a root")
+    propagate_parser.add_argument("root", type=Path)
+    propagate_parser.add_argument("--apply", action="store_true")
+    source_arguments(propagate_parser)
+
+
+def _vendor(args: argparse.Namespace) -> tuple[object, int]:
+    """Run a vendor subcommand; return its result and exit status."""
+    command = args.vendor_command
+    if command == "status":
+        report = vendor_commands.status(args.lock)
+        return report, 0 if report["current"] else 1
+    source = vendor_commands.resolve_source(args.revision, source=args.source)
+    if command == "list":
+        return vendor_commands.list_skills(source), 0
+    if command == "install":
+        if args.all == bool(args.skills):
+            raise ValueError("name skills or use --all, not both or neither")
+        names = (
+            [skill["name"] for skill in vendor_commands.list_skills(source)]
+            if args.all
+            else args.skills
+        )
+        target, lock = vendor_commands.resolve_destination(
+            project=args.project,
+            user=args.user,
+            target=args.target,
+            surface=args.surface,
+            lock=args.lock,
+        )
+        return vendor_commands.install(source, names, target, lock=lock, force=args.force), 0
+    if command == "update":
+        report = vendor_commands.update(args.lock, apply=args.apply, source=source)
+    else:
+        report = vendor_commands.propagate(args.root, apply=args.apply, source=source)
+    return report, 1 if report["blocked"] else 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """Dispatch the public CLI and render structured outcomes and failures."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -722,6 +795,7 @@ def main(argv: list[str] | None = None) -> int:
     portability_parser.add_argument("--root", type=Path, default=Path.cwd())
     portability_parser.add_argument("--check", action="append", choices=PORTABILITY_CHECKS)
     portability_parser.add_argument("--path", action="append", default=[])
+    _add_vendor_parser(sub)
     sub.add_parser("validate", help="validate the three bundle pins and both native catalogs")
     sub.add_parser("version", help="show this checkout's template version; not a release receipt")
     args = parser.parse_args(argv)
@@ -746,6 +820,10 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(findings, indent=2))
         return 1 if findings else 0
     try:
+        if args.command == "vendor":
+            result, code = _vendor(args)
+            print(json.dumps(result, indent=2))
+            return code
         if args.command == "run-opencode":
             root = _adoption_root(args.project)
             arguments = args.arguments[1:] if args.arguments[:1] == ["--"] else args.arguments
