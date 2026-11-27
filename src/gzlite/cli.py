@@ -18,6 +18,7 @@ import tempfile
 import tomllib
 from pathlib import Path
 
+from gzlite import catalog as catalog_commands
 from gzlite import vendor as vendor_commands
 from gzlite.native import (
     HOST_PATHS,
@@ -815,6 +816,17 @@ def main(argv: list[str] | None = None) -> int:
     portability_parser.add_argument("--root", type=Path, default=Path.cwd())
     portability_parser.add_argument("--check", action="append", choices=PORTABILITY_CHECKS)
     portability_parser.add_argument("--path", action="append", default=[])
+    catalog_parser = sub.add_parser(
+        "catalog", help="read-only maintainer checks for a skills catalog"
+    )
+    catalog_actions = catalog_parser.add_subparsers(dest="catalog_command", required=True)
+    for action, text in (
+        ("check", "report where a skills catalog disagrees with itself"),
+        ("inventory", "list a catalog's authored skills"),
+    ):
+        catalog_actions.add_parser(action, help=text).add_argument(
+            "--root", type=Path, default=Path.cwd()
+        )
     _add_vendor_parser(sub)
     sub.add_parser("validate", help="validate the three bundle pins and both native catalogs")
     sub.add_parser("version", help="show this checkout's template version; not a release receipt")
@@ -839,6 +851,20 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         print(json.dumps(findings, indent=2))
         return 1 if findings else 0
+    if args.command == "catalog":
+        # A check command, not adoption: findings exit 1, usage errors exit 2.
+        try:
+            run = (
+                catalog_commands.check
+                if args.catalog_command == "check"
+                else catalog_commands.inventory
+            )
+            result = run(args.root)
+        except (OSError, ValueError) as error:
+            print(f"error: {error}", file=sys.stderr)
+            return 2
+        print(json.dumps(result, indent=2))
+        return 1 if result and args.catalog_command == "check" else 0
     try:
         if args.command == "vendor":
             result, code = _vendor(args)
