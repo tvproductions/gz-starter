@@ -33,6 +33,13 @@ from gzlite.paths import (
     space_free,
     validate_state_directory,
 )
+from gzlite.project_settings import (
+    SettingsError,
+    validate_settings,
+)
+from gzlite.project_settings import initialize as settings_initialize
+from gzlite.project_settings import inspect as settings_inspect
+from gzlite.project_settings import select as settings_select
 
 _SOURCE = Path(__file__).resolve()
 _CHECKOUT = _SOURCE.parents[2]
@@ -125,17 +132,12 @@ def profile_check(path: Path) -> None:
     """Preserve an existing explicit profile and reject incompatible state."""
     if not path.exists():
         return
-    data = json.loads(path.read_text(encoding="utf-8"))
-    if (
-        not isinstance(data, dict)
-        or set(data) != {"schema_version", "profile"}
-        or type(data["schema_version"]) is not int
-        or data["schema_version"] != 1
-        or data["profile"] not in (None, "lite", "heavy")
-    ):
+    try:
+        validate_settings(json.loads(path.read_text(encoding="utf-8")))
+    except SettingsError as error:
         raise AdoptionError(
             "existing gz-skills profile is unsupported; reconcile it without overwriting"
-        )
+        ) from error
 
 
 def _check_plugin_activation(plugins: dict, parts: list[dict], name: str) -> None:
@@ -706,6 +708,12 @@ def main(argv: list[str] | None = None) -> int:
     backport_parser.add_argument("--project", type=Path, required=True)
     verify_parser = sub.add_parser("verify", help="check adopter artifacts and run required tests")
     verify_parser.add_argument("--project", type=Path, required=True)
+    settings_parser = sub.add_parser(
+        "project-settings", help="inspect, initialize or select the project work-progression mode"
+    )
+    settings_parser.add_argument("action", choices=("inspect", "initialize", "select"))
+    settings_parser.add_argument("--project", type=Path, required=True)
+    settings_parser.add_argument("--profile", choices=("lite", "heavy"))
     sub.add_parser("validate", help="validate the three bundle pins and both native catalogs")
     sub.add_parser("version", help="show this checkout's template version; not a release receipt")
     args = parser.parse_args(argv)
@@ -737,6 +745,15 @@ def main(argv: list[str] | None = None) -> int:
             result = backport(args.project)
         elif args.command == "status":
             result = status(args.project)
+        elif args.command == "project-settings":
+            if (args.action == "select") != (args.profile is not None):
+                parser.error("--profile is required for, and only valid with, select")
+            if args.action == "select":
+                result = settings_select(args.project, args.profile)
+            elif args.action == "initialize":
+                result = settings_initialize(args.project)
+            else:
+                result = settings_inspect(args.project)
         elif args.command == "version":
             result = {"template_version": template_version()}
         else:

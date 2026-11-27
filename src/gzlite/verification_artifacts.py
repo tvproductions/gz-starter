@@ -12,6 +12,7 @@ from urllib.parse import unquote, urlsplit
 
 from gzlite.native_json import document as read_native_json
 from gzlite.paths import BUNDLE_LOCK, STATE_SETTINGS
+from gzlite.project_settings import validate_settings
 
 _JSON_CONFIGS = {
     "bundle.json",
@@ -41,17 +42,6 @@ def read_toml(root: Path, relative: Path) -> dict[str, Any]:
         raise ValueError(f"{relative.as_posix()}: invalid TOML") from error
 
 
-def _profile(data: Any) -> None:
-    if (
-        not isinstance(data, dict)
-        or set(data) != {"schema_version", "profile"}
-        or type(data["schema_version"]) is not int
-        or data["schema_version"] != 1
-        or data["profile"] not in (None, "lite", "heavy")
-    ):
-        raise ValueError("unsupported GovZero profile")
-
-
 def _read_json_config(root: Path, path: Path) -> None:
     try:
         text = (root / path).read_text(encoding="utf-8")
@@ -63,7 +53,7 @@ def _read_json_config(root: Path, path: Path) -> None:
         if not isinstance(data, dict):
             raise ValueError("expected a configuration object")
         if path.as_posix() == ".gz-skills/settings.json":
-            _profile(data)
+            validate_settings(data)
     except (ValueError, UnicodeError) as error:
         raise ValueError(f"{path.as_posix()}: invalid or unsupported JSON configuration") from error
 
