@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 
+from skills_first_starter.native_identity import retire_claude
 from skills_first_starter.native_json import document, replace_fields
 from skills_first_starter.paths import space_free
 
@@ -40,13 +41,14 @@ def _merge_object(data: dict, key: str, additions: dict) -> None:
         current[name] = value
 
 
-def _claude_settings(data: dict, ref: str, parts: list[dict]) -> None:
+def _claude_settings(data: dict, ref: str, parts: list[dict], marketplace: str) -> None:
     """Reconcile Claude's project marketplace and activation maps."""
+    retire_claude(data, marketplace, parts)
     _merge_object(
         data,
         "extraKnownMarketplaces",
         {
-            "skills-first-starter": {
+            marketplace: {
                 "source": {
                     "source": "git",
                     "url": "https://github.com/tvproductions/gz-starter.git",
@@ -56,7 +58,7 @@ def _claude_settings(data: dict, ref: str, parts: list[dict]) -> None:
             }
         },
     )
-    enabled = {p["name"] + "@skills-first-starter": p["enabled_by_default"] for p in parts}
+    enabled = {p["name"] + "@" + marketplace: p["enabled_by_default"] for p in parts}
     _merge_object(data, "enabledPlugins", enabled)
     names = {p["name"] for p in parts}
     for identity, active in data["enabledPlugins"].items():
@@ -84,12 +86,12 @@ def _opencode_settings(data: dict, parts: list[dict]) -> None:
             plugins.append(target)
 
 
-def project_json(existing: str, host: str, ref: str, parts: list[dict]) -> str:
+def project_json(existing: str, host: str, ref: str, parts: list[dict], marketplace: str) -> str:
     """Preserve unrelated JSON settings and require immutable project sources."""
     data, _ = document(existing)
     before = json.dumps(data, sort_keys=True)
     if host == "claude":
-        _claude_settings(data, ref, parts)
+        _claude_settings(data, ref, parts, marketplace)
     elif host == "opencode":
         _opencode_settings(data, parts)
     else:

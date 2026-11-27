@@ -8,10 +8,10 @@ from skills_first_starter.native import project_json
 from skills_first_starter.native_json import document, replace_fields
 
 
-def _plugin_states(parts: list[dict], sources: list[dict]) -> dict[str, bool]:
+def _plugin_states(parts: list[dict], sources: list[dict], marketplace: str) -> dict[str, bool]:
     """Select the project source and suppress inherited duplicate identities."""
     names = {p["name"] for p in parts}
-    desired = {p["name"] + "@skills-first-starter": p["enabled_by_default"] for p in parts}
+    desired = {p["name"] + "@" + marketplace: p["enabled_by_default"] for p in parts}
     for plugins in sources:
         for identity in plugins:
             if identity.split("@", 1)[0] in names and identity not in desired:
@@ -59,34 +59,39 @@ def _set_plugin_state(text: str, identity: str, active: bool) -> str:
     return text + f"{newline}[plugins.{json.dumps(identity)}]{newline}enabled = {value}{newline}"
 
 
-def codex_scope(existing: str, inherited: dict, ref: str, parts: list[dict]) -> str:
+def codex_scope(
+    existing: str, inherited: dict, ref: str, parts: list[dict], marketplace: str
+) -> str:
     """Install project overrides without changing inherited user settings."""
     data = tomllib.loads(existing)
-    states = _plugin_states(parts, [inherited.get("plugins", {}), data.get("plugins", {})])
+    states = _plugin_states(
+        parts, [inherited.get("plugins", {}), data.get("plugins", {})], marketplace
+    )
     text = existing
     for identity, active in states.items():
         current = data.get("plugins", {}).get(identity, {}).get("enabled")
         if current is not active:
             text = _set_plugin_state(text, identity, active)
-    if "skills-first-starter" not in data.get("marketplaces", {}):
+    if marketplace not in data.get("marketplaces", {}):
         text += (
-            '\n[marketplaces.skills-first-starter]\nsource_type = "git"\n'
+            f'\n[marketplaces.{marketplace}]\nsource_type = "git"\n'
             'source = "https://github.com/tvproductions/gz-starter.git"\n'
             f'ref = "{ref}"\n'
         )
     return text
 
 
-def claude_scope(existing: str, inherited: dict, ref: str, parts: list[dict]) -> str:
+def claude_scope(
+    existing: str, inherited: dict, ref: str, parts: list[dict], marketplace: str
+) -> str:
     """Make project settings authoritative over user-level duplicate sources."""
     data, _ = document(existing)
-    data.setdefault("enabledPlugins", {}).update(
-        _plugin_states(parts, [inherited.get("enabledPlugins", {}), data.get("enabledPlugins", {})])
-    )
-    baseline = json.loads(project_json("", "claude", ref, parts))
+    sources = [inherited.get("enabledPlugins", {}), data.get("enabledPlugins", {})]
+    data.setdefault("enabledPlugins", {}).update(_plugin_states(parts, sources, marketplace))
+    baseline = json.loads(project_json("", "claude", ref, parts, marketplace))
     # An existing project source retains its reviewed version selection.
     data.setdefault("extraKnownMarketplaces", {}).setdefault(
-        "skills-first-starter", baseline["extraKnownMarketplaces"]["skills-first-starter"]
+        marketplace, baseline["extraKnownMarketplaces"][marketplace]
     )
     return replace_fields(existing, data)
 

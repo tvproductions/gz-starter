@@ -24,6 +24,7 @@ from skills_first_starter.native import (
     project_json,
     update_skill_path,
 )
+from skills_first_starter.native_identity import STARTER_SOURCES, marketplace_name, retire_codex
 from skills_first_starter.native_launch import launch as launch_opencode
 from skills_first_starter.native_scope import claude_scope, codex_scope, opencode_scope
 from skills_first_starter.paths import (
@@ -41,7 +42,6 @@ HERE = (
     if _SOURCE.parent.parent.name == "src" and (_CHECKOUT / "bundle.json").is_file()
     else _SOURCE.parent / "resources"
 )
-MARKETPLACE = "skills-first-starter"
 ORIGIN = "https://github.com/tvproductions/gz-starter.git"
 SHA = re.compile(r"[0-9a-f]{40}\Z")
 UPDATE_SKILL = "update-gz-template"
@@ -70,6 +70,11 @@ def template_version() -> str:
     return version
 
 
+def marketplace() -> str:
+    """Name the native catalog after this starter release."""
+    return marketplace_name(template_version())
+
+
 def validate_bundle() -> None:
     """Require matching immutable component pins in both native catalogs."""
     template_version()
@@ -90,14 +95,14 @@ def validate_bundle() -> None:
         space_free(HERE / ".agents/plugins/marketplace.json").read_text(encoding="utf-8")
     )
     actual = {p["name"]: (p["source"]["url"], p["source"]["ref"]) for p in codex["plugins"]}
-    if actual != expected or codex["name"] != MARKETPLACE:
+    if actual != expected or codex["name"] != marketplace():
         raise AdoptionError("Codex marketplace does not match bundle pins")
     claude = json.loads(
         space_free(HERE / ".claude-plugin/marketplace.json").read_text(encoding="utf-8")
     )
     # Claude Code reads "ref" as a branch or tag; a commit pin must use "sha".
     actual = {p["name"]: (p["source"]["url"], p["source"].get("sha")) for p in claude["plugins"]}
-    if actual != expected or claude["name"] != MARKETPLACE:
+    if actual != expected or claude["name"] != marketplace():
         raise AdoptionError("Claude marketplace does not match bundle pins")
 
 
@@ -133,15 +138,15 @@ def profile_check(path: Path) -> None:
         )
 
 
-def _check_plugin_activation(plugins: dict, parts: list[dict]) -> None:
+def _check_plugin_activation(plugins: dict, parts: list[dict], name: str) -> None:
     """Reject conflicting activation and duplicate sources before adding tables."""
     defaults = {part["name"]: part["enabled_by_default"] for part in parts}
     for key, value in plugins.items():
-        name = key.split("@")[0]
-        if name not in defaults:
+        part = key.split("@")[0]
+        if part not in defaults:
             continue
-        if key.endswith("@" + MARKETPLACE):
-            if value.get("enabled") is not defaults[name]:
+        if key.endswith("@" + name):
+            if value.get("enabled") is not defaults[part]:
                 raise AdoptionError(
                     f"{key} conflicts with the default activation; reconcile explicitly"
                 )
@@ -151,12 +156,11 @@ def _check_plugin_activation(plugins: dict, parts: list[dict]) -> None:
             )
 
 
-def _missing_config_tables(data: dict, ref: str, parts: list[dict]) -> list[str]:
+def _missing_config_tables(data: dict, ref: str, parts: list[dict], catalog: str) -> list[str]:
     """Render only absent managed tables; differing existing tables are conflicts."""
-    wanted = [("marketplaces", MARKETPLACE, {"source_type": "git", "source": ORIGIN, "ref": ref})]
+    wanted = [("marketplaces", catalog, {"source_type": "git", "source": ORIGIN, "ref": ref})]
     wanted += [
-        ("plugins", p["name"] + "@" + MARKETPLACE, {"enabled": p["enabled_by_default"]})
-        for p in parts
+        ("plugins", p["name"] + "@" + catalog, {"enabled": p["enabled_by_default"]}) for p in parts
     ]
     added = []
     for group, name, values in wanted:
@@ -173,10 +177,15 @@ def _missing_config_tables(data: dict, ref: str, parts: list[dict]) -> list[str]
 
 def project_config(existing: str, ref: str) -> str:
     """Extend compatible Codex configuration without replacing project settings."""
-    data = tomllib.loads(existing)
     parts = bundle()["components"]
-    _check_plugin_activation(data.get("plugins", {}), parts)
-    added = _missing_config_tables(data, ref, parts)
+    catalog = marketplace()
+    try:
+        existing = retire_codex(existing, catalog, parts)
+    except ValueError as error:
+        raise AdoptionError(str(error)) from error
+    data = tomllib.loads(existing)
+    _check_plugin_activation(data.get("plugins", {}), parts, catalog)
+    added = _missing_config_tables(data, ref, parts, catalog)
     if not added:
         return existing
     return (
@@ -303,9 +312,9 @@ def _configuration_candidates(
     config = (
         project_config(old_config, ref)
         if host == "codex"
-        else project_json(old_config, host, ref, bundle()["components"])
+        else project_json(old_config, host, ref, bundle()["components"], marketplace())
     )
-    config = _scoped_config(config, host, ref, bundle()["components"])
+    config = _scoped_config(config, host, ref, bundle()["components"], marketplace())
     candidates = {
         config_path: config,
         BUNDLE_LOCK: json.dumps(lock, indent=2) + "\n",
@@ -429,7 +438,9 @@ def configure(
     if host == "claude":
         local = check_path(root, ".claude/settings.local.json")
         if local.exists():
-            project_json(local.read_text(encoding="utf-8"), host, ref, bundle()["components"])
+            project_json(
+                local.read_text(encoding="utf-8"), host, ref, bundle()["components"], marketplace()
+            )
     paths = {
         name: check_path(root, name)
         for name in (
@@ -502,13 +513,13 @@ def _inherited_plugins(host: str) -> dict:
     return {}
 
 
-def _scoped_config(existing: str, host: str, ref: str, parts: list[dict]) -> str:
+def _scoped_config(existing: str, host: str, ref: str, parts: list[dict], catalog: str) -> str:
     """Apply native project precedence without invoking an installation command."""
     inherited = _inherited_plugins(host)
     if host == "codex":
-        return codex_scope(existing, inherited, ref, parts)
+        return codex_scope(existing, inherited, ref, parts, catalog)
     if host == "claude":
-        return claude_scope(existing, inherited, ref, parts)
+        return claude_scope(existing, inherited, ref, parts, catalog)
     return opencode_scope(existing, parts)
 
 
@@ -519,10 +530,14 @@ def localize(project: Path, ref: str, *, host: str, apply: bool = False) -> dict
         raise AdoptionError("select a supported host and a full reviewed starter SHA")
     root = _adoption_root(project)
     parts = bundle()["components"]
+    catalog = marketplace()
     validate_state_directory(root)
     lock = check_path(root, BUNDLE_LOCK)
     if lock.exists():
-        parts = json.loads(lock.read_text(encoding="utf-8"))["components"]
+        record = json.loads(lock.read_text(encoding="utf-8"))
+        parts = record["components"]
+        # The pinned catalog keeps the name its own release published.
+        catalog = marketplace_name(record.get("starter", {}).get("version", template_version()))
         if {p["name"] for p in parts} != {p["name"] for p in bundle()["components"]}:
             raise AdoptionError("existing adoption components need explicit reconciliation")
         if any(not SHA.fullmatch(p["revision"]) for p in parts):
@@ -535,7 +550,7 @@ def localize(project: Path, ref: str, *, host: str, apply: bool = False) -> dict
     for name, path in paths.items():
         before[name] = path.read_bytes() if path.exists() else None
         existing = before[name].decode("utf-8") if before[name] is not None else ""
-        payload = _scoped_config(existing, host, ref, parts)
+        payload = _scoped_config(existing, host, ref, parts, catalog)
         if before[name] != payload.encode("utf-8"):
             writes[name] = payload
     if apply:
@@ -628,20 +643,7 @@ def source_revision() -> str:
     if Path(git("rev-parse", "--show-toplevel")).resolve() != HERE:
         raise AdoptionError("run from a standalone starter checkout or supply --starter-ref")
     origin = git("remote", "get-url", "origin")
-    if origin not in (
-        "https://github.com/tvproductions/gz-starter.git",
-        "https://github.com/tvproductions/gz-starter",
-        "https://github.com/tvproductions/gz-skills-first-starter.git",
-        "https://github.com/tvproductions/gz-skills-first-starter",
-        "https://github.com/tvproductions/skills-first-starter.git",
-        "https://github.com/tvproductions/skills-first-starter",
-        "git@github.com:tvproductions/gz-starter.git",
-        "git@github.com:tvproductions/gz-starter",
-        "git@github.com:tvproductions/gz-skills-first-starter.git",
-        "git@github.com:tvproductions/gz-skills-first-starter",
-        "git@github.com:tvproductions/skills-first-starter.git",
-        "git@github.com:tvproductions/skills-first-starter",
-    ):
+    if origin not in STARTER_SOURCES:
         raise AdoptionError("this is an adopting repo; supply the published starter --starter-ref")
     if git("status", "--porcelain"):
         raise AdoptionError("starter checkout is dirty; use a reviewed clean revision")

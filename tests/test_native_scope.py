@@ -34,7 +34,7 @@ class NativeScopeTests(unittest.TestCase):
             self.assertTrue(after.startswith(b'# Keep caf\xc3\xa9\r\nmodel = "fixture"\r\n'))
             plugins = tomllib.loads(after.decode())["plugins"]
             self.assertIs(plugins["gz-skills@gz-skills"]["enabled"], False)
-            self.assertIs(plugins["gz-skills@skills-first-starter"]["enabled"], True)
+            self.assertIs(plugins["gz-skills@gz-starter-0-12-2"]["enabled"], True)
             self.assertEqual(starter.localize(self.root, REF, host="codex")["writes"], [])
         self.assertEqual(json.dumps(inherited), snapshot)
         self.assertFalse((self.root / ".gz-starter/bundle.lock.json").exists())
@@ -43,32 +43,32 @@ class NativeScopeTests(unittest.TestCase):
         path = self.root / ".codex/config.toml"
         path.parent.mkdir()
         path.write_text(
-            '[plugins."gz-skills@skills-first-starter"]\nenabled = false # Repair me\n'
-            '[marketplaces.skills-first-starter]\nsource_type = "git"\n'
+            '[plugins."gz-skills@gz-starter-0-12-2"]\nenabled = false # Repair me\n'
+            '[marketplaces.gz-starter-0-12-2]\nsource_type = "git"\n'
             'source = "https://example.invalid/reviewed.git"\nref = "old-selection"\n'
             "[fixture]\nkeep = true\n"
         )
         with mock.patch.object(starter, "_inherited_plugins", return_value={}):
             starter.localize(self.root, REF, host="codex", apply=True)
         data = tomllib.loads(path.read_text())
-        self.assertTrue(data["plugins"]["gz-skills@skills-first-starter"]["enabled"])
-        self.assertEqual(data["marketplaces"]["skills-first-starter"]["ref"], "old-selection")
+        self.assertTrue(data["plugins"]["gz-skills@gz-starter-0-12-2"]["enabled"])
+        self.assertEqual(data["marketplaces"]["gz-starter-0-12-2"]["ref"], "old-selection")
         self.assertTrue(data["fixture"]["keep"])
         self.assertIn("# Repair me", path.read_text())
 
     def test_codex_missing_newline_and_multiline_values_do_not_corrupt_repair(self):
         for original in (
-            '[plugins."gz-skills@skills-first-starter"]',
-            '[plugins."gz-skills@skills-first-starter"]\nnotes = """\nenabled = false\n"""\nenabled = false',
+            '[plugins."gz-skills@gz-starter-0-12-2"]',
+            '[plugins."gz-skills@gz-starter-0-12-2"]\nnotes = """\nenabled = false\n"""\nenabled = false',
         ):
             with self.subTest(original=original):
                 path = self.root / ".codex/config.toml"
                 path.parent.mkdir(exist_ok=True)
                 path.write_text(original)
-                before = tomllib.loads(original)["plugins"]["gz-skills@skills-first-starter"]
+                before = tomllib.loads(original)["plugins"]["gz-skills@gz-starter-0-12-2"]
                 with mock.patch.object(starter, "_inherited_plugins", return_value={}):
                     starter.localize(self.root, REF, host="codex", apply=True)
-                after = tomllib.loads(path.read_text())["plugins"]["gz-skills@skills-first-starter"]
+                after = tomllib.loads(path.read_text())["plugins"]["gz-skills@gz-starter-0-12-2"]
                 self.assertIs(after["enabled"], True)
                 if "notes" in before:
                     self.assertEqual(after["notes"], before["notes"])
@@ -84,7 +84,7 @@ class NativeScopeTests(unittest.TestCase):
                         "fixture": name,
                         "enabledPlugins": {
                             "gz-skills@gz-skills": True,
-                            "gz-skills@skills-first-starter": False,
+                            "gz-skills@gz-starter-0-12-2": False,
                         },
                     }
                 )
@@ -96,7 +96,7 @@ class NativeScopeTests(unittest.TestCase):
             data = json.loads((self.root / ".claude" / name).read_bytes())
             self.assertEqual(data["fixture"], name)
             self.assertIs(data["enabledPlugins"]["gz-skills@gz-skills"], False)
-            self.assertIs(data["enabledPlugins"]["gz-skills@skills-first-starter"], True)
+            self.assertIs(data["enabledPlugins"]["gz-skills@gz-starter-0-12-2"], True)
         self.assertIs(inherited["enabledPlugins"]["gz-skills@gz-skills"], True)
 
     def test_scope_repair_preserves_adopted_component_versions_and_lock_bytes(self):

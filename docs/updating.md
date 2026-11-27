@@ -101,6 +101,23 @@ Review the hook, CI, independent verifier pin, lock and stale project instructio
 together. Keep the original coverage and runtime-design obligations and record
 the exact adopter result separately from the producer or native discovery result.
 
+## Versioned native marketplace name
+
+Releases through 0.12.1 publish one shared catalog name, `skills-first-starter`.
+Codex caches one checkout per marketplace name, so projects pinned to different
+starter revisions overwrote each other's cached copy. Later releases name the
+catalog after the release, for example `gz-starter-0-12-2`. Projects on the same
+release share a cache slot; other releases never collide.
+
+When `configure` moves a project to such a release, it removes the earlier
+starter marketplace table and the earlier plugin activations that still hold the
+starter default, then writes the new names. A project choice that differs from
+the default, such as an enabled Backplane, stops the update for review; nothing
+is written. `localize` keeps the name published by the release recorded in the
+project lock. Plugin IDs therefore change once per starter upgrade; review user
+or local overrides that name an earlier `@skills-first-starter` or
+`@gz-starter-*` identity.
+
 ## Relocate legacy starter state
 
 From 0.12.1, both adopter lanes store starter-owned state only in `.gz-starter/`.

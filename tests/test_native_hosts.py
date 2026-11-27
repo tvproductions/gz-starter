@@ -49,13 +49,11 @@ class NativeHostTests(unittest.TestCase):
     def test_claude_uses_project_settings_and_keeps_explicit_backplane_disable(self):
         starter.configure(self.root, REF, host="claude", apply=True)
         settings = json.loads((self.root / ".claude/settings.json").read_bytes())
-        source = settings["extraKnownMarketplaces"]["skills-first-starter"]["source"]
+        source = settings["extraKnownMarketplaces"]["gz-starter-0-12-2"]["source"]
         self.assertEqual(source["ref"], REF)
         self.assertEqual(source["source"], "git")
-        self.assertIs(settings["enabledPlugins"]["gz-skills@skills-first-starter"], True)
-        self.assertIs(
-            settings["enabledPlugins"]["superpowers-backplane@skills-first-starter"], False
-        )
+        self.assertIs(settings["enabledPlugins"]["gz-skills@gz-starter-0-12-2"], True)
+        self.assertIs(settings["enabledPlugins"]["superpowers-backplane@gz-starter-0-12-2"], False)
 
     def test_opencode_pins_both_upstream_adapters_and_omits_deferred_backplane(self):
         starter.configure(self.root, REF, host="opencode", apply=True)
@@ -91,7 +89,7 @@ class NativeHostTests(unittest.TestCase):
 
     def test_conflicting_native_state_blocks_all_writes(self):
         cases = (
-            ("claude", {"enabledPlugins": {"gz-skills@skills-first-starter": False}}),
+            ("claude", {"enabledPlugins": {"gz-skills@gz-starter-0-12-2": False}}),
             ("claude", {"enabledPlugins": {"gz-skills@other": True}}),
             ("opencode", {"plugin": ["fixture-legacy"]}),
             ("opencode", {"plugins": ["git+https://github.com/obra/superpowers.git#old"]}),
@@ -120,7 +118,7 @@ class NativeHostTests(unittest.TestCase):
     def test_claude_local_override_is_preserved_and_blocks_activation_conflict(self):
         path = self.root / ".claude/settings.local.json"
         path.parent.mkdir()
-        original = b'{"enabledPlugins":{"gz-skills@skills-first-starter":false}}'
+        original = b'{"enabledPlugins":{"gz-skills@gz-starter-0-12-2":false}}'
         path.write_bytes(original)
         with self.assertRaisesRegex(ValueError, "enabledPlugins"):
             starter.configure(self.root, REF, host="claude", apply=True)
