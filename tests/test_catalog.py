@@ -2,6 +2,7 @@
 
 import io
 import json
+import shutil
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -165,6 +166,69 @@ class CheckTests(CatalogTestCase):
             "interface:\n  allow_implicit_invocation: false\n",
         )
         self.assertEqual(self.checks(), [("explicit-only", "skills/gzs-alpha/agents/openai.yaml")])
+
+    def policy_finding(self, text):
+        self.write("skills/gzs-alpha/agents/openai.yaml", text)
+        self.assertEqual(
+            self.checks(), [("explicit-only", "skills/gzs-alpha/agents/openai.yaml")], text
+        )
+
+    def test_policy_shapes_that_cannot_be_read_strictly_are_findings(self):
+        self.policy_finding("policy:\n  allow_implicit_invocation: false  # why\n")
+        self.policy_finding("policy: {allow_implicit_invocation: false}\n")
+        self.policy_finding("policy:\n  sub:\n    allow_implicit_invocation: false\n")
+        self.policy_finding(
+            "policy:\n  allow_implicit_invocation: true\n  allow_implicit_invocation: false\n"
+        )
+        self.policy_finding("allow_implicit_invocation: false\n")
+
+    def test_every_unreadable_policy_is_reported(self):
+        for name in ("gzs-alpha", "gzs-beta"):
+            self.write(
+                f"skills/{name}/agents/openai.yaml", "policy:\n  allow_implicit_invocation: x\n"
+            )
+        self.assertEqual(
+            sorted(self.checks()),
+            [
+                ("explicit-only", "skills/gzs-alpha/agents/openai.yaml"),
+                ("explicit-only", "skills/gzs-beta/agents/openai.yaml"),
+            ],
+        )
+
+    def require(self, *names):
+        self.write_json(
+            catalog.DATA_FILE, {"schema_version": 1, "floor_pending": [], "require": list(names)}
+        )
+
+    def test_unknown_require_value_is_a_finding(self):
+        self.require("router", "bogus")
+        self.assertEqual(self.checks(), [("catalog-data", catalog.DATA_FILE)])
+
+    def test_required_elements_present_pass(self):
+        self.require(*catalog.REQUIRABLE)
+        self.assertEqual(catalog.check(self.root), [])
+
+    def test_required_router_absent(self):
+        self.require("router")
+        shutil.rmtree(self.root / "skills" / "gzs-router")
+        self.assertEqual(self.checks(), [("router", "skills")])
+
+    def test_required_adapter_absent(self):
+        self.require("opencode-adapter")
+        (self.root / "adapters/opencode/cat.js").unlink()
+        self.assertEqual(self.checks(), [("explicit-only", catalog.ADAPTER_GLOB)])
+
+    def test_required_manifest_absent(self):
+        self.require("manifests")
+        (self.root / ".codex-plugin" / "plugin.json").unlink()
+        self.assertEqual(self.checks(), [("versions", ".codex-plugin/plugin.json")])
+
+    def test_absent_elements_pass_when_not_required(self):
+        shutil.rmtree(self.root / "skills" / "gzs-router")
+        (self.root / "adapters/opencode/cat.js").unlink()
+        (self.root / "package.json").unlink()
+        self.write_json(catalog.DATA_FILE, {"schema_version": 1, "floor_pending": []})
+        self.assertEqual(catalog.check(self.root), [])
 
     def test_skill_name_must_match_directory(self):
         self.write(

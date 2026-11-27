@@ -14,6 +14,13 @@ not listed fails; a skill that declares the floor while still listed also fails,
 which keeps the exemption a countdown rather than a standing waiver. An absent
 file means an empty list and is not itself a finding.
 
+``require`` is an optional list naming elements the catalog must have:
+``"router"`` (a ``*-router`` skill), ``"opencode-adapter"`` (an
+``adapters/opencode/*.js`` file) and ``"manifests"`` (all three version
+manifests). Absence of a required element is a finding. Without the data file
+or the ``require`` key the checks stay generic: a catalog with no router, no
+adapter or fewer manifests is checked only for what it has, and passes.
+
 Findings carry POSIX-relative artifact paths so output is identical everywhere.
 No YAML or other third-party parser is used: the one key read from
 ``agents/openai.yaml`` and the OpenCode literal array are matched strictly, and
@@ -37,7 +44,11 @@ TRANSIENT = frozenset({".git", "__pycache__", ".mypy_cache", ".pytest_cache", ".
 
 _EXPLICIT_SET = re.compile(r"\bexplicitOnly\s*=\s*new\s+Set\(\s*\[([^\]]*)\]\s*\)")
 _QUOTED = re.compile(r"""\s*(?:"([^"\\]*)"|'([^'\\]*)')\s*(?:,|$)""")
-_POLICY_KEY = re.compile(r"^[ \t]+allow_implicit_invocation:[ \t]*(?P<value>\S+)[ \t]*$")
+_POLICY_KEY = re.compile(
+    r"^(?P<indent>[ \t]+)allow_implicit_invocation:[ \t]+(?P<value>true|false)[ \t]*$"
+)
+_KEY = "allow_implicit_invocation"
+REQUIRABLE = ("router", "opencode-adapter", "manifests")
 
 
 def _finding(check: str, artifact: str, message: str) -> dict[str, str]:
@@ -92,24 +103,37 @@ def _declares_floor(text: str) -> bool:
 def _implicit_policy(path: Path) -> bool | None:
     """Read ``policy.allow_implicit_invocation``: True, False, or None if absent.
 
-    Raises ``ValueError`` when the key sits outside a top-level ``policy:``
-    block or holds anything but ``true``/``false``.
+    Only the block form is recognised: the key must be a direct child of a
+    top-level ``policy:`` line, written ``key: true|false`` with nothing after
+    the value. Raises ``ValueError`` for anything else that mentions the key (a
+    trailing comment, flow style, a deeper or foreign block, a duplicate) so a
+    skill is never silently treated as implicitly invocable.
     """
     in_policy = False
+    child_indent: str | None = None
     found: bool | None = None
     for raw in _read(path).splitlines():
         if not raw.strip() or raw.lstrip().startswith("#"):
             continue
         if not raw[0].isspace():
-            in_policy = raw.rstrip() == "policy:"
+            if raw.startswith("policy:") and raw.rstrip() != "policy:":
+                raise ValueError("policy must be a block, not flow style or an inline value")
+            in_policy, child_indent = raw.rstrip() == "policy:", None
+            if _KEY in raw:
+                raise ValueError(f"{_KEY} must be a child of a top-level policy block")
             continue
         match = _POLICY_KEY.match(raw)
-        if match is None:
+        indent = raw[: len(raw) - len(raw.lstrip())]
+        if in_policy and child_indent is None:
+            child_indent = indent
+        if _KEY not in raw:
             continue
-        if not in_policy:
-            raise ValueError("allow_implicit_invocation appears outside a top-level policy block")
-        if match["value"] not in ("true", "false"):
-            raise ValueError(f"unrecognised value {match['value']!r}")
+        if match is None:
+            raise ValueError(f"unrecognised {_KEY} line {raw.strip()!r}")
+        if not in_policy or match["indent"] != child_indent:
+            raise ValueError(f"{_KEY} must be a direct child of a top-level policy block")
+        if found is not None:
+            raise ValueError(f"duplicate {_KEY}")
         found = match["value"] == "true"
     return found
 
@@ -158,23 +182,29 @@ def _load_json(root: Path, relative: str, findings: list, check: str) -> dict | 
     return data
 
 
-def _floor_pending(root: Path, findings: list) -> set[str]:
+def _catalog_data(root: Path, findings: list) -> tuple[set[str], set[str]]:
+    """Return ``(floor_pending, require)`` from the data file; empty when it is absent."""
     data = _load_json(root, DATA_FILE, findings, "catalog-data")
     if data is None:
-        return set()
-    pending = data.get("floor_pending")
-    if data.get("schema_version") != 1 or not (
-        isinstance(pending, list) and all(isinstance(name, str) for name in pending)
+        return set(), set()
+    pending = data.get("floor_pending", [])
+    require = data.get("require", [])
+    if (
+        data.get("schema_version") != 1
+        or not (isinstance(pending, list) and all(isinstance(n, str) for n in pending))
+        or not (isinstance(require, list) and all(isinstance(n, str) for n in require))
+        or not set(require) <= set(REQUIRABLE)
     ):
         findings.append(
             _finding(
                 "catalog-data",
                 DATA_FILE,
-                'Expected {"schema_version": 1, "floor_pending": [<skill names>]}.',
+                'Expected {"schema_version": 1, "floor_pending": [<skill names>], '
+                f'"require": [any of {", ".join(REQUIRABLE)}]}}.',
             )
         )
-        return set()
-    return set(pending)
+        return set(), set()
+    return set(pending), set(require)
 
 
 def _check_names(records: list[dict], findings: list) -> None:
@@ -190,8 +220,7 @@ def _check_names(records: list[dict], findings: list) -> None:
             )
 
 
-def _check_floor(root: Path, records: list[dict], findings: list) -> None:
-    pending = _floor_pending(root, findings)
+def _check_floor(records: list[dict], pending: set[str], findings: list) -> None:
     names = {record["directory"] for record in records}
     for name in sorted(pending - names):
         findings.append(
@@ -218,9 +247,11 @@ def _check_floor(root: Path, records: list[dict], findings: list) -> None:
             )
 
 
-def _check_versions(root: Path, findings: list) -> None:
+def _check_versions(root: Path, require: set[str], findings: list) -> None:
     versions: dict[str, object] = {}
     for relative in VERSION_FILES:
+        if "manifests" in require and not (root / relative).is_file():
+            findings.append(_finding("versions", relative, "Required manifest is absent."))
         data = _load_json(root, relative, findings, "versions")
         if data is not None:
             versions[relative] = data.get("version")
@@ -261,9 +292,12 @@ def _check_pins(root: Path, findings: list) -> None:
             )
 
 
-def _check_router(root: Path, records: list[dict], findings: list) -> None:
+def _check_router(root: Path, records: list[dict], require: set[str], findings: list) -> None:
     """Require every other skill in a table row of each ``*-router`` skill."""
-    for router in (r for r in records if r["directory"].endswith("-router")):
+    routers = [r for r in records if r["directory"].endswith("-router")]
+    if "router" in require and not routers:
+        findings.append(_finding("router", "skills", "Required *-router skill is absent."))
+    for router in routers:
         rows = [
             line
             for line in _read(root / router["path"]).splitlines()
@@ -296,11 +330,18 @@ def _adapter_names(text: str) -> set[str] | None:
     return names
 
 
-def _check_explicit_only(root: Path, records: list[dict], findings: list) -> None:
+def _check_explicit_only(
+    root: Path, records: list[dict], require: set[str], findings: list
+) -> None:
     adapters = sorted(root.glob(ADAPTER_GLOB))
     if not adapters:
+        if "opencode-adapter" in require:
+            findings.append(
+                _finding("explicit-only", ADAPTER_GLOB, "Required OpenCode adapter is absent.")
+            )
         return
     codex: set[str] = set()
+    unreadable = False
     for record in records:
         relative = f"skills/{record['directory']}/agents/openai.yaml"
         if not (root / relative).is_file():
@@ -310,7 +351,7 @@ def _check_explicit_only(root: Path, records: list[dict], findings: list) -> Non
                 codex.add(record["directory"])
         except ValueError as error:
             findings.append(_finding("explicit-only", relative, f"Cannot read policy: {error}."))
-            return
+            unreadable = True
     for adapter in adapters:
         relative = adapter.relative_to(root).as_posix()
         names = _adapter_names(_read(adapter))
@@ -323,7 +364,7 @@ def _check_explicit_only(root: Path, records: list[dict], findings: list) -> Non
                     "'explicitOnly = new Set([\"name\", ...])'.",
                 )
             )
-        elif names != codex:
+        elif not unreadable and names != codex:  # a partial set would mislead
             findings.append(
                 _finding(
                     "explicit-only",
@@ -345,9 +386,10 @@ def check(root: Path) -> list[dict]:
     findings: list[dict] = []
     records = inventory(root)
     _check_names(records, findings)
-    _check_floor(root, records, findings)
-    _check_versions(root, findings)
+    pending, require = _catalog_data(root, findings)
+    _check_floor(records, pending, findings)
+    _check_versions(root, require, findings)
     _check_pins(root, findings)
-    _check_router(root, records, findings)
-    _check_explicit_only(root, records, findings)
+    _check_router(root, records, require, findings)
+    _check_explicit_only(root, records, require, findings)
     return findings
