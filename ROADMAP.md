@@ -13,16 +13,17 @@ The bundle still pins gz-skills v0.14.0. gzlite 0.14.1 then bumps the pin to gz-
 v0.15.0, which removes all executable code; gzglite 0.1.0 follows.
 
 The skill prefix is `gzl-` (and `gzgl-` for the Go tier), which supersedes the approved
-`gzt-` design below; `update-gz-template` becomes `gzl-update`. Three ADR drafts await
-the maintainer's approval before dependent implementation:
-[ADR-0007](docs/superpowers/specs/ADR-0007-001-gzlite-tier-rename.md) (rename and tier),
-[ADR-0008](docs/superpowers/specs/ADR-0008-001-tools-move-to-tier-packages.md) (tools
-move to tier packages) and
-[ADR-0009](docs/superpowers/specs/ADR-0009-001-go-tier-package.md) (Go tier package).
+`gzt-` design below; `update-gz-template` becomes `gzl-update`. The rename record is
+[Canonical rename to gzlite](docs/rename-gzlite.md). The tool move is decided in [ADR-0008](docs/decisions/ADR-0008-002-tools-move-to-tier-packages.md).
 
 Moved scope: the ADR-0005 lite records move from provisional 0.14.0 to **0.15.0**. The
 strict-hexagonal checker and takeover path (ADR-0006 follow-up) get their own release
 after 0.15.0, provisionally **0.16.0**.
+
+### Go tier package (gzglite)
+
+gzglite follows gzlite and mirrors gzlite 0.14.1 as gzglite 0.1.0. Go policy is not
+derived from Python policy. The design lives with gzglite.
 
 ## Selected 0.13.0 minor scope — versioned native marketplace name, November 27, 2026
 
