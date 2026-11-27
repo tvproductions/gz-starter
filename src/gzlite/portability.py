@@ -25,11 +25,12 @@ operating system. The audit never writes.
 from __future__ import annotations
 
 import ast
-import os
 import re
 import subprocess
 from collections.abc import Sequence
 from pathlib import Path
+
+from gzlite.gitenv import clean_git_env
 
 CHECKS = ("line-endings", "subprocess-errors")
 
@@ -58,8 +59,6 @@ _PRUNED_DIRS = frozenset(
         "venv",
     }
 )
-
-_GIT_REDIRECTS = frozenset({"GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE"})
 
 _CAPTURE_FUNCS = frozenset({"run", "Popen", "check_output"})
 
@@ -103,15 +102,12 @@ def _gitattributes(root: Path) -> list[dict]:
 
 
 def _committed_crlf(root: Path) -> list[dict]:
-    # Git hooks export these, which would silently redirect the query to the
-    # hook's repository instead of the audited root.
-    environment = {k: v for k, v in os.environ.items() if k not in _GIT_REDIRECTS}
     try:
         result = subprocess.run(
             ["git", "-C", str(root), "ls-files", "--eol"],
             capture_output=True,
             check=True,
-            env=environment,
+            env=clean_git_env(),
             timeout=30,
             text=True,
             errors="replace",

@@ -1,13 +1,13 @@
 """Exercise the portability audit through the module and the public command."""
 
 import json
-import os
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
+from gzlite.gitenv import clean_git_env
 from gzlite.portability import audit
 
 CAPTURE = "import subprocess\nsubprocess.run(['x'], {flags})\n"
@@ -26,14 +26,12 @@ class PortabilityTestCase(unittest.TestCase):
             handle.write(text)
 
     def git(self, *args):
-        # A pre-commit hook exports GIT_DIR and GIT_INDEX_FILE, which would
-        # redirect these commands to the outer repository; strip every GIT_*.
-        environment = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        # A hook's inherited GIT_* variables would redirect to the outer repository.
         subprocess.run(
             ["git", "-C", str(self.root), *args],
             capture_output=True,
             check=True,
-            env=environment,
+            env=clean_git_env(),
             errors="replace",
             text=True,
         )
@@ -110,6 +108,8 @@ class CommandTests(PortabilityTestCase):
             [sys.executable, "-m", "gzlite", "portability", *args],
             capture_output=True,
             check=False,
+            cwd=self.root,
+            env=clean_git_env(),
             errors="replace",
             text=True,
         )
