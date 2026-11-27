@@ -15,7 +15,7 @@ from gzlite import cli as starter
 REF = "a" * 40
 POLICY = "docs/engineering/architectural-decisions.md"
 LOCAL = ".gz-starter/architectural-decisions.md"
-URL = f"https://github.com/tvproductions/gz-starter/blob/{REF}/{POLICY}"
+URL = f"https://github.com/tvproductions/gzlite/blob/{REF}/{POLICY}"
 
 
 class ADRPolicyTests(unittest.TestCase):

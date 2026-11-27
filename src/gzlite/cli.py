@@ -276,9 +276,14 @@ def _policy_candidates(
         raise AdoptionError(
             "ADR policy provenance or selection differs; reconcile without overwriting"
         )
-    url = f"https://github.com/tvproductions/gz-starter/blob/{ref}/{ADR_POLICY_SOURCE}"
+    url = _adr_policy_url(ref)
     copies = {ADR_POLICY_DESTINATION: source.decode("utf-8")} if mode == "local" else {}
     return policy, copies, ADR_POLICY_DESTINATION if mode == "local" else url
+
+
+def _adr_policy_url(ref: str) -> str:
+    """Return the canonical, ref-pinned URL of the ADR policy in the origin repository."""
+    return f"{ORIGIN.removesuffix('.git')}/blob/{ref}/{ADR_POLICY_SOURCE}"
 
 
 def _configuration_candidates(
@@ -297,7 +302,7 @@ def _configuration_candidates(
         else ""
     )
     fragment = space_free(HERE / "templates/AGENTS.skills-first.md").read_text(encoding="utf-8")
-    policy_url = f"https://github.com/tvproductions/gz-starter/blob/{ref}/{ADR_POLICY_SOURCE}"
+    policy_url = _adr_policy_url(ref)
     fragment = fragment.replace("{{ADR_POLICY_WORKING_SOURCE}}", working_policy).replace(
         "{{ADR_POLICY_CANONICAL_URL}}", policy_url
     )
