@@ -27,7 +27,7 @@ def configuration_path(root: Path, host: str) -> str:
 def update_skill_path(host: str) -> str:
     """Select the host's native project skill discovery directory."""
     surface = ".claude" if host == "claude" else ".agents"
-    return f"{surface}/skills/update-gz-template/SKILL.md"
+    return f"{surface}/skills/gzl-update/SKILL.md"
 
 
 def _merge_object(data: dict, key: str, additions: dict) -> None:

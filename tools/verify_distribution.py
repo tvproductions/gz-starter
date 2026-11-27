@@ -40,7 +40,7 @@ def verify_archives(wheel: Path, sdist: Path) -> None:
         if WORKFLOW not in names:
             raise ValueError("Wheel is missing the supported adopter workflow")
         verify_extra_metadata(archive)
-        skill = "templates/skills/update-gz-template/SKILL.md"
+        skill = "templates/skills/gzl-update/SKILL.md"
         allowed = f"gzlite/resources/{skill}"
         if {name for name in names if name.endswith("/SKILL.md")} != {allowed}:
             raise ValueError("Wheel must contain exactly the template-owned update skill")
@@ -116,8 +116,8 @@ def verify_native_hosts(command: Path, directory: Path) -> None:
         run(*args, "--apply", cwd=directory)
         if not (target / config).is_file():
             raise ValueError(f"Installed helper omitted {host} configuration")
-        if (target / surface / "skills/update-gz-template/SKILL.md").read_bytes() != (
-            ROOT / "templates/skills/update-gz-template/SKILL.md"
+        if (target / surface / "skills/gzl-update/SKILL.md").read_bytes() != (
+            ROOT / "templates/skills/gzl-update/SKILL.md"
         ).read_bytes():
             raise ValueError(f"Installed helper omitted {host} update skill")
         if json.loads(run(*args, "--apply", cwd=directory).stdout)["writes"]:
@@ -603,8 +603,8 @@ def main() -> None:
         if list(target.iterdir()):
             raise ValueError("Installed preview wrote project files")
         run(*args, "--apply", cwd=directory)
-        if (target / ".agents/skills/update-gz-template/SKILL.md").read_bytes() != (
-            ROOT / "templates/skills/update-gz-template/SKILL.md"
+        if (target / ".agents/skills/gzl-update/SKILL.md").read_bytes() != (
+            ROOT / "templates/skills/gzl-update/SKILL.md"
         ).read_bytes():
             raise ValueError("Installed helper did not seed the canonical update skill")
         repeated = json.loads(run(*args, "--apply", cwd=directory).stdout)

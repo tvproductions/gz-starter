@@ -44,7 +44,7 @@ HERE = (
 )
 ORIGIN = "https://github.com/tvproductions/gzlite.git"
 SHA = re.compile(r"[0-9a-f]{40}\Z")
-UPDATE_SKILL = "update-gz-template"
+UPDATE_SKILL = "gzl-update"
 UPDATE_SKILL_SOURCE = f"templates/skills/{UPDATE_SKILL}/SKILL.md"
 UPDATE_SKILL_DESTINATION = f".agents/skills/{UPDATE_SKILL}/SKILL.md"
 ADR_POLICY_SOURCE = "docs/engineering/architectural-decisions.md"
@@ -486,7 +486,7 @@ def configure(
             "Review the project instructions fragment; link it from existing AGENTS.md if needed.",
             "Profile selection belongs to canonical gz-skills setup; no profile is inferred or created.",
             "Follow docs/adoption.md for native installation and a fresh-session discovery check.",
-            "Use the project update-gz-template skill for released template updates; verify discovery separately.",
+            "Use the project gzl-update skill for released template updates; verify discovery separately.",
             "Review ADR policy/source provenance; configuration does not qualify the portable workflow.",
         ],
     }

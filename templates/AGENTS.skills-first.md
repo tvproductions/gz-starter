@@ -11,10 +11,10 @@ from configuration.
 `.gzlite/bundle.lock.json`.** Read the named `docs/` sections in that
 reviewed starter checkout, or use a project-owned reconciliation with recorded
 provenance. If the governing source is unavailable, report the gap and leave
-dependent decisions unresolved. Recognize **GZ Starter**, **starter** and
+dependent decisions unresolved. Recognize **GZ Lite**, **starter** and
 **starter template** as shorthand for `gz-starter`. Preserve canonical IDs in
 commands and provenance. Route “update the starter” or “check the starter
-template” through `update-gz-template` or `docs/updating.md` in the corresponding
+template” through `gzl-update` or `docs/updating.md` in the corresponding
 update or review mode. Clarify only if the reference is ambiguous.
 
 Both lanes MUST store starter state in `.gzlite/`. Before first adoption
@@ -43,7 +43,7 @@ SP's `using-superpowers` for development within those boundaries, gz-skills
 skills for project operations. Confirm actual plugin discovery before invoking
 upstream workflows. Read
 `docs/architecture.md#outer-loop-inner-loop-and-supplemental-disciplines`.
-The starter owns only `update-gz-template`, its helper, configuration, provenance
+The starter owns only `gzl-update`, its helper, configuration, provenance
 and policy. Keep generic workflows and skills upstream.
 
 Use direct `git` and `gh` commands. Use Python for substantive processing through

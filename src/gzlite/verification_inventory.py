@@ -14,9 +14,9 @@ from gzlite.paths import space_free
 _CODE_SUFFIXES = {".py", ".pyw", ".pyi", ".sh", ".bash", ".ps1", ".cmd", ".bat"}
 _SENSITIVE_SUFFIXES = {".key", ".pem", ".p12", ".pfx", ".kdbx"}
 _OPAQUE_REFERENCES = {".pdf", ".whl", ".zip", ".gz"}
-_SKILL_ALIASES = {f"{host}/skills/update-gz-template" for host in (".agents", ".claude")}
-_SKILL_REFERENCE = "../../templates/skills/update-gz-template"
-_SKILL_TARGET = Path("templates/skills/update-gz-template")
+_SKILL_ALIASES = {f"{host}/skills/gzl-update" for host in (".agents", ".claude")}
+_SKILL_REFERENCE = "../../templates/skills/gzl-update"
+_SKILL_TARGET = Path("templates/skills/gzl-update")
 _CACHE_BINARY = re.compile(r"[0-9]+")
 _CACHE_VERSION = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
 

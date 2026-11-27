@@ -21,6 +21,20 @@ class NativeHostTests(unittest.TestCase):
         inherited.start()
         self.addCleanup(inherited.stop)
 
+    def test_update_skill_is_gzl_update_for_every_host(self):
+        self.assertEqual(update_skill_path("claude"), ".claude/skills/gzl-update/SKILL.md")
+        for host in HOST_PATHS:
+            with self.subTest(host=host), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory).resolve()
+                starter.configure(root, REF, host=host, apply=True)
+                expected = update_skill_path(host)
+                if host != "claude":
+                    self.assertEqual(expected, ".agents/skills/gzl-update/SKILL.md")
+                self.assertTrue((root / expected).is_file())
+                self.assertFalse(
+                    [p for p in root.rglob("*") if "update-gz-template" in p.as_posix()]
+                )
+
     def test_owned_discovery_surface_uses_portable_identifiers(self):
         for host in HOST_PATHS:
             with self.subTest(host=host), tempfile.TemporaryDirectory() as directory:

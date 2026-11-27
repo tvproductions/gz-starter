@@ -236,21 +236,19 @@ class VerificationCliTests(VerificationProject):
         self.assert_blocked("tools/invalid name.py", "spaces are unsupported")
 
     def test_regular_file_skill_aliases_are_limited_to_exact_targets(self):
-        self.write("templates/skills/update-gz-template/SKILL.md", "# Update\n")
+        self.write("templates/skills/gzl-update/SKILL.md", "# Update\n")
         for alias in (".agents", ".claude"):
-            self.write(
-                f"{alias}/skills/update-gz-template", "../../templates/skills/update-gz-template"
-            )
+            self.write(f"{alias}/skills/gzl-update", "../../templates/skills/gzl-update")
         result = self.verify()
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.write(".agents/skills/update-gz-template", "../../other")
-        self.assert_blocked(".agents/skills/update-gz-template")
+        self.write(".agents/skills/gzl-update", "../../other")
+        self.assert_blocked(".agents/skills/gzl-update")
 
     def test_installed_update_skill_directory_is_an_ordinary_adopter_asset(self):
-        self.write(".agents/skills/update-gz-template/SKILL.md", "# Update\n")
+        self.write(".agents/skills/gzl-update/SKILL.md", "# Update\n")
         result = self.verify()
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("update-gz-template/SKILL.md", result.stdout)
+        self.assertIn("gzl-update/SKILL.md", result.stdout)
 
     def test_native_opencode_jsonc_preserves_valid_comments_and_trailing_commas(self):
         path = self.write("opencode.jsonc", '{\n  // local settings\n  "plugin": [],\n}\n')
