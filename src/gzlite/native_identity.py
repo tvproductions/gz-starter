@@ -11,11 +11,12 @@ import tomllib
 
 LEGACY_MARKETPLACE = "skills-first-starter"
 LAST_UNVERSIONED = (0, 12, 1)
-_VERSIONED = re.compile(r"gz-starter-[0-9]+-[0-9]+-[0-9]+\Z")
+LAST_GZ_STARTER = (0, 13)
+_VERSIONED = re.compile(r"(gz-starter|gzlite)-[0-9]+-[0-9]+-[0-9]+\Z")
 STARTER_SOURCES = tuple(
     f"{prefix}tvproductions/{name}{suffix}"
     for prefix in ("https://github.com/", "git@github.com:")
-    for name in ("gz-starter", "gz-skills-first-starter", "skills-first-starter")
+    for name in ("gzlite", "gz-starter", "gz-skills-first-starter", "skills-first-starter")
     for suffix in (".git", "")
 )
 
@@ -25,7 +26,11 @@ def marketplace_name(version: str) -> str:
     numbers = tuple(int(n) for n in version.split("."))
     if numbers <= LAST_UNVERSIONED:
         return LEGACY_MARKETPLACE
-    return "gz-starter-" + version.replace(".", "-")
+    slug = version.replace(".", "-")
+    # Releases through 0.13.x published under the gz-starter name; 0.14.0 renamed it.
+    if numbers[:2] <= LAST_GZ_STARTER:
+        return "gz-starter-" + slug
+    return "gzlite-" + slug
 
 
 def is_starter_marketplace(name: str) -> bool:

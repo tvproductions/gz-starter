@@ -1,6 +1,6 @@
 [project]
 name = "gzlite"
-version = "0.13.0"
+version = "0.14.0"
 description = "Project-scoped SP + SP-BP + gz-skills adoption scaffold"
 readme = "README.md"
 requires-python = ">=3.14,<3.15"

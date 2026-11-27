@@ -75,7 +75,7 @@ def codex_scope(
     if marketplace not in data.get("marketplaces", {}):
         text += (
             f'\n[marketplaces.{marketplace}]\nsource_type = "git"\n'
-            'source = "https://github.com/tvproductions/gz-starter.git"\n'
+            'source = "https://github.com/tvproductions/gzlite.git"\n'
             f'ref = "{ref}"\n'
         )
     return text

@@ -42,7 +42,7 @@ HERE = (
     if _SOURCE.parent.parent.name == "src" and (_CHECKOUT / "bundle.json").is_file()
     else _SOURCE.parent / "resources"
 )
-ORIGIN = "https://github.com/tvproductions/gz-starter.git"
+ORIGIN = "https://github.com/tvproductions/gzlite.git"
 SHA = re.compile(r"[0-9a-f]{40}\Z")
 UPDATE_SKILL = "update-gz-template"
 UPDATE_SKILL_SOURCE = f"templates/skills/{UPDATE_SKILL}/SKILL.md"

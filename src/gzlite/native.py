@@ -54,7 +54,7 @@ def _claude_settings(
             marketplace: {
                 "source": {
                     "source": "git",
-                    "url": "https://github.com/tvproductions/gz-starter.git",
+                    "url": "https://github.com/tvproductions/gzlite.git",
                     "ref": ref,
                 },
                 "autoUpdate": False,

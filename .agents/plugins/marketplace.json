@@ -1,7 +1,7 @@
 {
-  "name": "gz-starter-0-13-0",
+  "name": "gzlite-0-14-0",
   "interface": {
-    "displayName": "GZ Starter development stack"
+    "displayName": "GZ Lite development stack"
   },
   "plugins": [
     {
