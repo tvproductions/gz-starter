@@ -50,9 +50,9 @@ def _skill_alias(root: Path, relative: Path, mode: int) -> bool:
         with alias.open("rb") as source:
             target = source.read(len(_SKILL_REFERENCE) + 1).decode("utf-8", errors="replace")
     else:
-        raise ValueError(f"unsupported skill alias: {relative}")
+        raise ValueError(f"unsupported skill alias: {relative.as_posix()}")
     if target != _SKILL_REFERENCE or not (root / _SKILL_TARGET).is_dir():
-        raise ValueError(f"unsupported skill alias target: {relative}")
+        raise ValueError(f"unsupported skill alias target: {relative.as_posix()}")
     return True
 
 
@@ -86,7 +86,7 @@ def _walk(root: Path, directory: Path = Path(".")):
         mode = _kind(item)
         alias = _skill_alias(root, relative, mode)
         if not alias and not (stat.S_ISDIR(mode) or stat.S_ISREG(mode)):
-            raise ValueError(f"unsupported linked or non-regular input: {relative}")
+            raise ValueError(f"unsupported linked or non-regular input: {relative.as_posix()}")
         if relative == Path(".git"):
             continue
         if not stat.S_ISREG(mode) or relative.suffix.casefold() not in _OPAQUE_REFERENCES:
@@ -96,7 +96,7 @@ def _walk(root: Path, directory: Path = Path(".")):
         elif stat.S_ISDIR(mode):
             if relative == Path(".venv"):
                 if not _managed_environment(item):
-                    raise ValueError(f"unrecognized managed environment: {relative}")
+                    raise ValueError(f"unrecognized managed environment: {relative.as_posix()}")
             else:
                 yield from _walk(root, relative)
         elif not _generated_file(relative):
@@ -137,7 +137,7 @@ def _verification_path(root: Path, path: Path) -> None:
     try:
         space_free(root / path)
     except ValueError as error:
-        raise ValueError(f"{path}: {error}") from error
+        raise ValueError(f"{path.as_posix()}: {error}") from error
 
 
 def _authored(root: Path, path: Path, mode: int, git_executables: set[Path]) -> bool:

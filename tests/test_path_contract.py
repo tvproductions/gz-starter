@@ -129,6 +129,8 @@ class PathContractTests(unittest.TestCase):
             good.mkdir()
             alias = root / "alias"
             alias.symlink_to(spaced / "../good", target_is_directory=True)
+            if ".." not in alias.readlink().parts:
+                self.skipTest("the platform collapses '..' when it stores a symlink target")
             with self.assertRaisesRegex(ValueError, "space"):
                 cli.configure(alias, REF, apply=True)
             self.assertEqual(list(good.iterdir()), [])

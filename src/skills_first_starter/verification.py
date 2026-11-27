@@ -90,7 +90,10 @@ def verify_project(project: Path) -> int:
         paths = set(inventory.paths)
         missing = _REQUIRED - paths
         if missing:
-            raise ValueError("missing required artifacts: " + ", ".join(map(str, sorted(missing))))
+            raise ValueError(
+                "missing required artifacts: "
+                + ", ".join(path.as_posix() for path in sorted(missing))
+            )
         pin = _python_pin(root)
         metadata = read_toml(root, Path("pyproject.toml"))
         package = project_table(metadata, "project")

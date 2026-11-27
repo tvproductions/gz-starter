@@ -38,7 +38,7 @@ def read_toml(root: Path, relative: Path) -> dict[str, Any]:
     try:
         return tomllib.loads((root / relative).read_text(encoding="utf-8"))
     except (tomllib.TOMLDecodeError, UnicodeError) as error:
-        raise ValueError(f"{relative}: invalid TOML") from error
+        raise ValueError(f"{relative.as_posix()}: invalid TOML") from error
 
 
 def _profile(data: Any) -> None:
@@ -65,7 +65,7 @@ def _read_json_config(root: Path, path: Path) -> None:
         if path.as_posix() == ".gz-skills/settings.json":
             _profile(data)
     except (ValueError, UnicodeError) as error:
-        raise ValueError(f"{path}: invalid or unsupported JSON configuration") from error
+        raise ValueError(f"{path.as_posix()}: invalid or unsupported JSON configuration") from error
 
 
 def validate_config_files(root: Path, paths: set[Path]) -> None:
@@ -91,11 +91,15 @@ def validate_tool_configuration(root: Path, tools: dict[str, Any], paths: set[Pa
         project_table(tools, name)
     for path in sorted(paths):
         if path.name.casefold() in _STANDALONE_TOOL_CONFIGS:
-            raise ValueError(f"{path}: use the owning root pyproject.toml for tool settings")
+            raise ValueError(
+                f"{path.as_posix()}: use the owning root pyproject.toml for tool settings"
+            )
         if path.name == "pyproject.toml" and path.parent != Path("."):
             nested = project_table(read_toml(root, path), "tool")
             if names.intersection(nested):
-                raise ValueError(f"{path}: use the owning root pyproject.toml for tool settings")
+                raise ValueError(
+                    f"{path.as_posix()}: use the owning root pyproject.toml for tool settings"
+                )
 
 
 def declared_readme(project: dict[str, Any], paths: set[Path]) -> None:

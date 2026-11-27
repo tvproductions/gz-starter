@@ -95,6 +95,8 @@ class FoundationsTests(unittest.TestCase):
         self.write()
         alias = self.root / "alias.json"
         alias.symlink_to(spaced / "../settings.json")
+        if ".." not in alias.readlink().parts:
+            self.skipTest("the platform collapses '..' when it stores a symlink target")
         with self.assertRaisesRegex(ValueError, "space"):
             self.load(config_path=alias)
 
