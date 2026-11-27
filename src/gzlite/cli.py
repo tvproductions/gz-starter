@@ -33,6 +33,8 @@ from gzlite.paths import (
     space_free,
     validate_state_directory,
 )
+from gzlite.portability import CHECKS as PORTABILITY_CHECKS
+from gzlite.portability import audit as portability_audit
 from gzlite.project_settings import (
     SettingsError,
     validate_settings,
@@ -714,6 +716,12 @@ def main(argv: list[str] | None = None) -> int:
     settings_parser.add_argument("action", choices=("inspect", "initialize", "select"))
     settings_parser.add_argument("--project", type=Path, required=True)
     settings_parser.add_argument("--profile", choices=("lite", "heavy"))
+    portability_parser = sub.add_parser(
+        "portability", help="read-only line-ending and subprocess-decoding audit"
+    )
+    portability_parser.add_argument("--root", type=Path, default=Path.cwd())
+    portability_parser.add_argument("--check", action="append", choices=PORTABILITY_CHECKS)
+    portability_parser.add_argument("--path", action="append", default=[])
     sub.add_parser("validate", help="validate the three bundle pins and both native catalogs")
     sub.add_parser("version", help="show this checkout's template version; not a release receipt")
     args = parser.parse_args(argv)
@@ -726,6 +734,17 @@ def main(argv: list[str] | None = None) -> int:
             print("verification blocked: install gzlite[verification]", file=sys.stderr)
             return 1
         return verify_project(args.project)
+    if args.command == "portability":
+        # A check command, not adoption: findings exit 1, usage errors exit 2.
+        try:
+            findings = portability_audit(
+                args.root, args.check or list(PORTABILITY_CHECKS), args.path
+            )
+        except ValueError as error:
+            print(f"error: {error}", file=sys.stderr)
+            return 2
+        print(json.dumps(findings, indent=2))
+        return 1 if findings else 0
     try:
         if args.command == "run-opencode":
             root = _adoption_root(args.project)
