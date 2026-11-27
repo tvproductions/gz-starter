@@ -47,8 +47,7 @@ This supersedes:
 - "Only Python is supported in lite and heavy" (starter `AGENTS.md` and adopter
   template).
 
-**Go policy is not derived from Python policy.** Go engineering rules come from Go and
-its own sources, each cited or labeled as an unsourced project default. Where behavior
+**Go policy is not derived from Python policy.** Where behavior
 must match (for example the shared release history for `migrate`), gzglite tracks the
 gzlite artifact explicitly. Go repositories migrate to gzglite, never through gzlite.
 
@@ -57,7 +56,8 @@ gzlite artifact explicitly. Go repositories migrate to gzglite, never through gz
 - gzlite 0.14.0 stays Python only. `gzlite migrate` refuses in a Go project and names
   gzglite.
 - gz-skills gains `references/go.md` where its skills need it.
-- The starter's "Python only" statements are updated when gzglite ships, not before.
+- Updating the "Python only" statements in `AGENTS.md` and the adopter template is
+  follow-on work; timing is not decided here.
 - The gzglite design (`2026-11-27-gzg-starter-design.md`, to be renamed) specifies the
   Go module layout, which this ADR does not decide.
 

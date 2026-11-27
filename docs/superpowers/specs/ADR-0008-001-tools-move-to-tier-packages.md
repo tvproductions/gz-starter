@@ -47,7 +47,7 @@ gz-skills carries no executable code. Its operational tools move:
 - the catalog checks (inventory, discovery-floor ratchet, version and pin agreement,
   router and explicit-only contract checks) become `gzlite catalog check`, usable on any
   skills catalog; gz-skills' own gate runs it. Each side pins a past release of the
-  other.
+  other (decisions log, catalog-check entry).
 
 `<tier>` is `gzlite` (Python) or `gzglite` (Go). Native plugins remain the primary
 install path. gz-skills keeps `package.json` and its OpenCode adapter as a distribution
