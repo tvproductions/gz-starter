@@ -1,7 +1,7 @@
 ---
 id: ADR-0008
 title: Keep gz-skills free of executable code and move its tools to the tier packages
-revision: 2
+revision: 3
 state: Current
 decision_date: 2026-11-27
 revision_date: 2026-11-27
@@ -10,7 +10,7 @@ approved_revision: 1
 approval_ref: "#approval-evidence"
 ---
 
-# ADR-0008 edition 2 — Keep gz-skills free of executable code and move its tools to the tier packages
+# ADR-0008 edition 3 — Keep gz-skills free of executable code and move its tools to the tier packages
 
 ## Scope and context
 
@@ -27,8 +27,7 @@ Superpowers: prose judgment skills carrying GovZero's opinions. The tier package
 
 The decision follows the approved design
 `2026-11-27-gzlite-rename-and-tool-split-design.md` (sections 5, 6 and 9) and the
-decisions log. The tier names are in [Canonical rename to gzlite](../rename-gzlite.md);
-the Go tier package is a ROADMAP feature entry.
+decisions log. The tier names and the Go tier package are tracked in tvproductions/gz-starter#19 and #21.
 
 ## Alternatives
 
@@ -97,8 +96,8 @@ ADR-0008. The maintainer replied verbatim:
 The [reviewed proposal](approvals/ADR-0008-001-reviewed.txt) preserves the exact
 edition 1 proposal bytes with SHA-256
 `07e4a8cda6ee6cf5143e3e2715987163544d21c68be005828aa5d01a575b9640`.
-The maintainer's response approves the architectural decision. Edition 2 is an
-editorial change that keeps the approved choice, scope and constraints (see the
+The maintainer's response approves the architectural decision. Editions 2 and 3 are
+editorial changes that keep the approved choice, scope and constraints (see the
 amendment history), so `approved_revision` stays 1.
 
 ## Amendment history
@@ -111,3 +110,8 @@ amendment history), so `approved_revision` stays 1.
   as a rename record and a ROADMAP feature entry. The edit was made by the agent at the
   maintainer's direction in this conversation, and no choice, scope or constraint
   changed.
+- Edition 3, 2026-11-27: editorial. The dependency sentence now cites
+  tvproductions/gz-starter#19 and #21 instead of the rename record, which was dropped
+  in favor of GitHub Issues as the tracking authority until lite records ship. The
+  edit was made by the agent at the maintainer's direction in this conversation, and
+  no choice, scope or constraint changed.
