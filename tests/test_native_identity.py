@@ -5,6 +5,8 @@ import tomllib
 import unittest
 from pathlib import Path
 
+from fixtures_adopters import assume_published_release
+
 from gzlite import cli as starter
 from gzlite.native_identity import (
     LEGACY_MARKETPLACE,
@@ -64,6 +66,7 @@ class UpgradeTests(unittest.TestCase):
     """An adopter of an earlier release moves to this release's catalog name."""
 
     def setUp(self):
+        assume_published_release(self)
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         self.root = Path(temp.name).resolve() / "project"

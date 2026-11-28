@@ -8,11 +8,19 @@ import tempfile
 import unittest
 from pathlib import Path
 
-REF = "a" * 40
+from gzlite import cli
+from tools.verify_distribution import release_fixture
+
 MARKERS = ("bundle.lock.json", "architectural-decisions.md", "settings.toml")
 
 
 class StateDirectoryTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        temp = tempfile.TemporaryDirectory(prefix="gz-state-origin-")
+        cls.addClassCleanup(temp.cleanup)
+        cls.pin, _, cls.release_env = release_fixture(Path(temp.name), cli.template_version())
+
     def setUp(self):
         temporary = tempfile.TemporaryDirectory(prefix="gz-state-")
         self.addCleanup(temporary.cleanup)
@@ -21,9 +29,10 @@ class StateDirectoryTests(unittest.TestCase):
     def command(self, action, *options):
         args = [action, "--project", str(self.root)]
         if action in ("configure", "localize"):
-            args.extend(("--host", "codex", "--starter-ref", REF))
+            args.extend(("--host", "codex", "--starter-ref", self.pin))
         return subprocess.run(
             [sys.executable, "-m", "gzlite", *args, *options],
+            env=self.release_env,
             capture_output=True,
             text=True,
             check=False,

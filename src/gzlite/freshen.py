@@ -295,6 +295,7 @@ def plan_freshen(project: Path, ref: str) -> FreshenPlan:
     root = cli._adoption_root(project)
     # Refuses legacy state (naming gzlite migrate) and staged leftovers.
     validate_state_directory(root)
+    cli.require_tagged_release(ref, cli.template_version())
     reader = legacy.Reader(root)
     data = reader.read(BUNDLE_LOCK)
     if data is None:

@@ -6,6 +6,8 @@ import unittest
 from pathlib import Path, PureWindowsPath
 from unittest import mock
 
+from fixtures_adopters import assume_published_release
+
 from gzlite import cli as starter
 from gzlite.native import HOST_PATHS, update_skill_path
 
@@ -14,6 +16,7 @@ REF = "a" * 40
 
 class NativeHostTests(unittest.TestCase):
     def setUp(self):
+        assume_published_release(self)
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name).resolve()

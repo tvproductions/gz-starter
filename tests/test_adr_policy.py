@@ -10,6 +10,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from fixtures_adopters import assume_published_release
+
 from gzlite import cli as starter
 
 REF = "a" * 40
@@ -20,6 +22,7 @@ URL = f"https://github.com/tvproductions/gzlite/blob/{REF}/{POLICY}"
 
 class ADRPolicyTests(unittest.TestCase):
     def setUp(self):
+        assume_published_release(self)
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name).resolve()

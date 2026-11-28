@@ -15,6 +15,7 @@ from unittest import mock
 
 from fixtures_adopters import (
     FIXTURE_COMPONENTS,
+    assume_published_release,
     host_config,
     lock,
     managed_files,
@@ -40,6 +41,7 @@ def tagged(version: str):
 
 class MigrateCase(unittest.TestCase):
     def setUp(self):
+        assume_published_release(self)
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         self.base = Path(temp.name).resolve()

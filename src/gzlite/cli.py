@@ -51,6 +51,7 @@ from gzlite.project_settings import (
 from gzlite.project_settings import initialize as settings_initialize
 from gzlite.project_settings import inspect as settings_inspect
 from gzlite.project_settings import select as settings_select
+from gzlite.releases import SHA, tagged_release
 
 _SOURCE = Path(__file__).resolve()
 _CHECKOUT = _SOURCE.parents[2]
@@ -61,7 +62,6 @@ HERE = (
     else _SOURCE.parent / "resources"
 )
 ORIGIN = "https://github.com/tvproductions/gzlite.git"
-SHA = re.compile(r"[0-9a-f]{40}\Z")
 UPDATE_SKILL = "gzl-update"
 UPDATE_SKILL_SOURCE = f"templates/skills/{UPDATE_SKILL}/SKILL.md"
 UPDATE_SKILL_DESTINATION = f".agents/skills/{UPDATE_SKILL}/SKILL.md"
@@ -88,6 +88,15 @@ def template_version() -> str:
     ):
         raise AdoptionError("template_version must be a numeric MAJOR.MINOR.PATCH version")
     return version
+
+
+def require_tagged_release(ref: str, version: str) -> None:
+    """Require the publisher's tag to agree with the bundle being used."""
+    release = tagged_release(ref, origin=ORIGIN)
+    if release.version != version:
+        raise AdoptionError(
+            f"{ref} is {release.tag}; expected a published release for bundle version {version}"
+        )
 
 
 def marketplace() -> str:
@@ -687,6 +696,18 @@ def configure(
         )
     root = _adoption_root(project)
     validate_state_directory(root)
+    require_tagged_release(ref, template_version())
+    return _configure(root, ref, apply=apply, host=host, adr_policy=adr_policy)
+
+
+def _configure(
+    root: Path,
+    ref: str,
+    *,
+    apply: bool,
+    host: str,
+    adr_policy: str | None,
+) -> dict:
     policy, copies, working_policy = _policy_candidates(root, ref, adr_policy)
     _check_discovery(root, host)
     if host == "claude":
@@ -754,7 +775,14 @@ def status(project: Path) -> dict:
         return {"status": "not configured", "runtime_readiness": "unverified"}
     lock = json.loads(path.read_text(encoding="utf-8"))
     ref, host = lock["starter"]["revision"], lock.get("host", "codex")
-    expected = configure(root, ref, host=host)
+    version = lock["starter"].get("version")
+    if not isinstance(ref, str) or not isinstance(version, str):
+        raise AdoptionError("the lock has no valid starter release pin; reconcile its provenance")
+    validate_bundle()
+    if host not in HOST_PATHS:
+        raise AdoptionError(f"unsupported native host: {host}")
+    require_tagged_release(ref, version)
+    expected = _configure(root, ref, apply=False, host=host, adr_policy=None)
     hosts = configured_hosts(root, host)
     pending = expected["writes"] + _other_host_pending(root, ref, host, hosts)
     return {
@@ -823,7 +851,7 @@ def localize(project: Path, ref: str, *, host: str, apply: bool = False) -> dict
         raise AdoptionError("select a supported host and a full reviewed starter SHA")
     root = _adoption_root(project)
     parts = bundle()["components"]
-    catalog = marketplace()
+    version = template_version()
     validate_state_directory(root)
     lock = check_path(root, BUNDLE_LOCK)
     if lock.exists():
@@ -835,11 +863,14 @@ def localize(project: Path, ref: str, *, host: str, apply: bool = False) -> dict
             raise AdoptionError(
                 "the lock records no starter release; reconcile its provenance before repair"
             )
-        catalog = marketplace_name(version)
+        if record["starter"].get("revision") != ref:
+            raise AdoptionError("use the starter revision recorded in the lock for local repair")
         if {p["name"] for p in parts} != {p["name"] for p in bundle()["components"]}:
             raise AdoptionError("existing adoption components need explicit reconciliation")
         if any(not SHA.fullmatch(p["revision"]) for p in parts):
             raise AdoptionError("existing adoption component pins must be full SHAs")
+    require_tagged_release(ref, version)
+    catalog = marketplace_name(version)
     names = [configuration_path(root, host)]
     if host == "claude" and (root / ".claude/settings.local.json").exists():
         names.append(".claude/settings.local.json")

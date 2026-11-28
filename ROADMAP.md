@@ -6,9 +6,16 @@ The maintainer approved the [design](docs/superpowers/specs/2026-11-27-gzlite-re
 on November 27, 2026. Published baseline **0.13.0** advances to **0.14.0 / minor**:
 gz-starter becomes **gzlite**, a permanent tier (Superpowers + Superpowers Backplane +
 gz-skills + one tier package per language) rather than a stage before gzkit. The
-release is purely rename and tool move. Included: the rename across repository,
+release covers the rename, tool move, and the associated release safeguards.
+Included: the rename across repository,
 distribution, CLI, marketplace, state folder and skill prefix, plus the new commands
 `migrate`, `freshen`, `project-settings`, `portability`, `vendor` and `catalog check`.
+The [release-integrity tasks](docs/superpowers/plans/2026-11-27-gzlite-0.14.0.md#task-14-guard-1--adopters-pin-only-tagged-releases)
+enforce release provenance for adopters and for the publisher. Task 14 has
+[local verification evidence](docs/handoffs/2026-11-28-gzlite-0.14.0-resume-handoff.md#task-14-verification).
+Producer checks, repository rules, installed adopter-bridge acceptance and
+final review remain open.
+
 The bundle still pins gz-skills v0.14.0. gzlite 0.14.1 then bumps the pin to gz-skills
 v0.15.0, which removes all executable code; gzglite 0.1.0 follows.
 

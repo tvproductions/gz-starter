@@ -327,6 +327,7 @@ def plan_migration(project: Path, ref: str) -> MigrationPlan:
     legacy.refuse_go_project(root)
     # Only an incomplete rollback (or a failed cleanup) leaves staged originals.
     refuse_staging(root)
+    cli.require_tagged_release(ref, cli.template_version())
     state = legacy.legacy_directory(root)
     if state is None:
         empty = [name for name in legacy.LEGACY_DIRECTORIES if (root / name).is_dir()]

@@ -8,6 +8,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from fixtures_adopters import assume_published_release
+
 from gzlite import cli
 from gzlite.native_launch import launch
 
@@ -90,6 +92,7 @@ class PathContractTests(unittest.TestCase):
             self.assertEqual(list(target.iterdir()), [])
 
     def test_cli_rejection_and_valid_contents_control(self):
+        assume_published_release(self)
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()
             bad = root / "bad project"

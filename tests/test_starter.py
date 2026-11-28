@@ -7,6 +7,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from fixtures_adopters import assume_published_release
+
 from gzlite import cli as starter
 
 MODULE = Path(__file__).parents[1] / "starter.py"
@@ -15,6 +17,7 @@ REF = "a" * 40
 
 class AdoptionTests(unittest.TestCase):
     def setUp(self):
+        assume_published_release(self)
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name).resolve()
         self.addCleanup(self.temp.cleanup)
@@ -598,6 +601,7 @@ class CarriedLockKeyTests(unittest.TestCase):
     """configure keeps project-owned top-level lock keys and says so."""
 
     def setUp(self):
+        assume_published_release(self)
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         self.root = Path(temp.name).resolve()

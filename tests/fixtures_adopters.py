@@ -14,8 +14,17 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+from unittest import TestCase
+from unittest.mock import patch
 
+from gzlite import cli
 from gzlite.history import Release
+
+
+def assume_published_release(test: TestCase) -> None:
+    """Use synthetic revisions in adoption behavior tests; release tests use Git."""
+    test.enterContext(patch.object(cli, "require_tagged_release"))
+
 
 # Lock components as configure copied them from that commit's bundle.json. The
 # names, repositories and defaults never changed; the revisions are fixtures.

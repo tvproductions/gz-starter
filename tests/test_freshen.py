@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from fixtures_adopters import FIXTURE_COMPONENTS, render_adopter
+from fixtures_adopters import FIXTURE_COMPONENTS, assume_published_release, render_adopter
 
 from gzlite import cli
 from gzlite.freshen import SPEC
@@ -38,6 +38,7 @@ def tagged(version: str):
 
 class FreshenCase(unittest.TestCase):
     def setUp(self):
+        assume_published_release(self)
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         self.base = Path(temp.name).resolve()

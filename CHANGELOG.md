@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Verify that adopter target pins point to a publisher's annotated release tag
+  and that the tagged commit declares the matching bundle version. Known
+  untagged legacy revisions remain eligible as migration sources.
+
 ## 0.13.0 — November 27, 2026
 
 - Name the native marketplace after each starter release, for example
