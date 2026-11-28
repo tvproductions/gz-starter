@@ -11,14 +11,18 @@ Included: the rename across repository,
 distribution, CLI, marketplace, state folder and skill prefix, plus the new commands
 `migrate`, `freshen`, `project-settings`, `portability`, `vendor` and `catalog check`.
 The [release-integrity tasks](docs/superpowers/plans/2026-11-27-gzlite-0.14.0.md#task-14-guard-1--adopters-pin-only-tagged-releases)
-enforce release provenance for adopters and for the publisher. Task 14 has
-[local verification evidence](docs/handoffs/2026-11-28-gzlite-0.14.0-resume-handoff.md#task-14-verification).
-The producer checks, review corrections and installed adopter-bridge evidence
+enforce release provenance for adopters and for the publisher. The producer
+checks, review corrections and installed adopter-bridge evidence
 are recorded in the [0.14.0 candidate receipt](docs/evidence/2026-11-28-0.14.0-release.md).
 Live repository rules have a separate approval and evidence path.
 
-The bundle still pins gz-skills v0.14.0. gzlite 0.14.1 then bumps the pin to gz-skills
-v0.15.0, which removes all executable code; gzglite 0.1.0 follows.
+GZ Lite 0.14.0 pins gz-skills v0.14.0. Published gz-skills v0.15.0 unblocks
+the **0.14.1 patch** to update that pin and reconcile the three renamed skills
+in adopter guidance and migration. The companion release retires its bundled
+Python tools and retains the OpenCode 2.x adapter and test. See the
+[handoff](docs/handoffs/2026-11-28-gzlite-0.14.0-resume-handoff.md#resume-at-task-13)
+for the exact release revision, completed evidence and first remaining step.
+The separate gzglite 0.1.0 tier follows.
 
 The skill prefix is `gzl-` (and `gzgl-` for the Go tier), which supersedes the approved
 `gzt-` design below; `update-gz-template` becomes `gzl-update`. The rename is tracked in
