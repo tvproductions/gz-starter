@@ -144,6 +144,22 @@ class VendorTests(Fixture):
         text = (self.target / "gzs-alpha" / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("Second.", text)
 
+    def test_lock_write_failure_leaves_original_skill_and_lock(self):
+        self.install_alpha()
+        installed = self.target / "gzs-alpha/SKILL.md"
+        original = installed.read_bytes()
+        before = self.lock.read_bytes()
+        self.publish_new_version()
+
+        with (
+            mock.patch.object(vendor, "_write_lock", side_effect=OSError("locked")),
+            self.assertRaisesRegex(OSError, "locked"),
+        ):
+            vendor.update(self.lock, apply=True, source=self.repo)
+
+        self.assertEqual(installed.read_bytes(), original)
+        self.assertEqual(self.lock.read_bytes(), before)
+
     def test_update_apply_refuses_a_modified_tree(self):
         self.install_alpha()
         self.publish_new_version()

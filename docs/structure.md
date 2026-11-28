@@ -52,7 +52,7 @@ each adopter must establish its own enforcement and artifact verification.
 | `tools/engineering/` | Explicit on-demand analysis utilities and their CLI tests |
 | `docs/versioning.md` and `CHANGELOG.md` | Template compatibility, release identity and adopter impact |
 
-The approved source is `templates/skills/update-gz-template/SKILL.md`, with a
+The approved source is `templates/skills/gzl-update/SKILL.md`, with a
 checked wheel-resource copy. Configure writes host configuration, provenance,
 instructions and `.agents/skills/update-gz-template/SKILL.md`. It never overwrites
 a differing update skill; reconcile local edits explicitly. Native managers
@@ -93,8 +93,8 @@ alternative `gz-skills@gz-skills` and inherited `superpowers@superpowers-dev`
 sources here to avoid duplicates, and keeps
 Backplane disabled. User defaults and unrelated projects retain their settings.
 
-The development configuration uses the immutable November 21 catalog at
-`55f1a6e419f4bbcdc7bb525275dcf735f4039292`, selecting SP 7.0.2 and gz-skills
+The development configuration uses the published 0.13.0 catalog at
+`98acc5aeec3f3b6ad61171a647dbc0ab7a44b7c6`, selecting SP 7.0.2 and gz-skills
 0.14.0, with Backplane 0.3.0 disabled. Codex/Claude marketplace bindings and
 OpenCode source configuration select the same component combination.
 Fresh-session loading remains separate evidence.
@@ -109,8 +109,8 @@ A relative local marketplace
 source of `.` failed when launching the CLI from `src/` on the verified host;
 the pinned Git source works from both locations without machine-specific paths.
 
-`.agents/skills/update-gz-template` is a relative symlink to
-`templates/skills/update-gz-template`, exposing the one canonical source without
+`.agents/skills/gzl-update` is a relative symlink to
+`templates/skills/gzl-update`, exposing the one canonical source without
 another editable copy. Git must materialize that symlink as a directory link;
 discovery on hosts that check it out as a plain file is unverified. Use this
 skill with an explicitly identified adopter project. It does not update this

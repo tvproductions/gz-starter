@@ -8,7 +8,7 @@ permissions:
 env:
   GIT_TERMINAL_PROMPT: '0'
   SKIP: ''
-  UV_VERSION: '0.13.9'
+  UV_VERSION: '0.13.10'
   PYTHON_VERSION: '3.14.10'
 jobs:
   macos:
@@ -29,7 +29,7 @@ jobs:
       - name: Provision uv
         env:
           GH_TOKEN: ${{ github.token }}
-          UV_SHA256: '5aeca67f2283f75235de40d0bd9c0a5bbc5fce23b6d48b3bf9fa1b2db08382ca'
+          UV_SHA256: 'e419bf07533bdbf48795fc793601c834dd79db57a8c49ce8e25cfe3a8639958d'
         run: |
           uv_dir=$(mktemp -d "$RUNNER_TEMP/gz-uv.XXXXXX")
           uv_archive="$uv_dir/uv-aarch64-apple-darwin.tar.gz"
@@ -64,7 +64,7 @@ jobs:
       - name: Provision uv
         env:
           GH_TOKEN: ${{ github.token }}
-          UV_SHA256: 'edd61f7f5728a56cc62455386661860bdfc7bab65872f39b0c25bdcc1d8e1beb'
+          UV_SHA256: '297b3881fe1adfb922becc2c1613202abb41dc83ea5ff43d472aa087ca1f8683'
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
           $uvDir = Join-Path $env:RUNNER_TEMP ([Guid]::NewGuid().ToString())

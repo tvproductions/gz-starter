@@ -199,7 +199,8 @@ not prove a published release or cross-harness readiness.
 ## Configure the adopter verifier
 
 Apply this procedure in both lanes for a single-project CPython 3.14 checkout
-using a reviewed starter release that delivers the verifier (v0.12.0 or later).
+using gzlite 0.14.0 or later. Earlier GZ Starter releases from 0.12.0 deliver
+the verifier through the separate `gz-starter` distribution.
 Keep workspaces and XPPython3 on their existing project-owned verification
 paths. Treat native discovery, runtime-design approval, configuration and
 product acceptance as separate results.
@@ -218,7 +219,7 @@ Resolve the reviewed verifier release tag to its full commit SHA with Git. Add
 the extra as a dev dependency using that exact SHA:
 
 ```sh
-uv add --dev "gz-starter[verification] @ git+https://github.com/tvproductions/gz-starter.git@FULL_RELEASE_SHA"
+uv add --dev "gzlite[verification] @ git+https://github.com/tvproductions/gzlite.git@FULL_RELEASE_SHA"
 uv sync --locked
 ```
 
@@ -229,7 +230,7 @@ supported non-default layout. Preserve the other three routine checks and
 existing coverage. Then run:
 
 ```sh
-uv run --locked gz-starter verify --project .
+uv run --locked gzlite verify --project .
 uv run --locked pre-commit run --all-files
 ```
 

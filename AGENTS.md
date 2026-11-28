@@ -1,4 +1,8 @@
-# GZ Starter
+# GZ Lite
+
+Use `gzlite` as the canonical command. Start release continuation at the
+[gzlite handoff](docs/handoffs/2026-11-28-gzlite-0.14.0-resume-handoff.md).
+Existing adopters start at [the migration guide](docs/migrating-from-gz-starter.md).
 
 Read `README.md` and `docs/architecture.md` before making changes. To continue
 starter development, start at the current resume point and remaining gates in
@@ -115,7 +119,7 @@ For OpenCode 2.2.0 project commands, use the
 
 Read [ownership](docs/structure.md) before changing catalogs, adoption tooling
 or skills. The starter owns the catalog, helper, marketplace adapters, guidance
-and only the narrow `update-gz-template` skill. Use its
+and only the narrow `gzl-update` skill. Use its
 [update contract](docs/updating.md) for adopters. This checkout publishes the
 template and never adopts it. Keep generic workflows and skills upstream,
 and operational skills and domain code project-owned. FDAU is a design precedent.

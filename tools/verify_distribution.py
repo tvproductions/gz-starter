@@ -248,6 +248,114 @@ def verify_state_directory(command: Path, directory: Path, pin: str, env: dict[s
         raise ValueError("Installed helper changed a configured target")
 
 
+def verify_release_commands(
+    command: Path, directory: Path, target: Path, pin: str, env: dict[str, str]
+) -> None:
+    """Run the bridge and maintenance commands through the installed wheel."""
+    program = str(command)
+    profile = json.loads(
+        run(
+            program, "project-settings", "inspect", "--project", str(target), cwd=directory, env=env
+        ).stdout
+    )
+    if profile.get("profile") is not None:
+        raise ValueError("Installed project-settings inferred an adopter profile")
+
+    catalog = directory / "fixture-catalog"
+    skill = catalog / "skills/gzs-fixture"
+    (skill / "agents").mkdir(parents=True)
+    (skill / "SKILL.md").write_text(
+        "---\nname: gzs-fixture\ndescription: Invented skill.\n---\n\n"
+        "## Discovery and fallback\n\nRead the project instructions.\n",
+        encoding="utf-8",
+    )
+    (skill / "agents/openai.yaml").write_text(
+        "policy:\n  allow_implicit_invocation: true\n", encoding="utf-8"
+    )
+    report = run(program, "catalog", "check", "--root", str(catalog), cwd=directory, env=env)
+    if json.loads(report.stdout) != []:
+        raise ValueError("Installed catalog check reported findings on the clean fixture")
+    report = run(
+        program,
+        "portability",
+        "--check",
+        "subprocess-errors",
+        "--root",
+        str(catalog),
+        cwd=directory,
+        env=env,
+    )
+    if json.loads(report.stdout) != []:
+        raise ValueError("Installed portability check reported findings on the clean fixture")
+
+    legacy = directory / "fixture-legacy"
+    old_state = legacy / ".gz-starter/bundle.lock.json"
+    old_state.parent.mkdir(parents=True)
+    old_state.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "starter": {
+                    "repository": "https://github.com/tvproductions/gz-starter.git",
+                    "version": "0.13.0",
+                    "revision": "98acc5aeec3f3b6ad61171a647dbc0ab7a44b7c6",
+                },
+                "host": "codex",
+                "components": json.loads((ROOT / "bundle.json").read_bytes())["components"],
+            }
+        ),
+        encoding="utf-8",
+    )
+    before = old_state.read_bytes()
+    ref = ("--starter-ref", pin)
+    migration = json.loads(
+        run(
+            program,
+            "migrate",
+            "--project",
+            str(legacy),
+            *ref,
+            cwd=directory,
+            env=env,
+        ).stdout
+    )
+    if migration["status"] != "preview" or not migration["fingerprint"]:
+        raise ValueError("Installed migrate did not preview a reviewable adoption plan")
+    if old_state.read_bytes() != before or (legacy / ".gzlite").exists():
+        raise ValueError("Installed migrate preview wrote adopter state")
+
+    applied = json.loads(
+        run(
+            program,
+            "migrate",
+            "--project",
+            str(legacy),
+            *ref,
+            "--apply",
+            "--fingerprint",
+            migration["fingerprint"],
+            cwd=directory,
+            env=env,
+        ).stdout
+    )
+    if applied["status"] != "migrated" or old_state.exists():
+        raise ValueError("Installed helper did not apply the reviewed legacy migration")
+
+    refresh = json.loads(
+        run(
+            program,
+            "freshen",
+            "--project",
+            str(legacy),
+            *ref,
+            cwd=directory,
+            env=env,
+        ).stdout
+    )
+    if refresh["status"] != "current" or refresh["writes"]:
+        raise ValueError("Installed freshen did not recognize a current adopter")
+
+
 def verify_fixture(sdist: Path) -> None:
     """Build the reference from delivered source and verify clean installed use."""
     with tempfile.TemporaryDirectory(prefix="starter-foundations-") as temporary:
@@ -492,7 +600,7 @@ def verify_installed_verification(
         "--dev",
         f"gzlite[verification] @ {wheel.as_uri()}",
         "pre-commit==4.7.0",
-        "coverage==7.17.4",
+        "coverage==7.17.5",
         cwd=project,
         env=env,
     )
@@ -683,6 +791,7 @@ def main() -> None:
         verify_native_hosts(command, directory, pin, release_env)
         verify_policy_modes(command, directory, pin, release_env)
         verify_state_directory(command, directory, pin, release_env)
+        verify_release_commands(command, directory, target, pin, release_env)
         refused = subprocess.run(
             [str(command), "configure", "--project", str(target)],
             cwd=directory,

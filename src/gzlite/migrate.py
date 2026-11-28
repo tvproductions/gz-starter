@@ -286,7 +286,10 @@ class _Builder(DriftBuilder[MigrationPlan]):
         candidates = {**self.saved, **self.targets}
         paths = {name: cli.check_path(self.root, name) for name in candidates}
         replaceable = self.replaceable
-        plan.writes, plan.before, _ = cli._plan_writes(paths, candidates, replaceable)
+        observed = dict.fromkeys(self.reader.missing) | self.reader.inputs
+        plan.writes, plan.before, _ = cli._plan_writes(
+            paths, candidates, replaceable, observed=observed
+        )
         plan.before.update(self.delete_bytes)
         plan.inputs = dict(self.reader.inputs)
         if any(item["why"] == EDITED for item in plan.replaced):

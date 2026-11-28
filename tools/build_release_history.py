@@ -33,6 +33,7 @@ import sys
 from pathlib import Path
 
 from gzlite.gitenv import clean_git_env
+from gzlite.release_check import released_versions
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = Path("src/gzlite/resources/release_history.json")
@@ -485,7 +486,21 @@ def snapshot_id(data: dict) -> str:
     return f"{data['version']}-{hashlib.sha256(canonical).hexdigest()[:12]}"
 
 
+def refuse_release_gaps(repo: Path) -> None:
+    """Find the commit that first dated any release with no corresponding tag."""
+    tags = set(git(repo, "tag", "--list", "v*").stdout.splitlines())
+    commits = git(repo, "log", "--reverse", "--first-parent", "--format=%H", "--", "CHANGELOG.md")
+    for commit in commits.stdout.splitlines():
+        changelog = git(repo, "show", f"{commit}:CHANGELOG.md", check=False).stdout
+        missing = sorted(
+            version for version in released_versions(changelog) if f"v{version}" not in tags
+        )
+        if missing:
+            raise BuildError(f"dated release {missing[0]} at {commit} has no tag")
+
+
 def build(repo: Path) -> str:
+    refuse_release_gaps(repo)
     tags = starter_tags(repo)
     nearest = revision_map(repo, tags, LAST_STARTER_TAG)
     snapshots: dict[str, dict] = {}

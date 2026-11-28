@@ -1,4 +1,5 @@
-Superseded as the current identity by the gzlite rename (https://github.com/tvproductions/gz-starter/issues/19); the text below is historical.
+The [gzlite migration guide](migrating-from-gz-starter.md) governs the 0.14.0
+conversion. This page records the earlier rename to GZ Starter.
 
 # Canonical rename to gz-starter
 

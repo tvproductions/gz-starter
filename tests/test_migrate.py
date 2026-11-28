@@ -247,6 +247,45 @@ class EveryReleaseTests(MigrateCase):
 
 
 class DriftTests(MigrateCase):
+    def test_custom_marketplace_pin_is_preserved_before_retirement(self):
+        release = tagged("0.13.0")
+        hosts = (
+            ("codex", ".codex/config.toml"),
+            ("claude", ".claude/settings.json"),
+        )
+        for host, relative in hosts:
+            with self.subTest(host=host):
+                project = self.root / host
+                project.mkdir()
+                render_adopter(project, release, host)
+                config = project / relative
+                original = config.read_bytes().replace(release.revision.encode(), b"pinned-branch")
+                self.assertIn(b"pinned-branch", original)
+                config.write_bytes(original)
+                plan = self.preview(root=project)
+                self.assertIn(relative, {item["path"] for item in self.edits(plan)})
+                self.apply(root=project)
+                self.assertEqual(self.saved_copies(project)[relative], original)
+
+    def test_concurrent_config_edit_during_plan_is_refused(self):
+        release = tagged("0.13.0")
+        render_adopter(self.root, release, "codex")
+        config = self.root / ".codex/config.toml"
+        approved = self.preview()["fingerprint"]
+        edited = config.read_bytes() + b"\n# concurrent edit\n"
+        plan_writes = cli._plan_writes
+
+        def edit_before_validation(*args, **kwargs):
+            config.write_bytes(edited)
+            return plan_writes(*args, **kwargs)
+
+        with mock.patch.object(cli, "_plan_writes", side_effect=edit_before_validation):
+            code, output, error = self.run_cli("--apply", "--fingerprint", approved)
+        self.assertEqual(code, 2, output)
+        self.assertIn("changed while planning", error)
+        self.assertEqual(config.read_bytes(), edited)
+        self.assertFalse((self.root / ".gzlite").exists())
+
     def test_extra_lock_keys_are_carried(self):
         release = tagged("0.6.0")
         render_adopter(self.root, release, "codex")

@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 0.14.0 — November 28, 2026
+
+- Rename the project, distribution, CLI and marketplace to gzlite. Retain
+  `gz-starter` and `skills-first-starter` as CLI bridge aliases.
+- Move project state to `.gzlite/` and replace the update skill with
+  `gzl-update`. Use the [adopter bridge](docs/migrating-from-gz-starter.md)
+  for fingerprint-reviewed migration and refresh.
+- Add `project-settings`, `portability`, `vendor` and `catalog check`.
+  Preserve historical source snapshots for legacy lock revisions.
+- Verify the dated release, version mirrors and annotated tag with
+  `gzlite release check`. Use `--published` to verify GitHub release records.
+- Refresh the locked tooling in both supported Python families. See the
+  [toolchain receipt](docs/evidence/2026-11-28-0.14.0-toolchain.md).
+
 - Verify that adopter target pins point to a publisher's annotated release tag
   and that the tagged commit declares the matching bundle version. Known
   untagged legacy revisions remain eligible as migration sources.

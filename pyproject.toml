@@ -17,7 +17,7 @@ gz-starter = "gzlite.cli:main"
 skills-first-starter = "gzlite.cli:main"
 
 [build-system]
-requires = ["uv_build==0.13.9"]
+requires = ["uv_build==0.13.10"]
 build-backend = "uv_build"
 
 [tool.uv]
@@ -49,7 +49,7 @@ select = ["E4", "E7", "E9", "F", "I", "UP", "B", "SIM", "RUF"]
 dev = [
     "example-foundations==0.1.0",
     "ruff==0.17.6",
-    "ty==0.0.108",
+    "ty==0.0.112",
     "pre-commit==4.7.0",
 ]
 hygiene = [

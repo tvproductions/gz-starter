@@ -1,4 +1,10 @@
-# GZ Starter
+# GZ Lite
+
+gzlite 0.14.0 is the continuation of GZ Starter. The distribution and CLI are
+`gzlite`. The `gz-starter` and `skills-first-starter` commands remain available as
+bridge aliases. Existing adopters use the
+[migration guide](docs/migrating-from-gz-starter.md) to move to `.gzlite/` and
+the `gzl-update` skill.
 
 Release **0.12.0** adds `gz-starter verify` for Python adopters. The same hook
 validates a preparatory checkout and requires real tests when authored assets
@@ -233,20 +239,18 @@ setup, invocation and the boundary against self-adoption.
 
 ## Quick start: an existing or empty project
 
-The canonical repository and distribution/command are **gz-starter**, shipped
-in 0.10.0 and retained in published 0.11.3. The `skills-first-starter` command
-remains a compatibility alias. The distribution and Python import are now
-`gzlite` (commands `gzlite`, `gz-starter`, `skills-first-starter`); the marketplace key
-`skills-first-starter` and the `update-gz-template` skill ID remain stable
-compatibility surfaces until later renames. See the
-[rename migration](docs/rename-gz-starter.md).
+Use the **gzlite** repository, distribution and command. 0.14.0 publishes
+the `gzlite-0-14-0` marketplace and the `gzl-update` skill. The
+`gz-starter` and `skills-first-starter` commands remain bridge aliases.
+Use the [adopter bridge](docs/migrating-from-gz-starter.md) for existing
+GZ Starter projects.
 
 The configuration helper requires uv >=0.13.5, Python 3.14, and Git. Use `gh`
 to verify published release metadata. Follow the native instructions for your
 selected host. The adopter verifier uses the optional `verification` extra.
 
 uv uses a minimum-only compatibility requirement; local and hosted versions
-need not match CI's selected 0.13.9. See the
+need not match CI's selected 0.13.10. See the
 [uv policy](docs/baseline-policy.md#uv-executable-compatibility).
 
 Baseline tools use their latest stable release across tool families, with exact

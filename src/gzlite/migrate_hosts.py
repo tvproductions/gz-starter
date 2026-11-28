@@ -78,14 +78,25 @@ def _source_is_starter(identity: str) -> bool:
     return is_starter_marketplace(identity.partition("@")[2])
 
 
-def _repurposed(marketplaces: object, current: str, is_starter) -> dict[str, str]:
-    """Starter-named catalog entries that are not what a starter release wrote."""
-    found = {}
-    if isinstance(marketplaces, dict):
-        for name, entry in marketplaces.items():
-            if name != current and is_starter_marketplace(name) and not is_starter(entry):
-                found[name] = json.dumps(entry, sort_keys=True)
-    return found
+def _inspect_retired_catalogs(
+    config: HostConfig, marketplaces: object, current: str, revision: str
+) -> None:
+    """Retain a host's original when a retired marketplace was edited."""
+    if not isinstance(marketplaces, dict):
+        return
+    for name, entry in marketplaces.items():
+        if name == current or not is_starter_marketplace(name):
+            continue
+        if config.host == "codex":
+            starter = _codex_entry_is_starter(entry)
+            source = entry
+        else:
+            starter = _claude_entry_is_starter(entry)
+            source = entry["source"] if starter else None
+        if not starter:
+            config.repurposed[name] = json.dumps(entry, sort_keys=True)
+        elif source is not None and source["ref"] != revision:
+            config.edits.append(f"marketplace {name} used a ref different from the recorded pin")
 
 
 def _disable_outside(names: set[str], current: str, identity: str, enabled: object) -> bool:
@@ -93,11 +104,9 @@ def _disable_outside(names: set[str], current: str, identity: str, enabled: obje
     return name in names and source != current and enabled is not False
 
 
-def _codex(config: HostConfig, parts: list[dict], current: str) -> None:
+def _codex(config: HostConfig, parts: list[dict], current: str, revision: str) -> None:
     text = config.retired
-    config.repurposed = _repurposed(
-        tomllib.loads(text).get("marketplaces"), current, _codex_entry_is_starter
-    )
+    _inspect_retired_catalogs(config, tomllib.loads(text).get("marketplaces"), current, revision)
     try:
         text = retire_codex(text, current, parts)
     except ValueError as error:
@@ -119,12 +128,10 @@ def _codex(config: HostConfig, parts: list[dict], current: str) -> None:
     ]
 
 
-def _claude(config: HostConfig, parts: list[dict], current: str) -> None:
+def _claude(config: HostConfig, parts: list[dict], current: str, revision: str) -> None:
     text = config.retired
     data, _ = document(text)
-    config.repurposed = _repurposed(
-        data.get("extraKnownMarketplaces"), current, _claude_entry_is_starter
-    )
+    _inspect_retired_catalogs(config, data.get("extraKnownMarketplaces"), current, revision)
     trial = copy.deepcopy(data)
     try:
         retire_claude(trial, current, parts)
@@ -207,9 +214,9 @@ def host_configs(
             continue
         config = HostConfig(host, path, original, original or "")
         if host == "codex":
-            _codex(config, parts, current)
+            _codex(config, parts, current, lock.revision)
         elif host == "claude":
-            _claude(config, parts, current)
+            _claude(config, parts, current, lock.revision)
         else:
             _opencode(config, parts, lock, version)
         found.append(config)

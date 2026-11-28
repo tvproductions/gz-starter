@@ -39,6 +39,7 @@ from gzlite.paths import (
     BUNDLE_LOCK,
     LOCAL_ADR_POLICY,
     STAGING_DIRECTORY,
+    is_link,
     space_free,
     validate_state_directory,
 )
@@ -136,13 +137,13 @@ def validate_bundle() -> None:
 
 
 def check_path(root: Path, relative: str) -> Path:
-    """Resolve a managed destination while rejecting symlinked parents."""
+    """Resolve a managed destination while refusing linked files and parents."""
     path = space_free(root / relative)
     for item in (path, *path.parents):
         if item == root:
             break
-        if item.is_symlink():
-            raise AdoptionError(f"refusing symlinked destination: {relative}")
+        if os.path.lexists(item) and is_link(item):
+            raise AdoptionError(f"refusing symlinked destination or reparse point: {relative}")
         if item != path and item.exists() and not item.is_dir():
             raise AdoptionError(f"parent is not a directory: {relative}")
     if path.exists() and not path.is_file():
@@ -444,7 +445,11 @@ def same_text(current: bytes | None, payload: str) -> bool:
 
 
 def _plan_writes(
-    paths: dict[str, Path], candidates: dict[str, str], replaceable: Collection[str] = ()
+    paths: dict[str, Path],
+    candidates: dict[str, str],
+    replaceable: Collection[str] = (),
+    *,
+    observed: Mapping[str, bytes | None] | None = None,
 ) -> tuple[dict[str, str], dict[str, bytes | None], list[str]]:
     """Check every candidate and capture rollback bytes before any write.
 
@@ -456,6 +461,8 @@ def _plan_writes(
     for name, payload in candidates.items():
         path = paths[name]
         current = path.read_bytes() if path.exists() else None
+        if observed is not None and name in observed and observed[name] != current:
+            raise AdoptionError(f"{name} changed while planning; preview again; no files changed")
         before[name] = current
         if same_text(current, payload):
             present.append(name)
@@ -1074,6 +1081,71 @@ def _vendor(args: argparse.Namespace) -> tuple[object, int]:
     return vendor_commands.install(source, names, target, lock=lock, force=args.force), 0
 
 
+def _run_check_command(args: argparse.Namespace) -> int:
+    """Run read-only check commands and retain their documented exit codes."""
+    if args.command == "verify":
+        try:
+            from gzlite.verification import verify_project
+        except ModuleNotFoundError as error:
+            if error.name != "yaml":
+                raise
+            print("verification blocked: install gzlite[verification]", file=sys.stderr)
+            return 1
+        return verify_project(args.project)
+    if args.command == "portability":
+        # A check command, not adoption: findings exit 1, usage errors exit 2.
+        try:
+            findings = portability_audit(
+                args.root, args.check or list(PORTABILITY_CHECKS), args.path
+            )
+        except ValueError as error:
+            print(f"error: {error}", file=sys.stderr)
+            return 2
+        print(json.dumps(findings, indent=2))
+        return 1 if findings else 0
+    if args.command == "catalog":
+        # A check command, not adoption: findings exit 1, usage errors exit 2.
+        try:
+            run = (
+                catalog_commands.check
+                if args.catalog_command == "check"
+                else catalog_commands.inventory
+            )
+            result = run(args.root)
+        except (OSError, ValueError) as error:
+            print(f"error: {error}", file=sys.stderr)
+            return 2
+        print(json.dumps(result, indent=2))
+        return 1 if result and args.catalog_command == "check" else 0
+    else:
+        from gzlite.release_check import check_release_integrity, local_tags, published_targets
+
+        try:
+            root = args.project.resolve(strict=True)
+            findings = check_release_integrity(
+                root,
+                published=args.published,
+                tags=local_tags(root),
+                releases=published_targets(root) if args.published else None,
+            )
+        except (OSError, ValueError, subprocess.SubprocessError, KeyError, TypeError) as error:
+            print(f"release check blocked: {error}", file=sys.stderr)
+            return 2
+        print(json.dumps(findings, indent=2))
+        return int(bool(findings))
+
+
+def _settings_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> dict:
+    """Validate profile selection before dispatching the settings operation."""
+    if (args.action == "select") != (args.profile is not None):
+        parser.error("--profile is required for, and only valid with, select")
+    if args.action == "select":
+        return settings_select(args.project, args.profile)
+    if args.action == "initialize":
+        return settings_initialize(args.project)
+    return settings_inspect(args.project)
+
+
 def main(argv: list[str] | None = None) -> int:
     """Dispatch the public CLI and render structured outcomes and failures."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -1158,44 +1230,20 @@ def main(argv: list[str] | None = None) -> int:
         catalog_actions.add_parser(action, help=text).add_argument(
             "--root", type=Path, default=Path.cwd()
         )
+    release_parser = sub.add_parser("release", help="inspect publisher release integrity")
+    release_commands = release_parser.add_subparsers(dest="release_command", required=True)
+    release_check = release_commands.add_parser("check", help="verify versions, changelog and tags")
+    release_check.add_argument("--project", type=Path, default=Path.cwd())
+    release_check.add_argument(
+        "--published", action="store_true", help="also verify GitHub releases"
+    )
+
     _add_vendor_parser(sub)
     sub.add_parser("validate", help="validate the three bundle pins and both native catalogs")
     sub.add_parser("version", help="show this checkout's template version; not a release receipt")
     args = parser.parse_args(argv)
-    if args.command == "verify":
-        try:
-            from gzlite.verification import verify_project
-        except ModuleNotFoundError as error:
-            if error.name != "yaml":
-                raise
-            print("verification blocked: install gzlite[verification]", file=sys.stderr)
-            return 1
-        return verify_project(args.project)
-    if args.command == "portability":
-        # A check command, not adoption: findings exit 1, usage errors exit 2.
-        try:
-            findings = portability_audit(
-                args.root, args.check or list(PORTABILITY_CHECKS), args.path
-            )
-        except ValueError as error:
-            print(f"error: {error}", file=sys.stderr)
-            return 2
-        print(json.dumps(findings, indent=2))
-        return 1 if findings else 0
-    if args.command == "catalog":
-        # A check command, not adoption: findings exit 1, usage errors exit 2.
-        try:
-            run = (
-                catalog_commands.check
-                if args.catalog_command == "check"
-                else catalog_commands.inventory
-            )
-            result = run(args.root)
-        except (OSError, ValueError) as error:
-            print(f"error: {error}", file=sys.stderr)
-            return 2
-        print(json.dumps(result, indent=2))
-        return 1 if result and args.catalog_command == "check" else 0
+    if args.command in {"verify", "portability", "catalog", "release"}:
+        return _run_check_command(args)
     try:
         if args.command == "vendor":
             result, code = _vendor(args)
@@ -1240,14 +1288,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "status":
             result = status(args.project)
         elif args.command == "project-settings":
-            if (args.action == "select") != (args.profile is not None):
-                parser.error("--profile is required for, and only valid with, select")
-            if args.action == "select":
-                result = settings_select(args.project, args.profile)
-            elif args.action == "initialize":
-                result = settings_initialize(args.project)
-            else:
-                result = settings_inspect(args.project)
+            result = _settings_command(args, parser)
         elif args.command == "version":
             result = {"template_version": template_version()}
         else:
