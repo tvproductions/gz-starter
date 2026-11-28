@@ -26,49 +26,27 @@ from pathlib import Path
 from gzlite import cli
 from gzlite import migrate_hosts as hosts_config
 from gzlite import migrate_legacy as legacy
+from gzlite.drift import EDITED, RECORD, DriftBuilder, Plan
 from gzlite.fingerprint import fingerprint as compute_fingerprint
 from gzlite.history import Release, load_history
-from gzlite.native import (
-    SKILL_SURFACES,
-    project_json,
-    skill_surface,
-    uncovered_hosts,
-    update_skill_path,
-    update_skill_placement,
-)
+from gzlite.native import update_skill_placement
 from gzlite.paths import BUNDLE_LOCK, MIGRATED_DIRECTORY, refuse_staging
 
 FINGERPRINT = re.compile(r"[0-9a-f]{64}\Z")
 FRAGMENT = "AGENTS.skills-first.md"
 PROFILE = ".gz-skills/settings.json"
 PYPROJECT = "pyproject.toml"
-# Why a file was saved under .gzlite/migrated/ (the "why" of each replaced item).
-EDITED = "edited"
-RECORD = "record"
 
 
 @dataclass
-class MigrationPlan:
+class MigrationPlan(Plan):
     """Everything one migration would change, and why."""
 
-    root: Path
-    status: str
-    to_version: str
-    to_revision: str
     from_version: str | None = None
     from_revision: str | None = None
     snapshot: str | None = None
-    writes: dict[str, str] = field(default_factory=dict)
-    before: dict[str, bytes | None] = field(default_factory=dict)
     deletes: list[str] = field(default_factory=list)
     directories: list[str] = field(default_factory=list)
-    reasons: dict[str, str] = field(default_factory=dict)
-    carried: list[str] = field(default_factory=list)
-    replaced: list[dict[str, str]] = field(default_factory=list)
-    findings: list[str] = field(default_factory=list)
-    next: list[str] = field(default_factory=list)
-    inputs: dict[str, bytes] = field(default_factory=dict)
-    fingerprint: str | None = None
 
     def changes(self) -> list[dict[str, str]]:
         listed = [{"path": n, "action": "write", "reason": self.reasons[n]} for n in self.writes]
@@ -107,27 +85,23 @@ class MigrationPlan:
         }
 
 
-class _Builder:
+class _Builder(DriftBuilder[MigrationPlan]):
     """Accumulate the plan for one adopter; the methods run in order."""
 
     def __init__(
         self, plan: MigrationPlan, reader: legacy.Reader, release: Release, lock: legacy.LegacyLock
     ) -> None:
-        self.plan = plan
-        self.reader = reader
+        super().__init__(
+            plan,
+            reader,
+            lock,
+            saves_under=MIGRATED_DIRECTORY,
+            recorded_version=release.version,
+            recorded_marketplace=release.marketplace,
+        )
         self.release = release
-        self.lock = lock
-        self.root = plan.root
-        self.placement: tuple[str, ...] = ()
         self.working = ""  # the active ADR policy: local copy path or canonical URL
-        self.saved: dict[str, str] = {}
-        self.saved_from: dict[str, str] = {}
-        self.host_candidates: dict[str, dict[str, str]] = {}
-        self.targets: dict[str, str] = {}
-        self.replaceable: set[str] = set()
         self.delete_bytes: dict[str, bytes] = {}
-        self.parts = cli.bundle()["components"]
-        self.current = cli.marketplace()
 
     # Findings about the recorded identity -------------------------------------------
 
@@ -163,29 +137,7 @@ class _Builder:
                 + f"; the old lock is saved under {MIGRATED_DIRECTORY}/{state}/"
             )
 
-    # Saving and retiring ------------------------------------------------------------
-
-    def save(self, name: str, text: str, fate: str = "replaced", why: str = EDITED) -> str:
-        """Plan a copy of ``name`` under ``.gzlite/migrated/``; it is never undone.
-
-        ``why`` is ``edited`` (the bytes differ from what the recorded commit
-        wrote, or it wrote no such file) or ``record`` (unchanged legacy state,
-        kept so the old lock's pins and keys stay readable).
-        """
-        saved_to = f"{MIGRATED_DIRECTORY}/{name}"
-        existing = self.reader.read(saved_to)
-        if existing is not None and existing != text.encode():
-            # A copy kept by an earlier, rolled-back attempt is never overwritten.
-            raise cli.AdoptionError(
-                f"{saved_to} already holds a different saved copy; move it aside after "
-                f"review; {legacy.UNCHANGED}"
-            )
-        what = "locally edited" if why == EDITED else "unchanged legacy state file"
-        self.saved[saved_to] = text
-        self.saved_from[name] = saved_to
-        self.plan.reasons[saved_to] = f"saves the {what} {name} before it is {fate}"
-        self.plan.replaced.append({"path": name, "saved_to": saved_to, "why": why})
-        return saved_to
+    # Retiring ------------------------------------------------------------------
 
     def retire(
         self, name: str, expected: str | None, reason: str, record: bool = False
@@ -273,64 +225,6 @@ class _Builder:
 
     # Targets ------------------------------------------------------------------------
 
-    def target(self, name: str, payload: str, reason: str, replaceable: bool = False) -> None:
-        self.targets[name] = payload
-        self.plan.reasons[name] = reason
-        if replaceable:
-            self.replaceable.add(name)
-
-    def claude_local_check(self) -> None:
-        """The check configure runs on Claude local settings, which it never writes."""
-        text = self.reader.text(".claude/settings.local.json")
-        if text is not None:
-            ref = self.plan.to_revision
-            project_json(text, "claude", ref, self.parts, self.current, retire=False)
-
-    def host_targets(
-        self, configs: list[hosts_config.HostConfig], policy, working
-    ) -> dict[str, str]:
-        to, ref, found = self.plan.to_version, self.plan.to_revision, {}
-        for config in configs:
-            paths = {
-                config.path: cli.check_path(self.root, config.path),
-                "AGENTS.md": cli.check_path(self.root, "AGENTS.md"),
-            }
-            candidates, _ = cli._configuration_candidates(
-                paths,
-                ref,
-                config.host,
-                policy=policy,
-                working_policy=working,
-                old_config=config.retired,
-                carried=self.lock.extras,
-            )
-            payload = candidates[config.path]
-            if config.original is not None and hosts_config.lost_comments(
-                config.host, config.original, payload
-            ):
-                config.edits.append("local comments in removed starter entries")
-            if config.edits and config.original is not None:
-                saved = f"{MIGRATED_DIRECTORY}/{config.path}"
-                self.save(config.path, config.original)
-                self.plan.findings.append(
-                    f"{config.path}: starter entries differed from what {self.release.version} "
-                    f"wrote ({'; '.join(config.edits)}); they were replaced by gzlite {to} "
-                    f"entries and the original is saved at {saved}"
-                )
-                self.plan.findings += config.guidance(saved, self.current)
-            self.plan.carried.append(f"host {config.host} ({config.path})")
-            self.plan.carried += config.carried
-            self.host_candidates[config.host] = candidates
-            self.target(
-                config.path,
-                payload,
-                f"gzlite {to} retires the {self.release.marketplace} entries and adds "
-                f"{self.current} with the {to} bundle",
-            )
-            if config.host == self.lock.host:
-                found = candidates
-        return found
-
     def managed_targets(self, candidates: dict[str, str], copies: dict[str, str]) -> None:
         to, lock, release = self.plan.to_version, self.lock, self.release
         self.target(
@@ -358,33 +252,6 @@ class _Builder:
             )
         for name, payload in copies.items():
             self.target(name, payload, f"gzlite {to} keeps the local ADR policy copy in .gzlite/")
-
-    def update_skills(self) -> None:
-        """``gzl-update`` on each configured host's own surface, without duplicates."""
-        to, hosts = self.plan.to_version, list(self.host_candidates)
-        for surface in self.placement:
-            host = next(h for h in hosts if skill_surface(h) == surface)
-            skill = update_skill_path(host)
-            payload = self.host_candidates[host][skill]
-            existing = self.reader.text(skill)
-            if existing is not None and legacy.normalized(existing) != legacy.normalized(payload):
-                self.save(skill, existing)
-            self.target(skill, payload, f"gzlite {to} update skill {cli.UPDATE_SKILL}", True)
-        for host in hosts:
-            if host in uncovered_hosts([host], self.placement):
-                self.plan.findings.append(
-                    f"{host} is configured but gets no {cli.UPDATE_SKILL}: a copy on its "
-                    f"surface {skill_surface(host)} would be discovered twice by another "
-                    f"configured host; it is installed at {', '.join(self.placement)} only"
-                )
-            elif skill_surface(host) not in self.placement:
-                self.plan.findings.append(
-                    f"{host} is expected to discover {cli.UPDATE_SKILL} at "
-                    f"{', '.join(s for s in self.placement if s in SKILL_SURFACES[host])} "
-                    "(gzlite run-opencode adds that surface to its skills setting, "
-                    "src/gzlite/native_launch.py:39); a plain opencode launch reading it is "
-                    "unverified"
-                )
 
     def pyproject(self) -> None:
         text = self.reader.text(PYPROJECT)

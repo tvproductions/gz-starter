@@ -315,9 +315,13 @@ def _check_discovery(
 
 
 def _policy_candidates(
-    root: Path, ref: str, requested: str | None
+    root: Path, ref: str, requested: str | None, *, check_recorded: bool = True
 ) -> tuple[dict[str, str], dict[str, str], str]:
-    """Resolve policy access and reject unreconciled provenance before writing."""
+    """Resolve policy access and reject unreconciled provenance before writing.
+
+    ``freshen`` passes ``check_recorded=False``: it moves a recorded policy
+    from an earlier release to this one instead of refusing the difference.
+    """
     lock_path = check_path(root, BUNDLE_LOCK)
     recorded = None
     if lock_path.exists():
@@ -336,7 +340,7 @@ def _policy_candidates(
     }
     if mode == "local":
         policy["local_path"] = ADR_POLICY_DESTINATION
-    if recorded is not None and recorded != policy:
+    if check_recorded and recorded is not None and recorded != policy:
         raise AdoptionError(
             "ADR policy provenance or selection differs; reconcile without overwriting"
         )
@@ -355,6 +359,14 @@ def lock_extras(lock: object) -> dict:
     if not isinstance(lock, dict):
         return {}
     return {key: value for key, value in lock.items() if key not in MANAGED_LOCK_KEYS}
+
+
+def render_fragment(ref: str, working_policy: str) -> str:
+    """This release's instructions fragment with its ADR policy placeholders filled."""
+    fragment = space_free(HERE / "templates/AGENTS.skills-first.md").read_text(encoding="utf-8")
+    return fragment.replace("{{ADR_POLICY_WORKING_SOURCE}}", working_policy).replace(
+        "{{ADR_POLICY_CANONICAL_URL}}", _adr_policy_url(ref)
+    )
 
 
 def _configuration_candidates(
@@ -380,11 +392,7 @@ def _configuration_candidates(
             if paths[config_path].exists()
             else ""
         )
-    fragment = space_free(HERE / "templates/AGENTS.skills-first.md").read_text(encoding="utf-8")
-    policy_url = _adr_policy_url(ref)
-    fragment = fragment.replace("{{ADR_POLICY_WORKING_SOURCE}}", working_policy).replace(
-        "{{ADR_POLICY_CANONICAL_URL}}", policy_url
-    )
+    fragment = render_fragment(ref, working_policy)
     lock = {
         "schema_version": 1,
         "starter": {"repository": ORIGIN, "version": template_version(), "revision": ref},
@@ -1058,6 +1066,17 @@ def main(argv: list[str] | None = None) -> int:
     )
     migrate_parser.add_argument("--apply", action="store_true")
     migrate_parser.add_argument("--fingerprint", help="the fingerprint of the reviewed preview")
+    freshen_parser = sub.add_parser(
+        "freshen",
+        help="preview bringing a gzlite adopter to this release; "
+        "--apply --fingerprint writes the reviewed plan",
+    )
+    freshen_parser.add_argument("--project", type=Path, required=True)
+    freshen_parser.add_argument(
+        "--starter-ref", help="full published gzlite SHA; defaults to this checkout HEAD"
+    )
+    freshen_parser.add_argument("--apply", action="store_true")
+    freshen_parser.add_argument("--fingerprint", help="the fingerprint of the reviewed preview")
     launch_parser = sub.add_parser(
         "run-opencode", help="run a private OpenCode server with project-only plugin selection"
     )
@@ -1156,6 +1175,16 @@ def main(argv: list[str] | None = None) -> int:
             from gzlite.migrate import migrate
 
             result = migrate(
+                args.project,
+                apply=args.apply,
+                fingerprint=args.fingerprint,
+                ref=args.starter_ref or source_revision(),
+            )
+        elif args.command == "freshen":
+            # Imported here: freshen builds on this module's configure machinery.
+            from gzlite.freshen import freshen
+
+            result = freshen(
                 args.project,
                 apply=args.apply,
                 fingerprint=args.fingerprint,

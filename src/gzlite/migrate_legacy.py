@@ -209,8 +209,12 @@ def _version(starter: dict, unreadable) -> tuple[str, list[str]]:
     return version, notes
 
 
-def parse_lock(name: str, data: bytes) -> LegacyLock:
-    """Read any legacy lock shape from 0.1.0 on, or refuse it as unreadable."""
+def parse_lock(name: str, data: bytes, sources: frozenset[str] = HISTORICAL_SOURCES) -> LegacyLock:
+    """Read any legacy lock shape from 0.1.0 on, or refuse it as unreadable.
+
+    ``sources`` lists the accepted ``starter.repository`` values; ``freshen``
+    also accepts gzlite's own.
+    """
 
     def unreadable(why: str) -> AdoptionError:
         return AdoptionError(f"{name} cannot be read safely: {why}; {UNCHANGED}")
@@ -226,7 +230,7 @@ def parse_lock(name: str, data: bytes) -> LegacyLock:
     starter = lock.get("starter")
     if not isinstance(starter, dict):
         raise unreadable("no starter record")
-    if starter.get("repository") not in HISTORICAL_SOURCES:
+    if starter.get("repository") not in sources:
         raise unreadable("starter.repository is not a gz-starter repository")
     revision = starter.get("revision")
     if not isinstance(revision, str) or not REVISION.fullmatch(revision):
