@@ -421,6 +421,19 @@ def _configuration_candidates(
     return candidates, lock
 
 
+def same_text(current: bytes | None, payload: str) -> bool:
+    """Whether a file holds ``payload`` apart from CRLF line endings (git autocrlf)."""
+    if current is None:
+        return False
+    if current == payload.encode():
+        return True
+    try:
+        text = current.decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    return text.replace("\r\n", "\n") == payload.replace("\r\n", "\n")
+
+
 def _plan_writes(
     paths: dict[str, Path], candidates: dict[str, str], replaceable: Collection[str] = ()
 ) -> tuple[dict[str, str], dict[str, bytes | None], list[str]]:
@@ -428,13 +441,14 @@ def _plan_writes(
 
     Host configuration is merged, so it may differ; ``replaceable`` names other
     files the caller has reviewed and may overwrite (``migrate`` saves them first).
+    A file that differs only by CRLF line endings is present, not rewritten.
     """
     writes, before, present = {}, {}, []
     for name, payload in candidates.items():
         path = paths[name]
         current = path.read_bytes() if path.exists() else None
         before[name] = current
-        if current == payload.encode():
+        if same_text(current, payload):
             present.append(name)
         elif current is not None and name not in (
             *HOST_PATHS.values(),
@@ -773,7 +787,7 @@ def _other_host_pending(root: Path, ref: str, recorded: str, hosts: list[str]) -
             expected[skill] = candidates[skill]
         for item, payload in expected.items():
             path = check_path(root, item)
-            if not path.exists() or path.read_bytes() != payload.encode():
+            if not path.exists() or not same_text(path.read_bytes(), payload):
                 pending.append(item)
     return pending
 

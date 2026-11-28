@@ -58,6 +58,22 @@ class AdoptionTests(unittest.TestCase):
         self.assertEqual(before, after)
         self.assertEqual(result["writes"], [])
 
+    def test_crlf_only_difference_is_neither_rewritten_nor_refused(self):
+        self.configure(True)
+        for path in self.root.rglob("*"):
+            if path.is_file():
+                path.write_bytes(path.read_bytes().replace(b"\n", b"\r\n"))
+        before = {
+            p.relative_to(self.root): p.read_bytes() for p in self.root.rglob("*") if p.is_file()
+        }
+        result = self.configure(True)
+        after = {
+            p.relative_to(self.root): p.read_bytes() for p in self.root.rglob("*") if p.is_file()
+        }
+        self.assertEqual(result["writes"], [])
+        self.assertEqual(before, after)
+        self.assertEqual(starter.status(self.root)["status"], "configured")
+
     def test_preserves_existing_instructions_and_config(self):
         (self.root / "AGENTS.md").write_text("Existing project authority.\n")
         (self.root / ".codex").mkdir()

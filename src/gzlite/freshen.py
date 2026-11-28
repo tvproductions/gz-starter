@@ -23,6 +23,7 @@ default; ``--apply`` writes only when the recomputed fingerprint matches.
 from __future__ import annotations
 
 import hashlib
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -46,30 +47,53 @@ SOURCES = frozenset(STARTER_SOURCES)
 # entries were written for another revision.
 RETIRE_ALL = ""
 WORKFLOW = ".github/workflows/verify-python.yml"
+ADR_0003 = "docs/decisions/ADR-0003-001-own-bootstrap-verification-in-the-starter.md"
+# The verification extra's immutable source, as migrate and the adoption docs write it.
+VERIFICATION_PIN = re.compile(
+    r"gzlite\[verification\]\s*@\s*git\+(?:https://|ssh://git@)github\.com/"
+    r"tvproductions/gzlite(?:\.git)?@([0-9a-fA-F]{40})"
+)
 
 
 @dataclass(frozen=True)
 class Doctrine:
-    """One doctrine check: where it ``applies`` and the project does not ``hold`` it."""
+    """One doctrine check: ``check(root, ref)`` returns its findings' text."""
 
-    applies: Callable[[Path], bool]
-    holds: Callable[[Path], bool]
-    finding: str
+    check: Callable[[Path, str], list[str]]
     source: str
 
 
+def _pyproject(root: Path) -> str | None:
+    path = root / "pyproject.toml"
+    return path.read_text(encoding="utf-8", errors="replace") if path.is_file() else None
+
+
+def _verification_workflow(root: Path, ref: str) -> list[str]:
+    """A Python project runs gzlite verify in CI through the shell-only workflow."""
+    if _pyproject(root) is None or (root / WORKFLOW).is_file():
+        return []
+    return [
+        f"pyproject.toml makes this a Python project, but {WORKFLOW} is missing; add "
+        "gzlite's shell-only verification workflow "
+        "(gzlite/resources/templates/verification/verify-python.yml)"
+    ]
+
+
+def _verification_pin(root: Path, ref: str) -> list[str]:
+    """The verification extra is pinned to the gzlite revision the lock records."""
+    text = _pyproject(root) or ""
+    return [
+        f"pyproject.toml pins gzlite[verification] at {sha}, but the adoption is freshened to "
+        f"{ref}; set that requirement to git+{cli.ORIGIN}@{ref} and run uv lock (freshen "
+        "never edits pyproject.toml; relocking needs the network)"
+        for sha in sorted({match[1].lower() for match in VERIFICATION_PIN.finditer(text)})
+        if sha != ref
+    ]
+
+
 DOCTRINE = (
-    Doctrine(
-        applies=lambda root: (root / "pyproject.toml").is_file(),
-        holds=lambda root: (root / WORKFLOW).is_file(),
-        finding=(
-            f"pyproject.toml makes this a Python project, but {WORKFLOW} is missing; add "
-            "gzlite's shell-only verification workflow "
-            "(gzlite/resources/templates/verification/verify-python.yml) and the "
-            "gzlite[verification] dev dependency so gzlite verify runs in CI"
-        ),
-        source="docs/decisions/ADR-0003-001-own-bootstrap-verification-in-the-starter.md",
-    ),
+    Doctrine(_verification_workflow, ADR_0003),
+    Doctrine(_verification_pin, ADR_0003),
 )
 
 
@@ -211,11 +235,8 @@ class _Builder(DriftBuilder[FreshenPlan]):
 
     def finish(self) -> None:
         plan = self.plan
-        candidates = {
-            name: payload
-            for name, payload in {**self.saved, **self.targets}.items()
-            if not self.unchanged(name, payload)
-        }
+        # A file equal to its target apart from line endings is present, not written.
+        candidates = {**self.saved, **self.targets}
         paths = {name: cli.check_path(self.root, name) for name in candidates}
         plan.writes, plan.before, _ = cli._plan_writes(paths, candidates, self.replaceable)
         plan.inputs = dict(self.reader.inputs)
@@ -244,19 +265,12 @@ class _Builder(DriftBuilder[FreshenPlan]):
         if plan.writes:
             plan.fingerprint = compute_fingerprint(plan.inputs, plan.fingerprinted())
 
-    def unchanged(self, name: str, payload: str) -> bool:
-        """A file whose text already equals ``payload`` apart from line endings."""
-        existing = self.reader.read(name)
-        if existing is None:
-            return False
-        return legacy.normalized(legacy.decode(name, existing)) == legacy.normalized(payload)
 
-
-def _doctrine(root: Path) -> list[dict[str, str]]:
+def _doctrine(root: Path, ref: str) -> list[dict[str, str]]:
     return [
-        {"finding": check.finding, "source": check.source}
-        for check in DOCTRINE
-        if check.applies(root) and not check.holds(root)
+        {"finding": text, "source": entry.source}
+        for entry in DOCTRINE
+        for text in entry.check(root, ref)
     ]
 
 
@@ -308,7 +322,7 @@ def plan_freshen(project: Path, ref: str) -> FreshenPlan:
     listed = {CARRIED_HOST.format(host=c.host, path=c.path) for c in configs}
     plan.carried = [item for item in plan.carried if item not in listed]
     builder.managed_targets(candidates, copies)
-    plan.doctrine = _doctrine(root)
+    plan.doctrine = _doctrine(root, ref)
     builder.finish()
     return plan
 
