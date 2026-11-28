@@ -9,6 +9,8 @@ BUNDLE_LOCK = f"{STATE_DIRECTORY}/bundle.lock.json"
 LOCAL_ADR_POLICY = f"{STATE_DIRECTORY}/architectural-decisions.md"
 STATE_SETTINGS = f"{STATE_DIRECTORY}/settings.toml"
 MIGRATED_DIRECTORY = f"{STATE_DIRECTORY}/migrated"
+# Files a change deletes wait here until it succeeds, so a rollback is a rename.
+STAGING_DIRECTORY = f"{STATE_DIRECTORY}/staging"
 LEGACY_DIRECTORIES = (".gz-starter", ".skills-first")
 _STATE_FILENAMES = tuple(
     Path(name).name for name in (BUNDLE_LOCK, LOCAL_ADR_POLICY, STATE_SETTINGS)
@@ -34,14 +36,36 @@ def _state_entry(root: Path, relative: str) -> int | None:
     return mode
 
 
-def validate_state_directory(root: Path, *, allow_legacy: bool = False) -> None:
+def refuse_staging(root: Path) -> None:
+    """Refuse a non-empty staging folder: originals a migration could not put back."""
+    if _state_entry(root, STAGING_DIRECTORY) is None:
+        return
+    staging = root / STAGING_DIRECTORY
+    if staging.is_dir() and not any(staging.iterdir()):
+        return
+    raise ValueError(
+        f"{STAGING_DIRECTORY}/ is not empty: a migration's rollback is incomplete. "
+        f"Restore the files by hand from {STAGING_DIRECTORY}/ (the originals) and "
+        f"{MIGRATED_DIRECTORY}/ (saved copies), then remove {STAGING_DIRECTORY}/; "
+        "if the migration had succeeded and only its cleanup failed, delete "
+        f"{STAGING_DIRECTORY}/ instead."
+    )
+
+
+def validate_state_directory(
+    root: Path, *, allow_legacy: bool = False, allow_staging: bool = False
+) -> None:
     """Reject unsafe or legacy state without reading state contents.
 
     Legacy folders are only reconciled by ``gzlite migrate``; every other
     command refuses them rather than guess which state is authoritative.
     ``migrate`` passes ``allow_legacy`` while it writes: legacy entries are
     still checked for links and readability, but their presence is accepted.
+    Staged originals are refused too (``refuse_staging``); only the writer that
+    staged them, still running, passes ``allow_staging``.
     """
+    if not allow_staging:
+        refuse_staging(root)
     legacy = []
     for directory in LEGACY_DIRECTORIES:
         root_mode = _state_entry(root, directory)

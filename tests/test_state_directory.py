@@ -88,6 +88,26 @@ class StateDirectoryTests(unittest.TestCase):
         self.assertEqual((current / MARKERS[0]).read_bytes(), b"current bytes")
         self.assertEqual((legacy / MARKERS[0]).read_bytes(), b"legacy bytes")
 
+    def test_staged_originals_block_every_command(self):
+        """Originals left in .gzlite/staging/ mean a migration rollback is incomplete."""
+        staged = self.root / ".gzlite/staging/.gz-starter"
+        staged.mkdir(parents=True)
+        (staged / MARKERS[0]).write_bytes(b"original lock")
+        for action in ("configure", "status", "localize", "verify"):
+            with self.subTest(action=action):
+                result = self.command(action)
+                self.assertNotEqual(result.returncode, 0, result.stdout)
+                self.assertIn("rollback is incomplete", result.stderr)
+                self.assertIn(".gzlite/staging/", result.stderr)
+                self.assertIn(".gzlite/migrated/", result.stderr)
+        self.assertEqual((staged / MARKERS[0]).read_bytes(), b"original lock")
+
+    def test_empty_staging_folder_is_not_refused(self):
+        from gzlite.paths import validate_state_directory
+
+        (self.root / ".gzlite/staging").mkdir(parents=True)
+        validate_state_directory(self.root)
+
     def test_current_state_directory_passes_validation(self):
         from gzlite.paths import LEGACY_DIRECTORIES, MIGRATED_DIRECTORY, validate_state_directory
 

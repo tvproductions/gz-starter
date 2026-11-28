@@ -33,9 +33,10 @@ def update_skill_path(host: str) -> str:
 
 # Project skill directories each host discovers. Claude reads .claude/skills and
 # Codex reads .agents/skills (docs/architecture.md). OpenCode reads .agents/skills
-# (docs/evidence/2026-10-31-three-host-repo-scope.md) and, by its Claude
-# compatibility, .claude/skills too; that second surface is not yet verified in
-# this repository's evidence, and is assumed so that no copy is duplicated.
+# (docs/evidence/2026-10-31-three-host-repo-scope.md) and .claude/skills: the
+# scoped launcher `gzlite run-opencode` adds both to OpenCode's skills setting
+# (src/gzlite/native_launch.py:39). A plain `opencode` launch reading
+# .claude/skills is unverified; it is assumed so that no copy is duplicated.
 SKILL_SURFACES = {
     "claude": (".claude/skills",),
     "codex": (".agents/skills",),

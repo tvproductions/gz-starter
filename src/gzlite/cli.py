@@ -38,7 +38,7 @@ from gzlite.native_scope import claude_scope, codex_scope, opencode_scope
 from gzlite.paths import (
     BUNDLE_LOCK,
     LOCAL_ADR_POLICY,
-    STATE_DIRECTORY,
+    STAGING_DIRECTORY,
     space_free,
     validate_state_directory,
 )
@@ -67,8 +67,6 @@ UPDATE_SKILL_SOURCE = f"templates/skills/{UPDATE_SKILL}/SKILL.md"
 UPDATE_SKILL_DESTINATION = f".agents/skills/{UPDATE_SKILL}/SKILL.md"
 ADR_POLICY_SOURCE = "docs/engineering/architectural-decisions.md"
 ADR_POLICY_DESTINATION = LOCAL_ADR_POLICY
-# Deleted files wait here until a change succeeds, so a rollback is a rename.
-STAGING_DIRECTORY = f"{STATE_DIRECTORY}/staging"
 # Top-level lock keys configure writes; any other key is project-owned and carried.
 MANAGED_LOCK_KEYS = frozenset({"schema_version", "starter", "components", "adr_policy", "host"})
 
@@ -540,7 +538,8 @@ def _apply_writes(
             if directory.is_symlink():
                 raise AdoptionError(f"refusing symlinked directory: {name}")
             os.rmdir(directory)
-        validate_state_directory(root)
+        # This call's own staged originals are still there until cleanup below.
+        validate_state_directory(root, allow_staging=True)
     except BaseException as error:
         problems = _roll_back(root, writes, before, completed, staged, created, keep, saved)
         if problems:

@@ -36,12 +36,15 @@ from gzlite.native import (
     update_skill_path,
     update_skill_placement,
 )
-from gzlite.paths import BUNDLE_LOCK, MIGRATED_DIRECTORY
+from gzlite.paths import BUNDLE_LOCK, MIGRATED_DIRECTORY, refuse_staging
 
 FINGERPRINT = re.compile(r"[0-9a-f]{64}\Z")
 FRAGMENT = "AGENTS.skills-first.md"
 PROFILE = ".gz-skills/settings.json"
 PYPROJECT = "pyproject.toml"
+# Why a file was saved under .gzlite/migrated/ (the "why" of each replaced item).
+EDITED = "edited"
+RECORD = "record"
 
 
 @dataclass
@@ -116,6 +119,7 @@ class _Builder:
         self.lock = lock
         self.root = plan.root
         self.placement: tuple[str, ...] = ()
+        self.working = ""  # the active ADR policy: local copy path or canonical URL
         self.saved: dict[str, str] = {}
         self.saved_from: dict[str, str] = {}
         self.host_candidates: dict[str, dict[str, str]] = {}
@@ -161,10 +165,13 @@ class _Builder:
 
     # Saving and retiring ------------------------------------------------------------
 
-    def save(
-        self, name: str, text: str, fate: str = "replaced", what: str = "locally edited"
-    ) -> None:
-        """Plan a copy of ``name`` under ``.gzlite/migrated/``; it is never undone."""
+    def save(self, name: str, text: str, fate: str = "replaced", why: str = EDITED) -> str:
+        """Plan a copy of ``name`` under ``.gzlite/migrated/``; it is never undone.
+
+        ``why`` is ``edited`` (the bytes differ from what the recorded commit
+        wrote, or it wrote no such file) or ``record`` (unchanged legacy state,
+        kept so the old lock's pins and keys stay readable).
+        """
         saved_to = f"{MIGRATED_DIRECTORY}/{name}"
         existing = self.reader.read(saved_to)
         if existing is not None and existing != text.encode():
@@ -173,28 +180,36 @@ class _Builder:
                 f"{saved_to} already holds a different saved copy; move it aside after "
                 f"review; {legacy.UNCHANGED}"
             )
+        what = "locally edited" if why == EDITED else "unchanged legacy state file"
         self.saved[saved_to] = text
         self.saved_from[name] = saved_to
         self.plan.reasons[saved_to] = f"saves the {what} {name} before it is {fate}"
-        self.plan.replaced.append({"path": name, "saved_to": saved_to})
+        self.plan.replaced.append({"path": name, "saved_to": saved_to, "why": why})
+        return saved_to
 
-    def retire(self, name: str, expected: str | None, reason: str, always: bool = False) -> None:
+    def retire(
+        self, name: str, expected: str | None, reason: str, record: bool = False
+    ) -> str | None:
         """Delete a file the old release owned, saving it when it differs from ``expected``.
 
-        ``always`` saves it regardless: legacy state is kept as a record (old
-        pins and starter keys that gzlite does not carry stay readable).
+        ``expected`` is None when the recorded commit wrote no such file. With
+        ``record`` an unchanged file is saved too, as a ``record``. Returns
+        the saved copy's path when the file counts as edited.
         """
         data = self.reader.read(name)
         if data is None:
-            return
+            return None
         text = legacy.decode(name, data)
-        if always:
-            self.save(name, text, "removed", "legacy state file")
-        elif expected is None or legacy.normalized(text) != legacy.normalized(expected):
-            self.save(name, text, "removed")
+        edited = expected is None or legacy.normalized(text) != legacy.normalized(expected)
+        saved = (
+            self.save(name, text, "removed", EDITED if edited else RECORD)
+            if edited or record
+            else None
+        )
         self.delete_bytes[name] = data
         self.plan.deletes.append(name)
         self.plan.reasons[name] = reason
+        return saved if edited else None
 
     def retire_tree(self, folder: str, expected: dict[str, str | None], reason: str) -> None:
         files, directories = legacy.tree(self.root, folder)
@@ -229,11 +244,29 @@ class _Builder:
             )
             self.retire_tree(folder, expected, why)
         # Every legacy file, the lock included, is saved before it is removed, so a
-        # failed rollback can never leave the adoption without any record.
+        # failed rollback can never leave the adoption without any record. Files
+        # with a template are still judged: an edited one is reported as edited.
         reason = f"gzlite {to} keeps starter state in .gzlite/"
+        lock_name = f"{state}/bundle.lock.json"
+        adr_name = f"{state}/{legacy.ADR_COPY}"
+        adr = legacy.adr_copy_template(self.release, state, self.lock.adr_mode)
         files, directories = legacy.tree(self.root, state)
         for name in files:
-            self.retire(name, None, reason, always=True)
+            if name == lock_name:
+                # Generated, not templated: kept as a record, its changes reported apart.
+                self.retire(name, legacy.decode(name, self.reader.read(name) or b""), reason, True)
+            elif name == adr_name and adr is not None:
+                saved = self.retire(name, adr, reason, record=True)
+                if saved is not None:
+                    self.plan.findings.append(
+                        f"{name} differs from the ADR policy {self.release.version} copied; its "
+                        f"local amendments were not carried into the active policy "
+                        f"{self.working}, which is the gzlite {to} copy; the amended copy is "
+                        f"saved at {saved}"
+                    )
+            else:
+                # configure never wrote it: project content, always edited.
+                self.retire(name, None, reason, record=True)
         # Removed last, after the skills: the legacy folder is the migration's marker.
         self.plan.directories += directories
         return [folder for folder, _ in trees]
@@ -348,8 +381,9 @@ class _Builder:
                 self.plan.findings.append(
                     f"{host} is expected to discover {cli.UPDATE_SKILL} at "
                     f"{', '.join(s for s in self.placement if s in SKILL_SURFACES[host])} "
-                    "(its compatibility surface); that discovery is not verified in gzlite's "
-                    "evidence"
+                    "(gzlite run-opencode adds that surface to its skills setting, "
+                    "src/gzlite/native_launch.py:39); a plain opencode launch reading it is "
+                    "unverified"
                 )
 
     def pyproject(self) -> None:
@@ -383,7 +417,7 @@ class _Builder:
         plan.writes, plan.before, _ = cli._plan_writes(paths, candidates, replaceable)
         plan.before.update(self.delete_bytes)
         plan.inputs = dict(self.reader.inputs)
-        if plan.replaced:
+        if any(item["why"] == EDITED for item in plan.replaced):
             plan.next.insert(
                 0,
                 f"Review each file saved under {MIGRATED_DIRECTORY}/; carry any wanted local "
@@ -419,13 +453,8 @@ def plan_migration(project: Path, ref: str) -> MigrationPlan:
         )
     root = cli._adoption_root(project)
     legacy.refuse_go_project(root)
-    staging = root / cli.STAGING_DIRECTORY
-    if os.path.lexists(staging):
-        # Only an incomplete rollback (or a failed cleanup) leaves staged originals.
-        raise cli.AdoptionError(
-            f"{cli.STAGING_DIRECTORY}/ holds originals from an interrupted migration; restore "
-            f"or delete them by hand first; {legacy.UNCHANGED}"
-        )
+    # Only an incomplete rollback (or a failed cleanup) leaves staged originals.
+    refuse_staging(root)
     state = legacy.legacy_directory(root)
     if state is None:
         empty = [name for name in legacy.LEGACY_DIRECTORIES if (root / name).is_dir()]
@@ -469,6 +498,7 @@ def plan_migration(project: Path, ref: str) -> MigrationPlan:
     if "claude" in hosts:
         builder.claude_local_check()
     policy, copies, working = cli._policy_candidates(root, ref, lock.adr_mode)
+    builder.working = working
     retired = builder.retire_old_state(state, hosts)
     builder.placement = update_skill_placement(hosts, lock.host)
     cli._check_discovery(root, lock.host, skip=frozenset(retired), allowed=builder.placement)

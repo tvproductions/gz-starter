@@ -86,8 +86,8 @@ class MigrateCase(unittest.TestCase):
 
     @staticmethod
     def edits(planned: dict) -> list[dict]:
-        """Saved copies other than legacy state, which is always saved as a record."""
-        return [i for i in planned["replaced"] if i["path"].split("/")[0] not in LEGACY]
+        """Saved copies that hold local edits (not unchanged legacy records)."""
+        return [i for i in planned["replaced"] if i["why"] == "edited"]
 
     def saved_copies(self, root: Path | None = None) -> dict[str, bytes]:
         root = root or self.root
@@ -127,7 +127,12 @@ class EveryReleaseTests(MigrateCase):
         self.assertEqual(planned["from_version"], release.version)
         self.assertEqual(planned["from_revision"], release.revision)
         self.assertEqual(planned["to_version"], "0.14.0")
-        self.assertEqual(self.edits(planned), [])
+        # Nothing configure wrote counts as edited, legacy state included; every
+        # legacy file is saved as a record, and nothing else is saved.
+        self.assertEqual([i for i in planned["replaced"] if i["why"] != "record"], [])
+        self.assertEqual(sorted(i["path"] for i in planned["replaced"]), sorted(legacy_files))
+        self.assertFalse([n for n in planned["next"] if n.startswith("Review each file saved")])
+        self.assertFalse([f for f in planned["findings"] if "local amendments" in f])
         self.assertTrue([f for f in planned["findings"] if "component pins move" in f])
         self.assertFalse([f for f in planned["findings"] if "never a tagged release" in f])
         written = [item["path"] for item in planned["writes"]]
@@ -293,6 +298,7 @@ class DriftTests(MigrateCase):
                 {
                     "path": "AGENTS.skills-first.md",
                     "saved_to": ".gzlite/migrated/AGENTS.skills-first.md",
+                    "why": "edited",
                 }
             ],
         )
@@ -324,7 +330,11 @@ class DriftTests(MigrateCase):
         planned = self.preview()
         saved = ".gzlite/migrated/.agents/skills/update-gz-template/SKILL.md"
         self.assertIn(
-            {"path": ".agents/skills/update-gz-template/SKILL.md", "saved_to": saved},
+            {
+                "path": ".agents/skills/update-gz-template/SKILL.md",
+                "saved_to": saved,
+                "why": "edited",
+            },
             planned["replaced"],
         )
         self.apply()
@@ -337,7 +347,11 @@ class DriftTests(MigrateCase):
         (self.root / ".gz-starter/notes.md").write_text("project notes\n")
         planned = self.preview()
         self.assertIn(
-            {"path": ".gz-starter/notes.md", "saved_to": ".gzlite/migrated/.gz-starter/notes.md"},
+            {
+                "path": ".gz-starter/notes.md",
+                "saved_to": ".gzlite/migrated/.gz-starter/notes.md",
+                "why": "edited",
+            },
             planned["replaced"],
         )
         self.apply()
@@ -357,7 +371,11 @@ class DriftTests(MigrateCase):
         config.write_text(original)
         planned = self.preview()
         self.assertIn(
-            {"path": ".codex/config.toml", "saved_to": ".gzlite/migrated/.codex/config.toml"},
+            {
+                "path": ".codex/config.toml",
+                "saved_to": ".gzlite/migrated/.codex/config.toml",
+                "why": "edited",
+            },
             planned["replaced"],
         )
         self.assertTrue([f for f in planned["findings"] if ".codex/config.toml" in f])
@@ -461,7 +479,11 @@ class DriftTests(MigrateCase):
         opencode.write_text(original)
         planned = self.preview()
         self.assertIn(
-            {"path": "opencode.json", "saved_to": ".gzlite/migrated/opencode.json"},
+            {
+                "path": "opencode.json",
+                "saved_to": ".gzlite/migrated/opencode.json",
+                "why": "edited",
+            },
             self.edits(planned),
         )
         self.apply()
@@ -481,7 +503,11 @@ class DriftTests(MigrateCase):
         config.write_text(original)
         planned = self.preview()
         self.assertIn(
-            {"path": ".codex/config.toml", "saved_to": ".gzlite/migrated/.codex/config.toml"},
+            {
+                "path": ".codex/config.toml",
+                "saved_to": ".gzlite/migrated/.codex/config.toml",
+                "why": "edited",
+            },
             self.edits(planned),
         )
         self.apply()
@@ -572,7 +598,11 @@ class DriftTests(MigrateCase):
         config.write_text(original)
         planned = self.preview()
         self.assertIn(
-            {"path": ".codex/config.toml", "saved_to": ".gzlite/migrated/.codex/config.toml"},
+            {
+                "path": ".codex/config.toml",
+                "saved_to": ".gzlite/migrated/.codex/config.toml",
+                "why": "edited",
+            },
             planned["replaced"],
         )
         self.assertTrue([f for f in planned["findings"] if "superpowers@fixture-local" in f])
@@ -597,15 +627,39 @@ class DriftTests(MigrateCase):
         planned = self.preview()
         saved = ".gzlite/migrated/.gz-starter/architectural-decisions.md"
         self.assertIn(
-            {"path": ".gz-starter/architectural-decisions.md", "saved_to": saved},
+            {"path": ".gz-starter/architectural-decisions.md", "saved_to": saved, "why": "edited"},
             planned["replaced"],
         )
+        notes = [f for f in planned["findings"] if "local amendments were not carried" in f]
+        self.assertEqual(len(notes), 1)
+        self.assertIn(".gzlite/architectural-decisions.md", notes[0])
+        self.assertIn(saved, notes[0])
+        self.assertTrue([n for n in planned["next"] if n.startswith("Review each file saved")])
         self.apply()
         self.assertTrue((self.root / saved).read_text().endswith("Local amendment.\n"))
         self.assertEqual(
             (self.root / ".gzlite/architectural-decisions.md").read_bytes(),
             (cli.HERE / cli.ADR_POLICY_SOURCE).read_bytes(),
         )
+
+    def test_unedited_local_adr_policy_copy_is_a_record(self):
+        release = tagged("0.13.0")
+        render_adopter(self.root, release, "codex", mode="local")
+        # A CRLF checkout of the untouched copy is still unedited.
+        copy = self.root / ".gz-starter/architectural-decisions.md"
+        copy.write_bytes(copy.read_bytes().replace(b"\n", b"\r\n"))
+        planned = self.preview()
+        self.assertIn(
+            {
+                "path": ".gz-starter/architectural-decisions.md",
+                "saved_to": ".gzlite/migrated/.gz-starter/architectural-decisions.md",
+                "why": "record",
+            },
+            planned["replaced"],
+        )
+        self.assertFalse([f for f in planned["findings"] if "local amendments" in f])
+        self.assertEqual(self.edits(planned), [])
+        self.assertFalse([n for n in planned["next"] if n.startswith("Review each file saved")])
 
     def test_claude_local_activation_of_the_old_catalog_is_refused(self):
         release = tagged("0.13.0")
@@ -725,8 +779,19 @@ class FingerprintAndRerunTests(MigrateCase):
             (self.root / ".gzlite/staging/.gz-starter/bundle.lock.json").read_bytes(), lock_bytes
         )
         self.assertTrue((self.root / ".gzlite/bundle.lock.json").is_file())
-        # Nothing is retried blindly: the staging leftovers block a new migrate.
-        self.refused()
+        # Nothing is retried blindly: the staging leftovers block a new migrate,
+        # and every other command that validates the state folder.
+        self.assertIn("rollback is incomplete", self.refused())
+        for command in (
+            lambda: cli.status(self.root),
+            lambda: cli.configure(self.root, REF),
+            lambda: cli.localize(self.root, REF, host="codex"),
+        ):
+            with self.assertRaises(ValueError) as caught:
+                command()
+            self.assertIn("rollback is incomplete", str(caught.exception))
+            self.assertIn(".gzlite/staging/", str(caught.exception))
+            self.assertIn(".gzlite/migrated/", str(caught.exception))
 
     def test_failing_status_after_apply_is_a_finding(self):
         planned = self.preview()
