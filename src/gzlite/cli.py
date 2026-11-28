@@ -16,10 +16,12 @@ import subprocess
 import sys
 import tempfile
 import tomllib
+from collections.abc import Collection, Mapping
 from pathlib import Path
 
 from gzlite import catalog as catalog_commands
 from gzlite import vendor as vendor_commands
+from gzlite.gitenv import clean_git_env
 from gzlite.native import (
     HOST_PATHS,
     configuration_path,
@@ -60,6 +62,8 @@ UPDATE_SKILL_SOURCE = f"templates/skills/{UPDATE_SKILL}/SKILL.md"
 UPDATE_SKILL_DESTINATION = f".agents/skills/{UPDATE_SKILL}/SKILL.md"
 ADR_POLICY_SOURCE = "docs/engineering/architectural-decisions.md"
 ADR_POLICY_DESTINATION = LOCAL_ADR_POLICY
+# Top-level lock keys configure writes; any other key is project-owned and carried.
+MANAGED_LOCK_KEYS = frozenset({"schema_version", "starter", "components", "adr_policy", "host"})
 
 
 class AdoptionError(Exception):
@@ -237,8 +241,11 @@ def _check_discovery_entry(
         )
 
 
-def _check_discovery(root: Path, host: str = "codex") -> None:
-    """Inspect all supported discovery surfaces without mutating their contents."""
+def _check_discovery(root: Path, host: str = "codex", skip: Collection[str] = frozenset()) -> None:
+    """Inspect all supported discovery surfaces without mutating their contents.
+
+    ``skip`` names skill directories (``<surface>/<name>``) the caller removes.
+    """
     owned_surface = Path(update_skill_path(host)).parent.parent.as_posix()
     for surface in (
         ".agents/skills",
@@ -253,7 +260,8 @@ def _check_discovery(root: Path, host: str = "codex") -> None:
         if folder.is_dir():
             for child in folder.iterdir():
                 space_free(child)
-                _check_discovery_entry(surface, child, owned_surface)
+                if f"{surface}/{child.name}" not in skip:
+                    _check_discovery_entry(surface, child, owned_surface)
 
 
 def _policy_candidates(
@@ -292,6 +300,13 @@ def _adr_policy_url(ref: str) -> str:
     return f"{ORIGIN.removesuffix('.git')}/blob/{ref}/{ADR_POLICY_SOURCE}"
 
 
+def lock_extras(lock: object) -> dict:
+    """Return the lock's project-owned top-level keys, in their recorded order."""
+    if not isinstance(lock, dict):
+        return {}
+    return {key: value for key, value in lock.items() if key not in MANAGED_LOCK_KEYS}
+
+
 def _configuration_candidates(
     paths: dict[str, Path],
     ref: str,
@@ -299,14 +314,22 @@ def _configuration_candidates(
     *,
     policy: dict[str, str],
     working_policy: str,
+    old_config: str | None = None,
+    carried: Mapping[str, object] | None = None,
 ) -> tuple[dict[str, str], dict]:
-    """Prepare managed payloads without writing or changing existing authorities."""
+    """Prepare managed payloads without writing or changing existing authorities.
+
+    ``old_config`` replaces the host configuration read from disk (``migrate``
+    passes a copy with earlier starter entries already retired). ``carried``
+    holds project-owned lock keys, written after the managed ones.
+    """
     config_path = "opencode.jsonc" if "opencode.jsonc" in paths else HOST_PATHS[host]
-    old_config = (
-        paths[config_path].read_text(encoding="utf-8", newline="")
-        if paths[config_path].exists()
-        else ""
-    )
+    if old_config is None:
+        old_config = (
+            paths[config_path].read_text(encoding="utf-8", newline="")
+            if paths[config_path].exists()
+            else ""
+        )
     fragment = space_free(HERE / "templates/AGENTS.skills-first.md").read_text(encoding="utf-8")
     policy_url = _adr_policy_url(ref)
     fragment = fragment.replace("{{ADR_POLICY_WORKING_SOURCE}}", working_policy).replace(
@@ -320,6 +343,7 @@ def _configuration_candidates(
     }
     if host != "codex":
         lock["host"] = host
+    lock.update({key: value for key, value in (carried or {}).items() if key not in lock})
     config = (
         project_config(old_config, ref)
         if host == "codex"
@@ -340,9 +364,13 @@ def _configuration_candidates(
 
 
 def _plan_writes(
-    paths: dict[str, Path], candidates: dict[str, str]
+    paths: dict[str, Path], candidates: dict[str, str], replaceable: Collection[str] = ()
 ) -> tuple[dict[str, str], dict[str, bytes | None], list[str]]:
-    """Check every candidate and capture rollback bytes before any write."""
+    """Check every candidate and capture rollback bytes before any write.
+
+    Host configuration is merged, so it may differ; ``replaceable`` names other
+    files the caller has reviewed and may overwrite (``migrate`` saves them first).
+    """
     writes, before, present = {}, {}, []
     for name, payload in candidates.items():
         path = paths[name]
@@ -350,7 +378,11 @@ def _plan_writes(
         before[name] = current
         if current == payload.encode():
             present.append(name)
-        elif current is not None and name not in (*HOST_PATHS.values(), "opencode.jsonc"):
+        elif current is not None and name not in (
+            *HOST_PATHS.values(),
+            "opencode.jsonc",
+            *replaceable,
+        ):
             raise AdoptionError(
                 f"{name} differs from the reviewed template; reconcile without overwriting"
             )
@@ -392,15 +424,38 @@ def _write_candidate(path: Path, payload: str, current: bytes | None) -> None:
         temp.unlink(missing_ok=True)
 
 
+def _missing_parents(root: Path, names: Collection[str]) -> list[Path]:
+    """List the directories the writes will create, outermost first."""
+    missing: list[Path] = []
+    for name in names:
+        for parent in reversed(Path(name).parents[:-1]):
+            directory = root / parent
+            if directory not in missing and not directory.exists():
+                missing.append(directory)
+    return missing
+
+
 def _apply_writes(
     root: Path,
     paths: dict[str, Path],
     writes: dict[str, str],
     before: dict[str, bytes | None],
+    *,
+    deletes: Collection[str] = (),
+    directories: Collection[str] = (),
+    allow_legacy: bool = False,
 ) -> None:
-    """Recheck each destination and roll completed writes back on failure."""
-    validate_state_directory(root)
-    completed = []
+    """Recheck each destination and roll completed writes back on failure.
+
+    After the writes, each of ``deletes`` is removed if it still holds its
+    ``before`` bytes, then each of ``directories`` in the given order (each must
+    be empty by then). The state folder must be valid at the end, with no
+    legacy state left. Any failure restores removed files, then undoes the
+    writes and removes the directories the writes created.
+    """
+    validate_state_directory(root, allow_legacy=allow_legacy)
+    created = _missing_parents(root, writes)
+    completed, removed = [], []
     try:
         for name, payload in writes.items():
             path = check_path(root, name)
@@ -409,8 +464,29 @@ def _apply_writes(
                 raise AdoptionError(f"{name} changed during preview; retry after review")
             _write_candidate(path, payload, current)
             completed.append(name)
+        for name in deletes:
+            path = check_path(root, name)
+            if not path.exists() or path.read_bytes() != before[name]:
+                raise AdoptionError(f"{name} changed during preview; retry after review")
+            path.unlink()
+            removed.append(name)
+        for name in directories:
+            directory = space_free(root / name)
+            if directory.is_symlink():
+                raise AdoptionError(f"refusing symlinked directory: {name}")
+            os.rmdir(directory)
         validate_state_directory(root)
     except BaseException:
+        for name in reversed(removed):
+            original = before[name]
+            try:
+                path = check_path(root, name)
+                if path.exists() or original is None:
+                    continue
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(original)
+            except AdoptionError, OSError, ValueError:
+                continue
         for name in reversed(completed):
             try:
                 path = check_path(root, name)
@@ -423,6 +499,11 @@ def _apply_writes(
                 path.unlink()
             else:
                 path.write_bytes(original)
+        for directory in reversed(created):
+            try:
+                directory.rmdir()
+            except OSError:
+                continue
         raise
 
 
@@ -472,8 +553,10 @@ def configure(
     }
     profile_check(paths[".gz-skills/settings.json"])
     paths.update({name: check_path(root, name) for name in copies})
+    recorded = paths[BUNDLE_LOCK]
+    carried = lock_extras(json.loads(recorded.read_bytes())) if recorded.exists() else {}
     candidates, lock = _configuration_candidates(
-        paths, ref, host, policy=policy, working_policy=working_policy
+        paths, ref, host, policy=policy, working_policy=working_policy, carried=carried
     )
     candidates.update(copies)
     writes, before, present = _plan_writes(paths, candidates)
@@ -654,13 +737,16 @@ def source_revision() -> str:
     """Default only to this clean starter checkout, never a parent app's HEAD."""
 
     def git(*args: str) -> str:
+        # Hook-exported GIT_* variables would redirect this to another repository.
         return subprocess.run(
             ["git", "-C", str(HERE), *args],
             check=True,
             capture_output=True,
             text=True,
             encoding="utf-8",
-            errors="strict",
+            errors="replace",
+            cwd=HERE,
+            env=clean_git_env(),
         ).stdout.strip()
 
     if Path(git("rev-parse", "--show-toplevel")).resolve() != HERE:
@@ -791,6 +877,17 @@ def main(argv: list[str] | None = None) -> int:
     localize_parser.add_argument("--host", choices=tuple(HOST_PATHS), required=True)
     localize_parser.add_argument("--starter-ref", required=True)
     localize_parser.add_argument("--apply", action="store_true")
+    migrate_parser = sub.add_parser(
+        "migrate",
+        help="preview moving legacy gz-starter or skills-first state into gzlite; "
+        "--apply --fingerprint writes the reviewed plan",
+    )
+    migrate_parser.add_argument("--project", type=Path, required=True)
+    migrate_parser.add_argument(
+        "--starter-ref", help="full published gzlite SHA; defaults to this checkout HEAD"
+    )
+    migrate_parser.add_argument("--apply", action="store_true")
+    migrate_parser.add_argument("--fingerprint", help="the fingerprint of the reviewed preview")
     launch_parser = sub.add_parser(
         "run-opencode", help="run a private OpenCode server with project-only plugin selection"
     )
@@ -884,6 +981,16 @@ def main(argv: list[str] | None = None) -> int:
             )
         elif args.command == "localize":
             result = localize(args.project, args.starter_ref, host=args.host, apply=args.apply)
+        elif args.command == "migrate":
+            # Imported here: migrate builds on this module's configure machinery.
+            from gzlite.migrate import migrate
+
+            result = migrate(
+                args.project,
+                apply=args.apply,
+                fingerprint=args.fingerprint,
+                ref=args.starter_ref or source_revision(),
+            )
         elif args.command == "backport":
             result = backport(args.project)
         elif args.command == "status":

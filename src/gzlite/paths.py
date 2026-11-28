@@ -34,11 +34,13 @@ def _state_entry(root: Path, relative: str) -> int | None:
     return mode
 
 
-def validate_state_directory(root: Path) -> None:
+def validate_state_directory(root: Path, *, allow_legacy: bool = False) -> None:
     """Reject unsafe or legacy state without reading state contents.
 
     Legacy folders are only reconciled by ``gzlite migrate``; every other
     command refuses them rather than guess which state is authoritative.
+    ``migrate`` passes ``allow_legacy`` while it writes: legacy entries are
+    still checked for links and readability, but their presence is accepted.
     """
     legacy = []
     for directory in LEGACY_DIRECTORIES:
@@ -51,7 +53,7 @@ def validate_state_directory(root: Path) -> None:
             relative = f"{directory}/{name}"
             if _state_entry(root, relative) is not None:
                 legacy.append(relative)
-    if legacy:
+    if legacy and not allow_legacy:
         raise ValueError(
             f"starter state migration required: {', '.join(legacy)}; "
             "run gzlite migrate before retrying."

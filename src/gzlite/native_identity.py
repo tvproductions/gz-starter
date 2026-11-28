@@ -68,15 +68,19 @@ def _claude_entry_is_starter(entry: object) -> bool:
     )
 
 
-def _owned_earlier(marketplaces: object, current: str, is_starter) -> set[str]:
-    """Name earlier starter marketplaces declared here; refuse any that differ."""
+def _owned_earlier(marketplaces: object, current: str, is_starter, strict: bool = True) -> set[str]:
+    """Name earlier starter marketplaces declared here; refuse any that differ.
+
+    With ``strict`` false every earlier starter name is owned whatever its
+    content; ``migrate`` saves the original file before it retires them.
+    """
     owned = set()
     if not isinstance(marketplaces, dict):
         return owned
     for name, entry in marketplaces.items():
         if not _retired(name, current):
             continue
-        if not is_starter(entry):
+        if strict and not is_starter(entry):
             raise ValueError(
                 f"earlier starter marketplace {name} differs from what the starter wrote; "
                 "reconcile it first; no files changed"
@@ -85,7 +89,9 @@ def _owned_earlier(marketplaces: object, current: str, is_starter) -> set[str]:
     return owned
 
 
-def _retirable_plugins(plugins: object, owned: set[str], parts: list[dict]) -> set[str]:
+def _retirable_plugins(
+    plugins: object, owned: set[str], parts: list[dict], strict: bool = True
+) -> set[str]:
     """Select activations of the retired marketplaces; refuse non-default choices.
 
     Activations naming an earlier starter marketplace that this file does not
@@ -103,7 +109,7 @@ def _retirable_plugins(plugins: object, owned: set[str], parts: list[dict]) -> s
         # Codex writes a table holding only "enabled"; Claude writes the bare boolean.
         if isinstance(value, dict) and set(value) == {"enabled"}:
             value = value["enabled"]
-        if value is not defaults[name]:
+        if strict and value is not defaults[name]:
             raise ValueError(
                 f"{identity} differs from the starter default; reconcile it first; no files changed"
             )
@@ -125,14 +131,18 @@ def _header(line: str) -> tuple[str, str] | None:
     return group, next(iter(data[group]))
 
 
-def retire_codex(text: str, current: str, parts: list[dict]) -> str:
-    """Remove earlier starter tables that hold only starter-written values."""
+def retire_codex(text: str, current: str, parts: list[dict], *, strict: bool = True) -> str:
+    """Remove earlier starter tables that hold only starter-written values.
+
+    With ``strict`` false the earlier starter tables are removed even when
+    their values differ from what the starter wrote.
+    """
     data = tomllib.loads(text)
-    owned = _owned_earlier(data.get("marketplaces", {}), current, _codex_entry_is_starter)
+    owned = _owned_earlier(data.get("marketplaces", {}), current, _codex_entry_is_starter, strict)
     doomed = {("marketplaces", name) for name in owned}
     doomed |= {
         ("plugins", identity)
-        for identity in _retirable_plugins(data.get("plugins", {}), owned, parts)
+        for identity in _retirable_plugins(data.get("plugins", {}), owned, parts, strict)
     }
     if not doomed:
         return text
@@ -154,12 +164,15 @@ def retire_codex(text: str, current: str, parts: list[dict]) -> str:
     return result
 
 
-def retire_claude(data: dict, current: str, parts: list[dict]) -> None:
-    """Drop earlier starter entries from Claude settings in place."""
+def retire_claude(data: dict, current: str, parts: list[dict], *, strict: bool = True) -> None:
+    """Drop earlier starter entries from Claude settings in place.
+
+    ``strict`` has the same meaning as for ``retire_codex``.
+    """
     known = data.get("extraKnownMarketplaces")
-    owned = _owned_earlier(known, current, _claude_entry_is_starter)
+    owned = _owned_earlier(known, current, _claude_entry_is_starter, strict)
     plugins = data.get("enabledPlugins")
-    for identity in _retirable_plugins(plugins, owned, parts):
+    for identity in _retirable_plugins(plugins, owned, parts, strict):
         if isinstance(plugins, dict):
             del plugins[identity]
     for name in owned:
