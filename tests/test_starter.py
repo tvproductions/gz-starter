@@ -7,7 +7,9 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from skills_first_starter import cli as starter
+from fixtures_adopters import assume_published_release
+
+from gzlite import cli as starter
 
 MODULE = Path(__file__).parents[1] / "starter.py"
 REF = "a" * 40
@@ -15,6 +17,7 @@ REF = "a" * 40
 
 class AdoptionTests(unittest.TestCase):
     def setUp(self):
+        assume_published_release(self)
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name).resolve()
         self.addCleanup(self.temp.cleanup)
@@ -57,6 +60,22 @@ class AdoptionTests(unittest.TestCase):
         }
         self.assertEqual(before, after)
         self.assertEqual(result["writes"], [])
+
+    def test_crlf_only_difference_is_neither_rewritten_nor_refused(self):
+        self.configure(True)
+        for path in self.root.rglob("*"):
+            if path.is_file():
+                path.write_bytes(path.read_bytes().replace(b"\n", b"\r\n"))
+        before = {
+            p.relative_to(self.root): p.read_bytes() for p in self.root.rglob("*") if p.is_file()
+        }
+        result = self.configure(True)
+        after = {
+            p.relative_to(self.root): p.read_bytes() for p in self.root.rglob("*") if p.is_file()
+        }
+        self.assertEqual(result["writes"], [])
+        self.assertEqual(before, after)
+        self.assertEqual(starter.status(self.root)["status"], "configured")
 
     def test_preserves_existing_instructions_and_config(self):
         (self.root / "AGENTS.md").write_text("Existing project authority.\n")
@@ -121,10 +140,10 @@ class AdoptionTests(unittest.TestCase):
     def test_conflict_blocks_all_writes(self):
         (self.root / ".codex").mkdir()
         p = self.root / ".codex/config.toml"
-        p.write_text('[plugins."gz-skills@gz-starter-0-13-0"]\nenabled = false\n')
+        p.write_text('[plugins."gz-skills@gzlite-0-14-0"]\nenabled = false\n')
         with self.assertRaises(starter.AdoptionError):
             self.configure(True)
-        self.assertFalse((self.root / ".gz-starter").exists())
+        self.assertFalse((self.root / ".gzlite").exists())
         self.assertFalse((self.root / "AGENTS.md").exists())
         self.assertIn("false", p.read_text())
 
@@ -141,7 +160,7 @@ class AdoptionTests(unittest.TestCase):
             self.configure(True)
         self.assertEqual(config.read_bytes(), original)
         self.assertEqual(list(folder.iterdir()), [config])
-        self.assertFalse((self.root / ".gz-starter").exists())
+        self.assertFalse((self.root / ".gzlite").exists())
 
     def test_later_write_failure_rolls_back_created_and_replaced_files(self):
         for existing in (False, True):
@@ -155,7 +174,7 @@ class AdoptionTests(unittest.TestCase):
                 open_path = Path.open
 
                 def fail_lock(path, *args, root=root, open_path=open_path, **kwargs):
-                    if path == root / ".gz-starter/bundle.lock.json" and args == ("xb",):
+                    if path == root / ".gzlite/bundle.lock.json" and args == ("xb",):
                         raise OSError("fixture lock failure")
                     return open_path(path, *args, **kwargs)
 
@@ -174,7 +193,7 @@ class AdoptionTests(unittest.TestCase):
         config.parent.mkdir()
         original = b'model = "fixture"\r\n'
         config.write_bytes(original)
-        lock = self.root / ".gz-starter/bundle.lock.json"
+        lock = self.root / ".gzlite/bundle.lock.json"
         concurrent = b"Concurrent fixture record.\n"
         replace_file = os.replace
 
@@ -270,19 +289,19 @@ class AdoptionTests(unittest.TestCase):
     def test_backplane_is_pinned_but_disabled(self):
         self.configure(True)
         data = tomllib.loads((self.root / ".codex/config.toml").read_text())
-        self.assertIs(data["plugins"]["superpowers-backplane@gz-starter-0-13-0"]["enabled"], False)
-        self.assertIs(data["plugins"]["superpowers@gz-starter-0-13-0"]["enabled"], True)
-        self.assertIs(data["plugins"]["gz-skills@gz-starter-0-13-0"]["enabled"], True)
+        self.assertIs(data["plugins"]["superpowers-backplane@gzlite-0-14-0"]["enabled"], False)
+        self.assertIs(data["plugins"]["superpowers@gzlite-0-14-0"]["enabled"], True)
+        self.assertIs(data["plugins"]["gz-skills@gzlite-0-14-0"]["enabled"], True)
 
     def test_active_backplane_is_not_silently_disabled(self):
         (self.root / ".codex").mkdir()
         p = self.root / ".codex/config.toml"
-        original = '[plugins."superpowers-backplane@gz-starter-0-13-0"]\nenabled = true\n'
+        original = '[plugins."superpowers-backplane@gzlite-0-14-0"]\nenabled = true\n'
         p.write_text(original)
         with self.assertRaises(starter.AdoptionError):
             self.configure(True)
         self.assertEqual(p.read_text(), original)
-        self.assertFalse((self.root / ".gz-starter").exists())
+        self.assertFalse((self.root / ".gzlite").exists())
 
     def test_adoption_seeds_only_the_canonical_template_update_skill(self):
         result = self.configure(True)
@@ -290,7 +309,7 @@ class AdoptionTests(unittest.TestCase):
             set(result["writes"]),
             {
                 ".codex/config.toml",
-                ".gz-starter/bundle.lock.json",
+                ".gzlite/bundle.lock.json",
                 "AGENTS.skills-first.md",
                 "AGENTS.md",
                 starter.UPDATE_SKILL_DESTINATION,
@@ -435,7 +454,7 @@ class AdoptionTests(unittest.TestCase):
             },
             {
                 starter.UPDATE_SKILL_SOURCE,
-                f"src/skills_first_starter/resources/{starter.UPDATE_SKILL_SOURCE}",
+                f"src/gzlite/resources/{starter.UPDATE_SKILL_SOURCE}",
             },
         )
 
@@ -463,6 +482,9 @@ class AdoptionTests(unittest.TestCase):
 
     def test_source_revision_recognizes_legacy_and_canonical_starter_origins(self):
         origins = (
+            "https://github.com/tvproductions/gzlite.git",
+            "https://github.com/tvproductions/gzlite",
+            "git@github.com:tvproductions/gzlite.git",
             "https://github.com/tvproductions/gz-starter.git",
             "https://github.com/tvproductions/gz-starter",
             "git@github.com:tvproductions/gz-starter.git",
@@ -502,17 +524,29 @@ class AdoptionTests(unittest.TestCase):
     def test_adoption_records_canonical_starter_repository(self):
         self.configure(True)
         config = tomllib.loads((self.root / ".codex/config.toml").read_text())
-        lock = json.loads((self.root / ".gz-starter/bundle.lock.json").read_bytes())
-        canonical = "https://github.com/tvproductions/gz-starter.git"
-        self.assertEqual(config["marketplaces"]["gz-starter-0-13-0"]["source"], canonical)
+        lock = json.loads((self.root / ".gzlite/bundle.lock.json").read_bytes())
+        canonical = "https://github.com/tvproductions/gzlite.git"
+        self.assertEqual(config["marketplaces"]["gzlite-0-14-0"]["source"], canonical)
         self.assertEqual(lock["starter"]["repository"], canonical)
+
+    def test_console_scripts_are_gzlite_with_bridge_aliases(self):
+        metadata = tomllib.loads((MODULE.parent / "pyproject.toml").read_text(encoding="utf-8"))
+        self.assertEqual(metadata["project"]["name"], "gzlite")
+        self.assertEqual(
+            metadata["project"]["scripts"],
+            {
+                "gzlite": "gzlite.cli:main",
+                "gz-starter": "gzlite.cli:main",
+                "skills-first-starter": "gzlite.cli:main",
+            },
+        )
 
     def test_adoption_records_template_version_and_exact_revision(self):
         metadata = tomllib.loads((MODULE.parent / "pyproject.toml").read_text(encoding="utf-8"))
         app_metadata = b'[project]\nname = "fixture-app"\nversion = "7.3.2"\n'
         (self.root / "pyproject.toml").write_bytes(app_metadata)
         result = self.configure(True)
-        lock = json.loads((self.root / ".gz-starter/bundle.lock.json").read_bytes())
+        lock = json.loads((self.root / ".gzlite/bundle.lock.json").read_bytes())
         self.assertEqual(lock["starter"]["version"], starter.bundle()["template_version"])
         self.assertEqual(lock["starter"]["version"], metadata["project"]["version"])
         self.assertEqual(lock["starter"]["revision"], REF)
@@ -535,7 +569,7 @@ class AdoptionTests(unittest.TestCase):
 
     def test_legacy_unversioned_lock_requires_review_and_is_preserved(self):
         self.configure(True)
-        path = self.root / ".gz-starter/bundle.lock.json"
+        path = self.root / ".gzlite/bundle.lock.json"
         lock = json.loads(path.read_bytes())
         del lock["starter"]["version"]
         original = (json.dumps(lock, indent=2) + "\n").encode("utf-8")
@@ -561,6 +595,56 @@ class AdoptionTests(unittest.TestCase):
     def test_moving_starter_ref_is_rejected(self):
         with self.assertRaises(starter.AdoptionError):
             starter.configure(self.root, "main", apply=True)
+
+
+class CarriedLockKeyTests(unittest.TestCase):
+    """configure keeps project-owned top-level lock keys and says so."""
+
+    def setUp(self):
+        assume_published_release(self)
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        self.root = Path(temp.name).resolve()
+        inherited = mock.patch.object(starter, "_inherited_plugins", return_value={})
+        inherited.start()
+        self.addCleanup(inherited.stop)
+        starter.configure(self.root, REF, apply=True)
+        self.lock = self.root / ".gzlite/bundle.lock.json"
+
+    def edit(self, change) -> None:
+        data = json.loads(self.lock.read_bytes())
+        change(data)
+        # Bytes, as configure writes them: write_text would add CR on Windows.
+        self.lock.write_bytes((json.dumps(data, indent=2) + "\n").encode())
+
+    def test_fresh_adoption_carries_nothing(self):
+        self.assertEqual(starter.configure(self.root, REF)["carried_lock_keys"], [])
+
+    def test_extra_top_level_key_is_carried_and_reported(self):
+        catalog = {"name": "fixture-catalog", "source": "project-local"}
+        self.edit(lambda data: data.update(catalog=catalog))
+        before = self.lock.read_bytes()
+        result = starter.configure(self.root, REF, apply=True)
+        self.assertEqual(result["carried_lock_keys"], ["catalog"])
+        self.assertEqual(result["writes"], [])
+        self.assertEqual(self.lock.read_bytes(), before)
+        self.assertEqual(starter.status(self.root)["status"], "configured")
+
+    def test_changes_inside_managed_keys_are_still_refused(self):
+        changes = {
+            "starter": lambda data: data["starter"].update(note="local"),
+            "components": lambda data: data["components"][0].update(revision="c" * 40),
+            "adr_policy": lambda data: data["adr_policy"].update(source_sha256="0" * 64),
+        }
+        original = self.lock.read_bytes()
+        for key, change in changes.items():
+            with self.subTest(key=key):
+                self.lock.write_bytes(original)
+                self.edit(change)
+                edited = self.lock.read_bytes()
+                with self.assertRaises(starter.AdoptionError):
+                    starter.configure(self.root, REF, apply=True)
+                self.assertEqual(self.lock.read_bytes(), edited)
 
 
 if __name__ == "__main__":

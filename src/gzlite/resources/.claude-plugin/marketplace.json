@@ -1,0 +1,36 @@
+{
+  "name": "gzlite-0-14-0",
+  "owner": {
+    "name": "tvproductions"
+  },
+  "description": "Pinned, separately owned SP + SP-BP + gz-skills components.",
+  "plugins": [
+    {
+      "name": "superpowers",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/obra/superpowers.git",
+        "sha": "22f0b463e7a5e579904dd6211a520321035526f7"
+      },
+      "description": "released; selected independently of deferred Backplane"
+    },
+    {
+      "name": "superpowers-backplane",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/tvproductions/superpowers-backplane.git",
+        "sha": "39fbe3065c16ac119c4c10a3c2428fda39d57e61"
+      },
+      "description": "released; deferred, adoption and host acceptance incomplete"
+    },
+    {
+      "name": "gz-skills",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/tvproductions/gz-skills.git",
+        "sha": "0cbd2359c64b473d6c109e1296118f2475057fbc"
+      },
+      "description": "released"
+    }
+  ]
+}

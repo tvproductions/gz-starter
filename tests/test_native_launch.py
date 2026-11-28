@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from skills_first_starter.native_launch import launch
+from gzlite.native_launch import launch
 
 
 class NativeLaunchTests(unittest.TestCase):
@@ -28,7 +28,7 @@ class NativeLaunchTests(unittest.TestCase):
             (user / "opencode.json").write_text(original)
             with (
                 mock.patch.dict("os.environ", {"OPENCODE_CONFIG_DIR": str(user)}),
-                mock.patch("skills_first_starter.native_launch.subprocess.run") as run,
+                mock.patch("gzlite.native_launch.subprocess.run") as run,
             ):
                 run.return_value.returncode = 0
                 self.assertEqual(launch(project, ["api", "plugin.list"]), 0)

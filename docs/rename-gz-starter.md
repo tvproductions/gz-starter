@@ -1,3 +1,5 @@
+Superseded as the current identity by the gzlite rename (https://github.com/tvproductions/gz-starter/issues/19); the text below is historical.
+
 # Canonical rename to gz-starter
 
 The maintainer selected **gz-starter** as the canonical repository, distribution

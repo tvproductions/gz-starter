@@ -1,5 +1,38 @@
 # Roadmap
 
+## Selected 0.14.0 minor scope — gzlite rename and tool move, November 27, 2026
+
+The maintainer approved the [design](docs/superpowers/specs/2026-11-27-gzlite-rename-and-tool-split-design.md)
+on November 27, 2026. Published baseline **0.13.0** advances to **0.14.0 / minor**:
+gz-starter becomes **gzlite**, a permanent tier (Superpowers + Superpowers Backplane +
+gz-skills + one tier package per language) rather than a stage before gzkit. The
+release covers the rename, tool move, and the associated release safeguards.
+Included: the rename across repository,
+distribution, CLI, marketplace, state folder and skill prefix, plus the new commands
+`migrate`, `freshen`, `project-settings`, `portability`, `vendor` and `catalog check`.
+The [release-integrity tasks](docs/superpowers/plans/2026-11-27-gzlite-0.14.0.md#task-14-guard-1--adopters-pin-only-tagged-releases)
+enforce release provenance for adopters and for the publisher. Task 14 has
+[local verification evidence](docs/handoffs/2026-11-28-gzlite-0.14.0-resume-handoff.md#task-14-verification).
+Producer checks, repository rules, installed adopter-bridge acceptance and
+final review remain open.
+
+The bundle still pins gz-skills v0.14.0. gzlite 0.14.1 then bumps the pin to gz-skills
+v0.15.0, which removes all executable code; gzglite 0.1.0 follows.
+
+The skill prefix is `gzl-` (and `gzgl-` for the Go tier), which supersedes the approved
+`gzt-` design below; `update-gz-template` becomes `gzl-update`. The rename is tracked in
+[#19](https://github.com/tvproductions/gz-starter/issues/19). The tool move is tracked
+in [#20](https://github.com/tvproductions/gz-starter/issues/20) and decided in
+[ADR-0008](docs/decisions/ADR-0008-003-tools-move-to-tier-packages.md).
+
+Moved scope: the ADR-0005 lite records move from provisional 0.14.0 to **0.15.0**. The
+strict-hexagonal checker and takeover path (ADR-0006 follow-up) get their own release
+after 0.15.0, provisionally **0.16.0**.
+
+### Go tier package (gzglite)
+
+Tracked in [#21](https://github.com/tvproductions/gz-starter/issues/21).
+
 ## Selected 0.13.0 minor scope — versioned native marketplace name, November 27, 2026
 
 The maintainer selected **0.13.0 / minor** on November 27, 2026. It carries the
@@ -59,7 +92,8 @@ remain immutable.
 ## Next minor scope — starter-owned skill prefix, November 22, 2026
 
 The maintainer approved `gzt-` for starter-owned skills and the rename to
-`gzt-update-template`. Published **0.12.1** at
+`gzt-update-template`. Superseded on November 27, 2026: the prefix is `gzl-` and the
+skill is `gzl-update`, delivered in 0.14.0 (see the 0.14.0 scope above). Published **0.12.1** at
 `a1c3550eac441b0a7beaddc66fb00c58ce0f1e6a` advances to **0.13.0 / minor**. The rename
 requires reconciliation of a published skill ID and managed path.
 
@@ -663,7 +697,8 @@ storage split and associated workflow decisions. Resume the
 Published baseline is **0.12.1** at
 `a1c3550eac441b0a7beaddc66fb00c58ce0f1e6a`. The existing **0.13.0** pending
 target covers the skill rename. Plan the first records delivery as a separate
-compatible minor, provisionally **0.14.0** if 0.13.0 publishes first.
+compatible minor, now **0.15.0**: the November 27, 2026 gzlite decision moved it
+from the provisional 0.14.0 so that 0.14.0 is only the rename and tool move.
 Recheck the actual published baseline before selecting its active version and
 reconciling package, bundle, lock, runtime and changelog mirrors.
 

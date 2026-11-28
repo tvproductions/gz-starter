@@ -6,20 +6,37 @@ import unittest
 from pathlib import Path, PureWindowsPath
 from unittest import mock
 
-from skills_first_starter import cli as starter
-from skills_first_starter.native import HOST_PATHS, update_skill_path
+from fixtures_adopters import assume_published_release
+
+from gzlite import cli as starter
+from gzlite.native import HOST_PATHS, update_skill_path
 
 REF = "a" * 40
 
 
 class NativeHostTests(unittest.TestCase):
     def setUp(self):
+        assume_published_release(self)
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name).resolve()
         inherited = mock.patch.object(starter, "_inherited_plugins", return_value={})
         inherited.start()
         self.addCleanup(inherited.stop)
+
+    def test_update_skill_is_gzl_update_for_every_host(self):
+        self.assertEqual(update_skill_path("claude"), ".claude/skills/gzl-update/SKILL.md")
+        for host in HOST_PATHS:
+            with self.subTest(host=host), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory).resolve()
+                starter.configure(root, REF, host=host, apply=True)
+                expected = update_skill_path(host)
+                if host != "claude":
+                    self.assertEqual(expected, ".agents/skills/gzl-update/SKILL.md")
+                self.assertTrue((root / expected).is_file())
+                self.assertFalse(
+                    [p for p in root.rglob("*") if "update-gz-template" in p.as_posix()]
+                )
 
     def test_owned_discovery_surface_uses_portable_identifiers(self):
         for host in HOST_PATHS:
@@ -49,11 +66,11 @@ class NativeHostTests(unittest.TestCase):
     def test_claude_uses_project_settings_and_keeps_explicit_backplane_disable(self):
         starter.configure(self.root, REF, host="claude", apply=True)
         settings = json.loads((self.root / ".claude/settings.json").read_bytes())
-        source = settings["extraKnownMarketplaces"]["gz-starter-0-13-0"]["source"]
+        source = settings["extraKnownMarketplaces"]["gzlite-0-14-0"]["source"]
         self.assertEqual(source["ref"], REF)
         self.assertEqual(source["source"], "git")
-        self.assertIs(settings["enabledPlugins"]["gz-skills@gz-starter-0-13-0"], True)
-        self.assertIs(settings["enabledPlugins"]["superpowers-backplane@gz-starter-0-13-0"], False)
+        self.assertIs(settings["enabledPlugins"]["gz-skills@gzlite-0-14-0"], True)
+        self.assertIs(settings["enabledPlugins"]["superpowers-backplane@gzlite-0-14-0"], False)
 
     def test_opencode_pins_both_upstream_adapters_and_omits_deferred_backplane(self):
         starter.configure(self.root, REF, host="opencode", apply=True)
@@ -89,7 +106,7 @@ class NativeHostTests(unittest.TestCase):
 
     def test_conflicting_native_state_blocks_all_writes(self):
         cases = (
-            ("claude", {"enabledPlugins": {"gz-skills@gz-starter-0-13-0": False}}),
+            ("claude", {"enabledPlugins": {"gz-skills@gzlite-0-14-0": False}}),
             ("claude", {"enabledPlugins": {"gz-skills@other": True}}),
             ("opencode", {"plugin": ["fixture-legacy"]}),
             ("opencode", {"plugins": ["git+https://github.com/obra/superpowers.git#old"]}),
@@ -104,7 +121,7 @@ class NativeHostTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     starter.configure(root, REF, host=host, apply=True)
                 self.assertEqual(path.read_bytes(), original)
-                self.assertFalse((root / ".gz-starter").exists())
+                self.assertFalse((root / ".gzlite").exists())
                 self.assertFalse((root / "AGENTS.md").exists())
 
     def test_opencode_jsonc_is_preserved_instead_of_shadowed(self):
@@ -118,13 +135,13 @@ class NativeHostTests(unittest.TestCase):
     def test_claude_local_override_is_preserved_and_blocks_activation_conflict(self):
         path = self.root / ".claude/settings.local.json"
         path.parent.mkdir()
-        original = b'{"enabledPlugins":{"gz-skills@gz-starter-0-13-0":false}}'
+        original = b'{"enabledPlugins":{"gz-skills@gzlite-0-14-0":false}}'
         path.write_bytes(original)
         with self.assertRaisesRegex(ValueError, "enabledPlugins"):
             starter.configure(self.root, REF, host="claude", apply=True)
         self.assertEqual(path.read_bytes(), original)
         self.assertFalse((self.root / ".claude/settings.json").exists())
-        self.assertFalse((self.root / ".gz-starter").exists())
+        self.assertFalse((self.root / ".gzlite").exists())
 
     def test_host_switch_requires_reconciliation_before_writing_other_host_settings(self):
         starter.configure(self.root, REF, host="claude", apply=True)

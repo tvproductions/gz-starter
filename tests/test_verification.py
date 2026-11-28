@@ -74,9 +74,7 @@ class VerificationProject(unittest.TestCase):
         return target
 
     def verify(self):
-        return run(
-            self.root, sys.executable, "-m", "skills_first_starter", "verify", "--project", "."
-        )
+        return run(self.root, sys.executable, "-m", "gzlite", "verify", "--project", ".")
 
     def assert_blocked(self, *messages):
         result = self.verify()
@@ -88,19 +86,22 @@ class VerificationProject(unittest.TestCase):
 
 class VerificationCliTests(VerificationProject):
     def test_canonical_bootstrap_validates_state_and_legacy_cannot_pass(self):
-        self.write(".gz-starter/bundle.lock.json", "{}")
-        state = self.write(".gz-starter/settings.toml", "invalid TOML")
-        self.assert_blocked(".gz-starter/settings.toml")
+        self.write(".gzlite/bundle.lock.json", "{}")
+        state = self.write(".gzlite/settings.toml", "invalid TOML")
+        self.assert_blocked(".gzlite/settings.toml")
         state.write_text("enabled = true\n", encoding="utf-8")
         self.write(".skills-first/other.md", "# Unrelated\n")
         result = self.verify()
         self.assertEqual(result.returncode, 0, result.stderr)
-        legacy = self.write(".skills-first/settings.toml", "enabled = true\n")
-        self.assert_blocked(".skills-first/settings.toml", "migration")
-        self.assertEqual(legacy.read_bytes(), b"enabled = true\n")
+        for directory in (".skills-first", ".gz-starter"):
+            legacy = self.write(f"{directory}/settings.toml", "enabled = true\n")
+            self.assert_blocked(f"{directory}/settings.toml", "run gzlite migrate")
+            self.assertEqual(legacy.read_bytes(), b"enabled = true\n")
+            legacy.unlink()
         state.unlink()
-        (self.root / ".gz-starter/bundle.lock.json").unlink()
-        self.assert_blocked(".skills-first/settings.toml", "migration")
+        (self.root / ".gzlite/bundle.lock.json").unlink()
+        self.write(".skills-first/settings.toml", "enabled = true\n")
+        self.assert_blocked(".skills-first/settings.toml", "run gzlite migrate")
 
     def test_locked_docs_config_and_supported_workflow_pass(self):
         for trigger_key in ("on:", "'on':"):
@@ -235,21 +236,19 @@ class VerificationCliTests(VerificationProject):
         self.assert_blocked("tools/invalid name.py", "spaces are unsupported")
 
     def test_regular_file_skill_aliases_are_limited_to_exact_targets(self):
-        self.write("templates/skills/update-gz-template/SKILL.md", "# Update\n")
+        self.write("templates/skills/gzl-update/SKILL.md", "# Update\n")
         for alias in (".agents", ".claude"):
-            self.write(
-                f"{alias}/skills/update-gz-template", "../../templates/skills/update-gz-template"
-            )
+            self.write(f"{alias}/skills/gzl-update", "../../templates/skills/gzl-update")
         result = self.verify()
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.write(".agents/skills/update-gz-template", "../../other")
-        self.assert_blocked(".agents/skills/update-gz-template")
+        self.write(".agents/skills/gzl-update", "../../other")
+        self.assert_blocked(".agents/skills/gzl-update")
 
     def test_installed_update_skill_directory_is_an_ordinary_adopter_asset(self):
-        self.write(".agents/skills/update-gz-template/SKILL.md", "# Update\n")
+        self.write(".agents/skills/gzl-update/SKILL.md", "# Update\n")
         result = self.verify()
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("update-gz-template/SKILL.md", result.stdout)
+        self.assertIn("gzl-update/SKILL.md", result.stdout)
 
     def test_native_opencode_jsonc_preserves_valid_comments_and_trailing_commas(self):
         path = self.write("opencode.jsonc", '{\n  // local settings\n  "plugin": [],\n}\n')

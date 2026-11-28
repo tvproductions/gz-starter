@@ -1,6 +1,6 @@
 [project]
-name = "gz-starter"
-version = "0.13.0"
+name = "gzlite"
+version = "0.14.0"
 description = "Project-scoped SP + SP-BP + gz-skills adoption scaffold"
 readme = "README.md"
 requires-python = ">=3.14,<3.15"
@@ -12,8 +12,9 @@ dependencies = []
 verification = ["pyyaml==6.0.4"]
 
 [project.scripts]
-gz-starter = "skills_first_starter.cli:main"
-skills-first-starter = "skills_first_starter.cli:main"
+gzlite = "gzlite.cli:main"
+gz-starter = "gzlite.cli:main"
+skills-first-starter = "gzlite.cli:main"
 
 [build-system]
 requires = ["uv_build==0.13.9"]
@@ -24,7 +25,7 @@ required-version = ">=0.13.5"
 python-preference = "only-managed"
 
 [tool.uv.build-backend]
-module-name = "skills_first_starter"
+module-name = "gzlite"
 source-include = [
     "bundle.json", "templates/**", ".agents/plugins/marketplace.json",
     ".claude-plugin/marketplace.json", "starter.py", "tests/**", "tools/**",
@@ -87,16 +88,16 @@ include = ["src", "starter.py", "tests", "tools", "examples/application_foundati
 example-foundations = { path = "examples/application_foundations", editable = true }
 
 [tool.importlinter]
-root_packages = ["skills_first_starter"]
+root_packages = ["gzlite"]
 
 [[tool.importlinter.contracts]]
 name = "CLI implementation must not import its execution wrapper"
 type = "forbidden"
-source_modules = ["skills_first_starter.cli"]
-forbidden_modules = ["skills_first_starter.__main__"]
+source_modules = ["gzlite.cli"]
+forbidden_modules = ["gzlite.__main__"]
 
 [tool.deptry]
-known_first_party = ["skills_first_starter"]
+known_first_party = ["gzlite"]
 # Runtime dependency intent; developer utilities intentionally import hygiene tools.
 # The example has its own runtime metadata; analyze it separately from this CLI.
 extend_exclude = ["tools/.*", "examples/.*"]

@@ -151,8 +151,8 @@ class VerificationUnittestTests(VerificationProject):
     def test_unchanged_hook_moves_from_bootstrap_to_owned_suite(self):
         project = (
             PROJECT + TOP + "\n[dependency-groups]\n"
-            'dev = ["gz-starter[verification]", "pre-commit==4.7.0"]\n'
-            f'\n[tool.uv.sources]\ngz-starter = {{ path = "{ROOT.as_posix()}", editable = true }}\n'
+            'dev = ["gzlite[verification]", "pre-commit==4.7.0"]\n'
+            f'\n[tool.uv.sources]\ngzlite = {{ path = "{ROOT.as_posix()}", editable = true }}\n'
         )
         self.write("pyproject.toml", project)
         self.write(".gitignore", ".venv/\n__pycache__/\n")

@@ -13,8 +13,11 @@ import zipfile
 from email.parser import BytesParser
 from pathlib import Path
 
+from gzlite.cli import ORIGIN
+from gzlite.gitenv import clean_git_env
+
 ROOT = Path(__file__).resolve().parents[1]
-WORKFLOW = "skills_first_starter/resources/templates/verification/verify-python.yml"
+WORKFLOW = "gzlite/resources/templates/verification/verify-python.yml"
 
 
 def run(
@@ -40,16 +43,13 @@ def verify_archives(wheel: Path, sdist: Path) -> None:
         if WORKFLOW not in names:
             raise ValueError("Wheel is missing the supported adopter workflow")
         verify_extra_metadata(archive)
-        skill = "templates/skills/update-gz-template/SKILL.md"
-        allowed = f"skills_first_starter/resources/{skill}"
+        skill = "templates/skills/gzl-update/SKILL.md"
+        allowed = f"gzlite/resources/{skill}"
         if {name for name in names if name.endswith("/SKILL.md")} != {allowed}:
             raise ValueError("Wheel must contain exactly the template-owned update skill")
         if any(name.startswith(("tests/", "tools/")) for name in names):
             raise ValueError("Unexpected development files or skills in wheel")
-        if (
-            "skills_first_starter/resources/docs/engineering/architectural-decisions.md"
-            not in names
-        ):
+        if "gzlite/resources/docs/engineering/architectural-decisions.md" not in names:
             raise ValueError("Wheel is missing the canonical ADR policy")
         for relative in (
             "bundle.json",
@@ -59,7 +59,7 @@ def verify_archives(wheel: Path, sdist: Path) -> None:
             skill,
             "docs/engineering/architectural-decisions.md",
         ):
-            content = archive.read(f"skills_first_starter/resources/{relative}")
+            content = archive.read(f"gzlite/resources/{relative}")
             if content != (ROOT / relative).read_bytes():
                 raise ValueError(f"Wheel resource differs from authority: {relative}")
     with tarfile.open(sdist) as archive:
@@ -98,7 +98,39 @@ def verify_extra_metadata(archive: zipfile.ZipFile) -> None:
         raise ValueError("Wheel does not declare the exact optional YAML parser")
 
 
-def verify_native_hosts(command: Path, directory: Path) -> None:
+def release_fixture(directory: Path, version: str) -> tuple[str, str, dict[str, str]]:
+    """Serve an invented release through Git's normal origin lookup."""
+    origin = directory / "fixture-origin"
+    origin.mkdir()
+    config = directory / "git-config" / "git" / "config"
+    config.parent.mkdir(parents=True)
+    env = {**clean_git_env(), "XDG_CONFIG_HOME": str(config.parent.parent)}
+
+    def git(*args: str) -> str:
+        return run(
+            "git",
+            "-c",
+            "user.name=Fixture",
+            "-c",
+            "user.email=fixture@example.invalid",
+            *args,
+            cwd=origin,
+            env=env,
+        ).stdout.strip()
+
+    git("init", "--quiet", "--initial-branch=main")
+    (origin / "bundle.json").write_text(json.dumps({"template_version": version}), encoding="utf-8")
+    git("add", "bundle.json")
+    git("commit", "--quiet", "--message=Fixture release")
+    pin = git("rev-parse", "HEAD")
+    git("tag", "--annotate", f"v{version}", "--message=Fixture release")
+    git("commit", "--quiet", "--allow-empty", "--message=Unpublished fixture")
+    untagged = git("rev-parse", "HEAD")
+    git("config", "--file", str(config), "--add", f"url.{origin.as_uri()}.insteadOf", ORIGIN)
+    return pin, untagged, env
+
+
+def verify_native_hosts(command: Path, directory: Path, pin: str, env: dict[str, str]) -> None:
     """Exercise new host configuration and repair from the installed artifact."""
     for host, config, surface in (
         ("claude", ".claude/settings.json", ".claude"),
@@ -114,18 +146,18 @@ def verify_native_hosts(command: Path, directory: Path) -> None:
             "--host",
             host,
             "--starter-ref",
-            "a" * 40,
+            pin,
         )
-        run(*args, "--apply", cwd=directory)
+        run(*args, "--apply", cwd=directory, env=env)
         if not (target / config).is_file():
             raise ValueError(f"Installed helper omitted {host} configuration")
-        if (target / surface / "skills/update-gz-template/SKILL.md").read_bytes() != (
-            ROOT / "templates/skills/update-gz-template/SKILL.md"
+        if (target / surface / "skills/gzl-update/SKILL.md").read_bytes() != (
+            ROOT / "templates/skills/gzl-update/SKILL.md"
         ).read_bytes():
             raise ValueError(f"Installed helper omitted {host} update skill")
-        if json.loads(run(*args, "--apply", cwd=directory).stdout)["writes"]:
+        if json.loads(run(*args, "--apply", cwd=directory, env=env).stdout)["writes"]:
             raise ValueError(f"Installed {host} configuration is not idempotent")
-        lock = (target / ".gz-starter/bundle.lock.json").read_bytes()
+        lock = (target / ".gzlite/bundle.lock.json").read_bytes()
         run(
             str(command),
             "localize",
@@ -134,15 +166,16 @@ def verify_native_hosts(command: Path, directory: Path) -> None:
             "--host",
             host,
             "--starter-ref",
-            "a" * 40,
+            pin,
             "--apply",
             cwd=directory,
+            env=env,
         )
-        if (target / ".gz-starter/bundle.lock.json").read_bytes() != lock:
+        if (target / ".gzlite/bundle.lock.json").read_bytes() != lock:
             raise ValueError(f"Installed {host} scope repair changed adoption provenance")
 
 
-def verify_policy_modes(command: Path, directory: Path) -> None:
+def verify_policy_modes(command: Path, directory: Path, pin: str, env: dict[str, str]) -> None:
     """Verify both policy access forms from an installed wheel without a checkout."""
     source = (ROOT / "docs/engineering/architectural-decisions.md").read_bytes()
     for host in ("codex", "claude", "opencode"):
@@ -155,91 +188,64 @@ def verify_policy_modes(command: Path, directory: Path) -> None:
                 "--project",
                 str(target),
                 "--starter-ref",
-                "a" * 40,
+                pin,
                 "--host",
                 host,
             )
-            run(*args, "--adr-policy", mode, cwd=directory)
+            run(*args, "--adr-policy", mode, cwd=directory, env=env)
             if list(target.iterdir()):
                 raise ValueError("Installed policy preview wrote files")
-            run(*args, "--adr-policy", mode, "--apply", cwd=directory)
-            local = target / ".gz-starter/architectural-decisions.md"
+            run(*args, "--adr-policy", mode, "--apply", cwd=directory, env=env)
+            local = target / ".gzlite/architectural-decisions.md"
             if mode == "local" and local.read_bytes() != source:
                 raise ValueError("Installed local policy differs from the canonical bytes")
             if mode == "link" and local.exists():
                 raise ValueError("Installed link mode created a policy copy")
-            lock = json.loads((target / ".gz-starter/bundle.lock.json").read_bytes())
+            lock = json.loads((target / ".gzlite/bundle.lock.json").read_bytes())
             if lock["adr_policy"]["source_sha256"] != hashlib.sha256(source).hexdigest():
                 raise ValueError("Installed policy provenance hash differs")
-            if json.loads(run(*args, "--apply", cwd=directory).stdout)["writes"]:
+            if json.loads(run(*args, "--apply", cwd=directory, env=env).stdout)["writes"]:
                 raise ValueError("Installed helper did not preserve policy selection")
             status = json.loads(
-                run(str(command), "status", "--project", str(target), cwd=directory).stdout
+                run(str(command), "status", "--project", str(target), cwd=directory, env=env).stdout
             )
             if status["adr_policy"]["mode"] != mode or status["runtime_readiness"] != "unverified":
                 raise ValueError("Installed policy status changed selection or claimed readiness")
 
 
-def verify_state_directory(command: Path, directory: Path) -> None:
-    """Exercise relocation and legacy refusal with the installed helper."""
+def verify_state_directory(command: Path, directory: Path, pin: str, env: dict[str, str]) -> None:
+    """Exercise legacy-state refusal and the canonical state folder with the installed helper."""
     target = directory / "relocation"
     target.mkdir()
-    configure = (str(command), "configure", "--project", str(target), "--starter-ref", "a" * 40)
+    configure = (str(command), "configure", "--project", str(target), "--starter-ref", pin)
     status = (str(command), "status", "--project", str(target))
-    legacy = target / ".skills-first"
-    current = target / ".gz-starter"
-    legacy.mkdir()
-    marker = legacy / "bundle.lock.json"
-    marker.write_bytes(b"legacy marker")
+    current = target / ".gzlite"
 
-    def refused(args: tuple[str, ...], diagnostic: str) -> None:
-        result = subprocess.run(args, cwd=directory, capture_output=True, text=True, check=False)
-        if result.returncode != 2 or diagnostic not in result.stderr:
-            raise ValueError(f"Installed state check did not report {diagnostic}: {result.stderr}")
+    def refused(args: tuple[str, ...]) -> None:
+        result = subprocess.run(
+            args, cwd=directory, env=env, capture_output=True, text=True, check=False
+        )
+        if result.returncode != 2 or "run gzlite migrate" not in result.stderr:
+            raise ValueError(f"Installed state check did not request migration: {result.stderr}")
 
-    refused((*configure, "--apply"), "migration required")
-    if current.exists() or marker.read_bytes() != b"legacy marker":
-        raise ValueError("Installed helper changed state during a refused legacy adoption")
-    marker.unlink()
-    run(*configure, "--adr-policy", "local", "--apply", cwd=directory)
-    lock_file = current / marker.name
-    target_lock = lock_file.read_bytes()
-    marker.write_bytes(b"legacy marker")
-    refused(status, "current state also present")
-    if lock_file.read_bytes() != target_lock or marker.read_bytes() != b"legacy marker":
-        raise ValueError("Installed helper changed dual state during refusal")
-    marker.unlink()
-
-    previous = json.loads(target_lock)
-    previous["starter"].update(version="0.12.0", revision="b" * 40)
-    previous["adr_policy"]["local_path"] = ".skills-first/architectural-decisions.md"
-    config = target / ".codex/config.toml"
-    target_config = config.read_bytes()
-    config.write_bytes(target_config.replace(b"a" * 40, b"b" * 40))
-    policy = current / "architectural-decisions.md"
-    old_policy = legacy / policy.name
-    edited = b"# Project-local policy edit\n"
-    policy_source = policy.read_bytes()
-    lock_file.rename(marker)
-    policy.rename(old_policy)
-    marker.write_text(json.dumps(previous), encoding="utf-8")
-    old_policy.write_bytes(edited)
-    refused(status, "migration required")
-    marker.rename(lock_file)
-    old_policy.rename(policy)
-    previous["adr_policy"]["local_path"] = ".gz-starter/architectural-decisions.md"
-    lock_file.write_text(json.dumps(previous), encoding="utf-8")
-    refused(status, "reconcile")
-    if json.loads(lock_file.read_bytes()) != previous or policy.read_bytes() != edited:
-        raise ValueError("Installed helper changed relocation-only provenance or policy")
-
-    lock_file.write_bytes(target_lock)
-    config.write_bytes(target_config)
-    policy.write_bytes(policy_source)
-    if json.loads(run(*status, cwd=directory).stdout)["status"] != "configured":
-        raise ValueError("Installed helper did not recognize a reconciled target")
-    if json.loads(run(*configure, "--apply", cwd=directory).stdout)["writes"]:
-        raise ValueError("Installed helper changed a reconciled target")
+    for name in (".gz-starter", ".skills-first"):
+        legacy = target / name
+        legacy.mkdir()
+        marker = legacy / "bundle.lock.json"
+        marker.write_bytes(b"legacy marker")
+        refused((*configure, "--apply"))
+        refused(status)
+        if current.exists() or marker.read_bytes() != b"legacy marker":
+            raise ValueError("Installed helper changed state during a refused legacy command")
+        marker.unlink()
+        legacy.rmdir()
+    run(*configure, "--adr-policy", "local", "--apply", cwd=directory, env=env)
+    if not (current / "bundle.lock.json").is_file():
+        raise ValueError("Installed helper did not write the canonical state folder")
+    if json.loads(run(*status, cwd=directory, env=env).stdout)["status"] != "configured":
+        raise ValueError("Installed helper did not recognize a configured target")
+    if json.loads(run(*configure, "--apply", cwd=directory, env=env).stdout)["writes"]:
+        raise ValueError("Installed helper changed a configured target")
 
 
 def verify_fixture(sdist: Path) -> None:
@@ -462,11 +468,13 @@ def assert_verification_fault(
         )
 
 
-def verify_installed_verification(wheel: Path, base_command: Path, directory: Path) -> None:
+def verify_installed_verification(
+    wheel: Path, base_command: Path, directory: Path, pin: str, release_env: dict[str, str]
+) -> None:
     """Exercise base and extra installs through the adopter command and hook."""
     env = {
         key: value
-        for key, value in os.environ.items()
+        for key, value in release_env.items()
         if key not in {"PYTHONPATH", "PYTHONHOME", "UV_PROJECT_ENVIRONMENT", "VIRTUAL_ENV", "SKIP"}
         and not key.startswith("GIT_")
     }
@@ -475,14 +483,14 @@ def verify_installed_verification(wheel: Path, base_command: Path, directory: Pa
     assert_verification_fault(
         project,
         (str(base_command), "verify", "--project", "."),
-        "install gz-starter[verification]",
+        "install gzlite[verification]",
         env,
     )
     run(
         "uv",
         "add",
         "--dev",
-        f"gz-starter[verification] @ {wheel.as_uri()}",
+        f"gzlite[verification] @ {wheel.as_uri()}",
         "pre-commit==4.7.0",
         "coverage==7.17.4",
         cwd=project,
@@ -492,12 +500,12 @@ def verify_installed_verification(wheel: Path, base_command: Path, directory: Pa
         path = project / name
         preserved[path] = path.read_bytes()
     prefix = ("uv", "run", "--locked")
-    configure = (*prefix, "gz-starter", "configure", "--project", ".", "--starter-ref", "a" * 40)
+    configure = (*prefix, "gz-starter", "configure", "--project", ".", "--starter-ref", pin)
     run(*configure, cwd=project, env=env)
     if any(path.read_bytes() != expected for path, expected in preserved.items()):
         raise ValueError("Installed preview changed adopter files")
     run(*configure, "--apply", cwd=project, env=env)
-    provenance = project / ".gz-starter/bundle.lock.json"
+    provenance = project / ".gzlite/bundle.lock.json"
     preserved[provenance] = provenance.read_bytes()
     repeated = run(*configure, "--apply", cwd=project, env=env)
     if json.loads(repeated.stdout)["writes"]:
@@ -605,7 +613,7 @@ def main() -> None:
         run("uv", "venv", "--python", sys.executable, str(environment), cwd=directory)
         scripts = environment / ("Scripts" if os.name == "nt" else "bin")
         python = scripts / ("python.exe" if os.name == "nt" else "python")
-        command = scripts / ("gz-starter.exe" if os.name == "nt" else "gz-starter")
+        command = scripts / ("gzlite.exe" if os.name == "nt" else "gzlite")
         run(
             "uv",
             "pip",
@@ -618,39 +626,63 @@ def main() -> None:
             cwd=directory,
         )
         run(str(command), "validate", cwd=directory)
-        legacy = scripts / (
-            "skills-first-starter.exe" if os.name == "nt" else "skills-first-starter"
-        )
-        if (
-            run(str(legacy), "version", cwd=directory).stdout
-            != run(str(command), "version", cwd=directory).stdout
-        ):
-            raise ValueError("Legacy command alias differs from the canonical command")
-        result = run(str(python), "-I", "-m", "skills_first_starter", "version", cwd=directory)
+        for alias in ("gz-starter", "skills-first-starter"):
+            bridge = scripts / (f"{alias}.exe" if os.name == "nt" else alias)
+            if (
+                run(str(bridge), "version", cwd=directory).stdout
+                != run(str(command), "version", cwd=directory).stdout
+            ):
+                raise ValueError(f"Bridge alias {alias} differs from the canonical command")
+        result = run(str(python), "-I", "-m", "gzlite", "version", cwd=directory)
         if json.loads(result.stdout)["template_version"] != version:
             raise ValueError("Installed version differs from project metadata")
+        pin, untagged, release_env = release_fixture(directory, version)
         target = directory / "adopter"
         target.mkdir()
-        args = (str(command), "configure", "--project", str(target), "--starter-ref", "a" * 40)
-        run(*args, cwd=directory)
+        unpublished = subprocess.run(
+            [
+                str(command),
+                "configure",
+                "--project",
+                str(target),
+                "--starter-ref",
+                untagged,
+                "--apply",
+            ],
+            cwd=directory,
+            env=release_env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if (
+            unpublished.returncode != 2
+            or untagged not in unpublished.stderr
+            or list(target.iterdir())
+        ):
+            raise ValueError("Installed helper accepted or wrote files for an unpublished pin")
+        args = (str(command), "configure", "--project", str(target), "--starter-ref", pin)
+        run(*args, cwd=directory, env=release_env)
         if list(target.iterdir()):
             raise ValueError("Installed preview wrote project files")
-        run(*args, "--apply", cwd=directory)
-        if (target / ".agents/skills/update-gz-template/SKILL.md").read_bytes() != (
-            ROOT / "templates/skills/update-gz-template/SKILL.md"
+        run(*args, "--apply", cwd=directory, env=release_env)
+        if (target / ".agents/skills/gzl-update/SKILL.md").read_bytes() != (
+            ROOT / "templates/skills/gzl-update/SKILL.md"
         ).read_bytes():
             raise ValueError("Installed helper did not seed the canonical update skill")
-        repeated = json.loads(run(*args, "--apply", cwd=directory).stdout)
+        repeated = json.loads(run(*args, "--apply", cwd=directory, env=release_env).stdout)
         if repeated["writes"]:
             raise ValueError("Installed repeated adoption was not a no-op")
         status = json.loads(
-            run(str(command), "status", "--project", str(target), cwd=directory).stdout
+            run(
+                str(command), "status", "--project", str(target), cwd=directory, env=release_env
+            ).stdout
         )
         if status["runtime_readiness"] != "unverified":
             raise ValueError("Installed helper falsely claimed runtime readiness")
-        verify_native_hosts(command, directory)
-        verify_policy_modes(command, directory)
-        verify_state_directory(command, directory)
+        verify_native_hosts(command, directory, pin, release_env)
+        verify_policy_modes(command, directory, pin, release_env)
+        verify_state_directory(command, directory, pin, release_env)
         refused = subprocess.run(
             [str(command), "configure", "--project", str(target)],
             cwd=directory,
@@ -662,7 +694,7 @@ def main() -> None:
         )
         if refused.returncode != 2:
             raise ValueError("Installed helper inferred provenance outside a starter checkout")
-        verify_installed_verification(wheel, command, directory)
+        verify_installed_verification(wheel, command, directory, pin, release_env)
     print("Wheel resources, sdist contents and isolated installed CLI checks passed.")
 
 

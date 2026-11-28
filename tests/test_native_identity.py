@@ -5,9 +5,12 @@ import tomllib
 import unittest
 from pathlib import Path
 
-from skills_first_starter import cli as starter
-from skills_first_starter.native_identity import (
+from fixtures_adopters import assume_published_release
+
+from gzlite import cli as starter
+from gzlite.native_identity import (
     LEGACY_MARKETPLACE,
+    STARTER_SOURCES,
     is_starter_marketplace,
     marketplace_name,
 )
@@ -25,13 +28,31 @@ class MarketplaceNameTests(unittest.TestCase):
 
     def test_later_releases_name_their_own_catalog(self):
         self.assertEqual(marketplace_name("0.12.2"), "gz-starter-0-12-2")
-        self.assertEqual(marketplace_name("1.0.0"), "gz-starter-1-0-0")
+        self.assertEqual(marketplace_name("0.13.0"), "gz-starter-0-13-0")
+        self.assertEqual(marketplace_name("0.14.0"), "gzlite-0-14-0")
+        self.assertEqual(marketplace_name("0.14.1"), "gzlite-0-14-1")
+        self.assertEqual(marketplace_name("1.0.0"), "gzlite-1-0-0")
 
     def test_only_published_starter_names_are_recognized(self):
         self.assertTrue(is_starter_marketplace("skills-first-starter"))
         self.assertTrue(is_starter_marketplace("gz-starter-0-12-2"))
+        self.assertTrue(is_starter_marketplace("gz-starter-0-13-0"))
+        self.assertTrue(is_starter_marketplace("gzlite-0-14-0"))
+        self.assertFalse(is_starter_marketplace("gzglite-0-1-0"))
+        self.assertFalse(is_starter_marketplace("gzlite-0-14"))
         self.assertFalse(is_starter_marketplace("gz-starter"))
         self.assertFalse(is_starter_marketplace("gz-skills"))
+
+    def test_sources_include_gzlite_and_every_earlier_form(self):
+        for source in (
+            "https://github.com/tvproductions/gzlite.git",
+            "https://github.com/tvproductions/gzlite",
+            "git@github.com:tvproductions/gzlite.git",
+            "https://github.com/tvproductions/gz-starter.git",
+            "git@github.com:tvproductions/skills-first-starter",
+        ):
+            with self.subTest(source=source):
+                self.assertIn(source, STARTER_SOURCES)
 
     def test_both_catalogs_carry_this_release_name(self):
         current = marketplace_name(starter.template_version())
@@ -45,6 +66,7 @@ class UpgradeTests(unittest.TestCase):
     """An adopter of an earlier release moves to this release's catalog name."""
 
     def setUp(self):
+        assume_published_release(self)
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         self.root = Path(temp.name).resolve() / "project"
@@ -81,6 +103,22 @@ class UpgradeTests(unittest.TestCase):
             f'[plugins."superpowers-backplane@skills-first-starter"]\nenabled = {backplane}\n\n'
             "[fixture]\nkeep = true\n"
         )
+
+    def test_codex_upgrade_retires_the_0_13_0_name_as_0_13_0_wrote_it(self):
+        old = "gz-starter-0-13-0"
+        path = self.write_codex(
+            'model = "fixture"\n\n'
+            f"[marketplaces.{old}]\n"
+            f'source_type = "git"\nsource = "{SOURCE}"\nref = "{OLD_REF}"\n\n'
+            f'[plugins."superpowers@{old}"]\nenabled = true\n\n'
+            f'[plugins."gz-skills@{old}"]\nenabled = true\n\n'
+            f'[plugins."superpowers-backplane@{old}"]\nenabled = false\n'
+        )
+        starter.configure(self.root, REF, apply=True)
+        data = tomllib.loads(path.read_text())
+        self.assertEqual(set(data["marketplaces"]), {self.current})
+        self.assertEqual(self.current, "gzlite-0-14-0")
+        self.assertFalse([k for k in data["plugins"] if k.endswith("@" + old)])
 
     def test_codex_upgrade_retires_the_earlier_name_and_keeps_project_tables(self):
         path = self.write_codex(self.legacy_codex())
@@ -131,7 +169,7 @@ class UpgradeTests(unittest.TestCase):
         with self.assertRaises(starter.AdoptionError):
             starter.configure(self.root, REF, apply=True)
         self.assertEqual(path.read_text(), original)
-        self.assertFalse((self.root / ".gz-starter").exists())
+        self.assertFalse((self.root / ".gzlite").exists())
 
     def test_codex_upgrade_refuses_an_explicit_legacy_disable(self):
         original = self.legacy_codex().replace(
@@ -171,7 +209,7 @@ class UpgradeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             starter.configure(self.root, REF, host="claude", apply=True)
         self.assertEqual(path.read_bytes(), original)
-        self.assertFalse((self.root / ".gz-starter").exists())
+        self.assertFalse((self.root / ".gzlite").exists())
 
     def test_claude_upgrade_refuses_an_explicit_auto_update(self):
         settings = self.legacy_claude()
@@ -187,7 +225,7 @@ class UpgradeTests(unittest.TestCase):
         self.assert_claude_refused(self.legacy_claude(), name="settings.local.json")
 
     def test_localize_refuses_a_lock_without_a_recorded_release(self):
-        lock = self.root / ".gz-starter/bundle.lock.json"
+        lock = self.root / ".gzlite/bundle.lock.json"
         lock.parent.mkdir()
         lock.write_text(
             json.dumps({"schema_version": 1, "components": starter.bundle()["components"]})
@@ -198,7 +236,7 @@ class UpgradeTests(unittest.TestCase):
         self.assertEqual(path.read_text(), 'model = "fixture"\n')
 
     def test_localize_keeps_the_name_published_by_the_recorded_release(self):
-        lock = self.root / ".gz-starter/bundle.lock.json"
+        lock = self.root / ".gzlite/bundle.lock.json"
         lock.parent.mkdir()
         lock.write_text(
             json.dumps(

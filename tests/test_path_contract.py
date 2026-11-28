@@ -8,8 +8,10 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from skills_first_starter import cli
-from skills_first_starter.native_launch import launch
+from fixtures_adopters import assume_published_release
+
+from gzlite import cli
+from gzlite.native_launch import launch
 
 REF = "a" * 40
 
@@ -52,7 +54,7 @@ class PathContractTests(unittest.TestCase):
                 mock.patch.object(Path, "open", guarded),
                 mock.patch.object(builtins, "open", guarded_builtin),
                 mock.patch.object(cli, "_apply_writes") as writes,
-                mock.patch("skills_first_starter.native_launch.subprocess.run") as process,
+                mock.patch("gzlite.native_launch.subprocess.run") as process,
             ):
                 for call in calls:
                     with self.subTest(call=call), self.assertRaisesRegex(ValueError, "space"):
@@ -90,6 +92,7 @@ class PathContractTests(unittest.TestCase):
             self.assertEqual(list(target.iterdir()), [])
 
     def test_cli_rejection_and_valid_contents_control(self):
+        assume_published_release(self)
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()
             bad = root / "bad project"
@@ -129,6 +132,8 @@ class PathContractTests(unittest.TestCase):
             good.mkdir()
             alias = root / "alias"
             alias.symlink_to(spaced / "../good", target_is_directory=True)
+            if ".." not in alias.readlink().parts:
+                self.skipTest("the platform collapses '..' when it stores a symlink target")
             with self.assertRaisesRegex(ValueError, "space"):
                 cli.configure(alias, REF, apply=True)
             self.assertEqual(list(good.iterdir()), [])

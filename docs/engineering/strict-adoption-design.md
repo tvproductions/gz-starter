@@ -69,7 +69,7 @@ pending adoption, never a completed third lane.
 
 Authorities: [acceptance](astral-acceptance.md), [implementation plan](astral-implementation-plan.md),
 [adoption](../adoption-workflow.md), [versioning](../versioning.md),
-[configuration](../project-configuration.md), `src/skills_first_starter/cli.py`,
+[configuration](../project-configuration.md), `src/gzlite/cli.py`,
 `tests/test_starter.py`, and the
 [pinned upstream setup skill](https://github.com/tvproductions/gz-skills/blob/75bcd11ee9371ecff1a7b3432d2af29d4bdbb788/skills/gzs-project-setup/SKILL.md).
 

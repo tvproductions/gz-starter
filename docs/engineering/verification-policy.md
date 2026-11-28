@@ -87,7 +87,7 @@ Discovered local test modules must account for the inventoried candidates.
 A package `load_tests` aggregator may return cases from its own inventoried
 children. Check owning gates before migrating a more dynamic layout.
 
-For hosted CI, use the [shell-only adopter workflow](../../src/skills_first_starter/resources/templates/verification/verify-python.yml)
+For hosted CI, use the [shell-only adopter workflow](../../src/gzlite/resources/templates/verification/verify-python.yml)
 at `.github/workflows/verify-python.yml`. Match the selected Python pin and
 review the uv version and platform archive digests. It authenticates before
 the fetch and checks the exact event commit on macOS and Windows. It runs the

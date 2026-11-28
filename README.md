@@ -235,9 +235,10 @@ setup, invocation and the boundary against self-adoption.
 
 The canonical repository and distribution/command are **gz-starter**, shipped
 in 0.10.0 and retained in published 0.11.3. The `skills-first-starter` command
-remains a compatibility alias. The Python import `skills_first_starter`, marketplace key
-`skills-first-starter`, and `update-gz-template` skill ID remain stable
-compatibility surfaces. See the
+remains a compatibility alias. The distribution and Python import are now
+`gzlite` (commands `gzlite`, `gz-starter`, `skills-first-starter`); the marketplace key
+`skills-first-starter` and the `update-gz-template` skill ID remain stable
+compatibility surfaces until later renames. See the
 [rename migration](docs/rename-gz-starter.md).
 
 The configuration helper requires uv >=0.13.5, Python 3.14, and Git. Use `gh`
@@ -385,7 +386,7 @@ its qualification defect; the selected gzkit-derived shared scorer is deferred
 and not installed. Cognitive acceptance remains blocked. See the
 [assessment](docs/evidence/2026-10-24-gzkit-cognitive-extraction.md).
 
-The starter packages its helper under `src/skills_first_starter/`, uses uv_build,
+The starter packages its helper under `src/gzlite/`, uses uv_build,
 and pins Ruff, ty and pre-commit in its dev group. The approved four routine hooks
 run the same locked commands locally and in CI. Install them in a development
 checkout with `uv run --locked pre-commit install`. The old `uv run starter.py`

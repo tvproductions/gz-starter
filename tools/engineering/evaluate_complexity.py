@@ -271,7 +271,7 @@ def evaluate(root):
         "source": [
             inspect_source(root, path)
             for path in (
-                "src/skills_first_starter/cli.py",
+                "src/gzlite/cli.py",
                 "tests/test_starter.py",
                 "tools/engineering/evaluate_complexity.py",
             )

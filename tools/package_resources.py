@@ -9,7 +9,7 @@ RESOURCE_PATHS = (
     ".agents/plugins/marketplace.json",
     ".claude-plugin/marketplace.json",
     "templates/AGENTS.skills-first.md",
-    "templates/skills/update-gz-template/SKILL.md",
+    "templates/skills/gzl-update/SKILL.md",
     "docs/engineering/architectural-decisions.md",
 )
 
@@ -19,7 +19,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
-    destination = ROOT / "src/skills_first_starter/resources"
+    destination = ROOT / "src/gzlite/resources"
     stale = []
     for relative in RESOURCE_PATHS:
         source = ROOT / relative

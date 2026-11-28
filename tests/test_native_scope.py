@@ -7,14 +7,17 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from skills_first_starter import cli as starter
-from skills_first_starter.native import HOST_PATHS
+from fixtures_adopters import assume_published_release
+
+from gzlite import cli as starter
+from gzlite.native import HOST_PATHS
 
 REF = "b" * 40
 
 
 class NativeScopeTests(unittest.TestCase):
     def setUp(self):
+        assume_published_release(self)
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name).resolve()
@@ -34,41 +37,41 @@ class NativeScopeTests(unittest.TestCase):
             self.assertTrue(after.startswith(b'# Keep caf\xc3\xa9\r\nmodel = "fixture"\r\n'))
             plugins = tomllib.loads(after.decode())["plugins"]
             self.assertIs(plugins["gz-skills@gz-skills"]["enabled"], False)
-            self.assertIs(plugins["gz-skills@gz-starter-0-13-0"]["enabled"], True)
+            self.assertIs(plugins["gz-skills@gzlite-0-14-0"]["enabled"], True)
             self.assertEqual(starter.localize(self.root, REF, host="codex")["writes"], [])
         self.assertEqual(json.dumps(inherited), snapshot)
-        self.assertFalse((self.root / ".gz-starter/bundle.lock.json").exists())
+        self.assertFalse((self.root / ".gzlite/bundle.lock.json").exists())
 
     def test_codex_repairs_local_boolean_without_losing_other_tables_or_pin(self):
         path = self.root / ".codex/config.toml"
         path.parent.mkdir()
         path.write_text(
-            '[plugins."gz-skills@gz-starter-0-13-0"]\nenabled = false # Repair me\n'
-            '[marketplaces.gz-starter-0-13-0]\nsource_type = "git"\n'
+            '[plugins."gz-skills@gzlite-0-14-0"]\nenabled = false # Repair me\n'
+            '[marketplaces.gzlite-0-14-0]\nsource_type = "git"\n'
             'source = "https://example.invalid/reviewed.git"\nref = "old-selection"\n'
             "[fixture]\nkeep = true\n"
         )
         with mock.patch.object(starter, "_inherited_plugins", return_value={}):
             starter.localize(self.root, REF, host="codex", apply=True)
         data = tomllib.loads(path.read_text())
-        self.assertTrue(data["plugins"]["gz-skills@gz-starter-0-13-0"]["enabled"])
-        self.assertEqual(data["marketplaces"]["gz-starter-0-13-0"]["ref"], "old-selection")
+        self.assertTrue(data["plugins"]["gz-skills@gzlite-0-14-0"]["enabled"])
+        self.assertEqual(data["marketplaces"]["gzlite-0-14-0"]["ref"], "old-selection")
         self.assertTrue(data["fixture"]["keep"])
         self.assertIn("# Repair me", path.read_text())
 
     def test_codex_missing_newline_and_multiline_values_do_not_corrupt_repair(self):
         for original in (
-            '[plugins."gz-skills@gz-starter-0-13-0"]',
-            '[plugins."gz-skills@gz-starter-0-13-0"]\nnotes = """\nenabled = false\n"""\nenabled = false',
+            '[plugins."gz-skills@gzlite-0-14-0"]',
+            '[plugins."gz-skills@gzlite-0-14-0"]\nnotes = """\nenabled = false\n"""\nenabled = false',
         ):
             with self.subTest(original=original):
                 path = self.root / ".codex/config.toml"
                 path.parent.mkdir(exist_ok=True)
                 path.write_text(original)
-                before = tomllib.loads(original)["plugins"]["gz-skills@gz-starter-0-13-0"]
+                before = tomllib.loads(original)["plugins"]["gz-skills@gzlite-0-14-0"]
                 with mock.patch.object(starter, "_inherited_plugins", return_value={}):
                     starter.localize(self.root, REF, host="codex", apply=True)
-                after = tomllib.loads(path.read_text())["plugins"]["gz-skills@gz-starter-0-13-0"]
+                after = tomllib.loads(path.read_text())["plugins"]["gz-skills@gzlite-0-14-0"]
                 self.assertIs(after["enabled"], True)
                 if "notes" in before:
                     self.assertEqual(after["notes"], before["notes"])
@@ -84,7 +87,7 @@ class NativeScopeTests(unittest.TestCase):
                         "fixture": name,
                         "enabledPlugins": {
                             "gz-skills@gz-skills": True,
-                            "gz-skills@gz-starter-0-13-0": False,
+                            "gz-skills@gzlite-0-14-0": False,
                         },
                     }
                 )
@@ -96,12 +99,12 @@ class NativeScopeTests(unittest.TestCase):
             data = json.loads((self.root / ".claude" / name).read_bytes())
             self.assertEqual(data["fixture"], name)
             self.assertIs(data["enabledPlugins"]["gz-skills@gz-skills"], False)
-            self.assertIs(data["enabledPlugins"]["gz-skills@gz-starter-0-13-0"], True)
+            self.assertIs(data["enabledPlugins"]["gz-skills@gzlite-0-14-0"], True)
         self.assertIs(inherited["enabledPlugins"]["gz-skills@gz-skills"], True)
 
     def test_scope_repair_preserves_adopted_component_versions_and_lock_bytes(self):
         starter.configure(self.root, REF, host="opencode", apply=True)
-        path = self.root / ".gz-starter/bundle.lock.json"
+        path = self.root / ".gzlite/bundle.lock.json"
         lock = json.loads(path.read_bytes())
         part = next(p for p in lock["components"] if p["name"] == "gz-skills")
         part["revision"] = "c" * 40
