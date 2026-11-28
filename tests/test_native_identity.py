@@ -117,7 +117,6 @@ class UpgradeTests(unittest.TestCase):
         starter.configure(self.root, REF, apply=True)
         data = tomllib.loads(path.read_text())
         self.assertEqual(set(data["marketplaces"]), {self.current})
-        self.assertEqual(self.current, "gzlite-0-14-0")
         self.assertFalse([k for k in data["plugins"] if k.endswith("@" + old)])
 
     def test_codex_upgrade_retires_the_earlier_name_and_keeps_project_tables(self):

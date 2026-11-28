@@ -7,29 +7,29 @@ fits the task, confirm discovery, and preserve project scope and authorities.
 This guide reinforces and highlights those upstream behaviors for adopters;
 it is not another skill or an implementation of their discovery/workflow logic.
 
-## Current selection: v0.14.0
+## Current checkout selection
 
-The 0.11.5 bundle and both catalogs select released gz-skills v0.14.0 at
-`0cbd2359c64b473d6c109e1296118f2475057fbc`, checked November 21, 2026.
-It supplies 21 skills, including `gzs-architectural-decisions` 0.1.0 and its
-self-contained template. Router 0.7.0 exposes that procedure; dependency update
-0.5.0 preserves explicit scoped maintenance and review-only requests.
+The bundle and both catalogs select released gz-skills v0.15.0 at
+`fa8bc11d05d57eb98484cbdae81033ea825db956` for the pending gzlite 0.14.1 patch.
+It supplies 21 skills, including `gzs-architectural-decisions` and its template.
+The renamed pattern and cross-platform skills keep Python-specific instructions
+in their `references/python.md` files. Use `gzlite portability` for the
+deterministic Python portability check.
+The [companion release](https://github.com/tvproductions/gz-skills/releases/tag/v0.15.0)
+records the upstream changes.
 The starter's [ADR policy](engineering/architectural-decisions.md) supplies project
 requirements. Portable procedures stay language/tool agnostic; Python choices
 remain project-owned. See [exact-source qualification](evidence/2026-11-15-adr-combination.md).
-The context-diet skill 0.2.0 adds behavioral eval guidance. The
-[0.11.5 release receipt](evidence/2026-11-21-0.11.5-release.md) covers the
-affected component update. Selection, native discovery and observed model
-behavior have separate evidence.
-Historical receipts below retain their original version/platform scope.
+Selection, native discovery and observed model behavior have separate evidence.
+Historical receipts below retain their original version and platform scope.
 
-## Verified coverage in v0.7.0
+## Workflow selection
 
 | Need | Existing skill | Actual scope |
 | --- | --- | --- |
-| Find unnecessarily elaborate Python patterns | `gzs-pythonic-pattern-detect` | Read-only review of concrete pattern roles and simpler Python alternatives, accounting for runtime, public contracts and architectural boundaries |
-| Implement a selected simplification | `gzs-pythonic-pattern-apply` | One authorized candidate, with unchanged before/after behavior evidence and relevant verification |
-| Review or fix operating-system assumptions | `gzs-cross-platform-python` | Paths, explicit text encodings, subprocesses, temporary resources, cleanup and tests across Windows/macOS/Linux; includes deterministic portability checks |
+| Find unnecessarily elaborate Python patterns | `gzs-idiomatic-pattern-detect` | Read-only review of concrete pattern roles and simpler Python alternatives, accounting for runtime, public contracts and architectural boundaries |
+| Implement a selected simplification | `gzs-idiomatic-pattern-apply` | One authorized candidate with before/after behavior evidence and relevant verification |
+| Review or fix operating-system assumptions | `gzs-cross-platform` | Paths, explicit text encodings, subprocesses, temporary resources, cleanup and tests across Windows/macOS/Linux |
 | Inspect or choose a project profile | `gzs-project-setup` | Explicit lite/heavy choice and Python environment guidance; adopted project policy takes precedence over defaults |
 | Check freshness or update a runtime/toolchain/template/plugin | `gzs-update-dependencies` | Starter binding selects completed latest-stable migration across families for maintenance/bare invocation; only explicit check/freshness/assessment is review-only; preserve Python N-1/host policy, product requirements and evidenced exceptions |
 | Survey a bounded source population for debt | `gzs-tech-debt-review` | Existing project probes and direct source/history review; reports missing coverage rather than inventing a clean assessment |
@@ -87,7 +87,7 @@ is distinct from fresh-session workflow execution and combined stack readiness.
 The release adds no comprehensive version-audit skill and preserves existing
 workflow scope and authorization boundaries. Adopter updates remain explicit.
 
-Authoritative selected [Python workflow instructions](https://github.com/tvproductions/gz-skills/tree/0cbd2359c64b473d6c109e1296118f2475057fbc/skills)
+Authoritative selected [Python workflow instructions](https://github.com/tvproductions/gz-skills/tree/fa8bc11d05d57eb98484cbdae81033ea825db956/skills)
 remain upstream-owned; this template supplies emphasis and policy bindings.
 
 ## Historical v0.6.0 inspection evidence

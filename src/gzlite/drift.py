@@ -24,7 +24,7 @@ from gzlite.native import (
     uncovered_hosts,
     update_skill_path,
 )
-from gzlite.paths import MIGRATED_DIRECTORY
+from gzlite.paths import MIGRATED_DIRECTORY, is_link
 
 # Why a file was saved (the "why" of each replaced item).
 EDITED = "edited"
@@ -32,6 +32,55 @@ RECORD = "record"
 # How a configured host appears in a plan's ``carried`` list.
 CARRIED_HOST = "host {host} ({path})"
 FINGERPRINT = re.compile(r"[0-9a-f]{64}\Z")
+RENAMED_SKILLS = {
+    "gzs-cross-platform-python": "gzs-cross-platform",
+    "gzs-pythonic-pattern-detect": "gzs-idiomatic-pattern-detect",
+    "gzs-pythonic-pattern-apply": "gzs-idiomatic-pattern-apply",
+}
+OLD_SKILL = re.compile(r"(?<![\w-])(?:" + "|".join(RENAMED_SKILLS) + r")(?![\w-])")
+
+
+def renamed_skill_findings(reader: legacy.Reader) -> list[str]:
+    """Report stale references in project Markdown and fingerprint the inspected bytes."""
+    root = reader.root
+    docs = root / "docs"
+    findings = []
+
+    def unreadable(path: Path, error: Exception) -> None:
+        name = path.relative_to(root).as_posix()
+        findings.append(f"{name}: review gz-skills references manually ({error})")
+
+    def walk_error(error: OSError) -> None:
+        unreadable(Path(str(error.filename)) if error.filename else docs, error)
+
+    def unlinked(path: Path) -> bool:
+        try:
+            return not is_link(path)
+        except FileNotFoundError:
+            return False
+        except OSError as error:
+            unreadable(path, error)
+            return False
+
+    paths = [root / "AGENTS.md", root / "CLAUDE.md"]
+    if unlinked(docs) and docs.is_dir(follow_symlinks=False):
+        for folder, directories, files in docs.walk(on_error=walk_error):
+            directories[:] = [name for name in directories if unlinked(folder / name)]
+            paths.extend(folder / name for name in files if name.lower().endswith(".md"))
+    for path in sorted(paths):
+        if not unlinked(path) or not path.is_file(follow_symlinks=False):
+            continue
+        name = path.relative_to(root).as_posix()
+        try:
+            data = reader.read(name)
+        except (OSError, ValueError, cli.AdoptionError) as error:
+            unreadable(path, error)
+            continue
+        for old in sorted(set(OLD_SKILL.findall((data or b"").decode("utf-8", errors="replace")))):
+            findings.append(
+                f"{name}: update `{old}` to `{RENAMED_SKILLS[old]}` in project guidance"
+            )
+    return sorted(findings)
 
 
 @dataclass

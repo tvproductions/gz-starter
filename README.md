@@ -326,18 +326,17 @@ those exact full commit SHAs, not moving branches.
 |---|---|---|
 | [Superpowers](https://github.com/obra/superpowers) | v7.0.2 | Feature design, plans, implementation, review |
 | [Superpowers Backplane](https://github.com/tvproductions/superpowers-backplane) | v0.3.0; disabled by default | GitHub-backed backlog and handoff continuity |
-| [gz-skills](https://github.com/tvproductions/gz-skills) | v0.14.0 | Portable engineering disciplines |
+| [gz-skills](https://github.com/tvproductions/gz-skills) | v0.15.0 | Portable engineering disciplines |
 | Your app | Project-owned | Operational workflows, domain rules, code, evidence |
 
-The November 15 maintenance pass selects the current stable releases above;
-see the [maintenance receipt](docs/evidence/2026-11-15-starter-maintenance.md)
-for exact sources and verification. Published templates retain their original
-pins. Deferred Backplane does not constrain active SP/gz-skills updates, and its
+Published templates retain the pins in their tagged `bundle.json`. The table
+shows this checkout's selection for the pending 0.14.1 patch. Deferred Backplane
+does not constrain active SP/gz-skills updates, and its
 released status does not establish adoption or host readiness. This selection
 is not a blanket compatibility or ADR-feature certification. Native installed
 revisions and fresh-session discovery require separate evidence.
-The pinned gz-skills release contains twenty skills, including
-project setup, Pythonic pattern review/apply and freshness-only maintenance
+The pinned gz-skills release contains 21 skills, including
+project setup, idiomatic pattern review/apply and freshness-only maintenance
 review with template/plugin inventory. The starter does not invoke setup or
 select a lite/heavy profile. Explicit selection is required before adoption is
 complete; both lanes meet the same Python foundation and required adoption/release

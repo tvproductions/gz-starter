@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Select gz-skills v0.15.0 at `fa8bc11d05d57eb98484cbdae81033ea825db956` in
+  the bundle and both catalogs for the 0.14.1 patch.
+- Update the managed adopter fragment to use `gzs-cross-platform`,
+  `gzs-idiomatic-pattern-detect` and `gzs-idiomatic-pattern-apply`. Both
+  `gzlite migrate` and `gzlite freshen` report old names in project-owned
+  `AGENTS.md`, `CLAUDE.md` and Markdown under `docs/` for manual review.
+- Record the published 0.14.0 snapshot so `gzlite freshen` can distinguish an
+  untouched managed fragment from an edited one during the upgrade.
+- Require the running bundle to match the tagged bundle when writing a new
+  adoption or moving an existing adoption to that tag.
+
 ## 0.14.0 — November 28, 2026
 
 - Rename the project, distribution, CLI and marketplace to gzlite. Retain

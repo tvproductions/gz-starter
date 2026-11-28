@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import errno
 import io
 import json
 import os
@@ -128,7 +129,7 @@ class EveryReleaseTests(MigrateCase):
         self.assertEqual(planned["status"], "preview")
         self.assertEqual(planned["from_version"], release.version)
         self.assertEqual(planned["from_revision"], release.revision)
-        self.assertEqual(planned["to_version"], "0.14.0")
+        self.assertEqual(planned["to_version"], cli.template_version())
         # Nothing configure wrote counts as edited, legacy state included; every
         # legacy file is saved as a record, and nothing else is saved.
         self.assertEqual([i for i in planned["replaced"] if i["why"] != "record"], [])
@@ -149,7 +150,7 @@ class EveryReleaseTests(MigrateCase):
         new_lock = self.new_lock(root)
         self.assertEqual(
             new_lock["starter"],
-            {"repository": cli.ORIGIN, "version": "0.14.0", "revision": REF},
+            {"repository": cli.ORIGIN, "version": cli.template_version(), "revision": REF},
         )
         self.assertEqual(new_lock["components"], cli.bundle()["components"])
         self.assertEqual(new_lock.get("host", "codex"), host)
@@ -201,9 +202,10 @@ class EveryReleaseTests(MigrateCase):
             self.assertEqual(pins, expected)
 
     def test_every_tagged_release_and_host_migrates(self):
-        self.assertEqual(len(HISTORY.releases), 22)
+        releases = [release for release in HISTORY.releases if release.state_directory in LEGACY]
+        self.assertEqual(len(releases), 22)
         combinations = 0
-        for release in HISTORY.releases:
+        for release in releases:
             modes = ("link", "local") if "adr_policy" in release.lock_keys else ("link",)
             for host in release.hosts:
                 for mode in modes:
@@ -247,6 +249,65 @@ class EveryReleaseTests(MigrateCase):
 
 
 class DriftTests(MigrateCase):
+    def test_renamed_skill_findings_preserve_project_markdown(self):
+        render_adopter(self.root, tagged("0.13.0"), "codex")
+        (self.root / "docs/workflows").mkdir(parents=True)
+        references = {
+            "AGENTS.md": ("gzs-cross-platform-python", "gzs-cross-platform"),
+            "CLAUDE.md": ("gzs-pythonic-pattern-detect", "gzs-idiomatic-pattern-detect"),
+            "docs/workflows/review.md": (
+                "gzs-pythonic-pattern-apply",
+                "gzs-idiomatic-pattern-apply",
+            ),
+        }
+        for name, (old, _) in references.items():
+            (self.root / name).write_bytes(f"Use `gz-skills:{old}`.\r\n".encode())
+        ignored = self.root / "docs/other.md"
+        ignored.write_text("Use `gzs-cross-platform-python-extra`.", encoding="utf-8")
+        before = self.tree()
+
+        planned = self.preview()
+        self.assertEqual(self.tree(), before)
+        guide = self.root / "docs/workflows/review.md"
+        guide.write_bytes(before["docs/workflows/review.md"] + b"\r\nOther guidance.\r\n")
+        self.assertIn(
+            "fingerprint does not match",
+            self.refused("--apply", "--fingerprint", planned["fingerprint"]),
+        )
+        guide.write_bytes(before["docs/workflows/review.md"])
+        result = self.apply()
+        for report in (planned, result):
+            for name, (old, new) in references.items():
+                self.assertTrue(
+                    any(
+                        name in text and old in text and new in text for text in report["findings"]
+                    ),
+                    report["findings"],
+                )
+            self.assertFalse(any("docs/other.md" in text for text in report["findings"]))
+        after = self.tree()
+        self.assertEqual(
+            {name: after[name] for name in references}, {name: before[name] for name in references}
+        )
+
+    def test_unreadable_docs_add_a_finding_without_blocking_preview(self):
+        render_adopter(self.root, tagged("0.13.0"), "codex")
+        docs = self.root / "docs"
+        docs.mkdir()
+        before = self.tree()
+
+        def unreadable(path, *, on_error=None):
+            if on_error is not None:
+                on_error(PermissionError(errno.EACCES, "fixture permission error", str(path)))
+            return iter(())
+
+        with mock.patch.object(Path, "walk", unreadable):
+            findings = self.preview()["findings"]
+        self.assertTrue(
+            any(note.startswith("docs: review gz-skills references") for note in findings)
+        )
+        self.assertEqual(self.tree(), before)
+
     def test_custom_marketplace_pin_is_preserved_before_retirement(self):
         release = tagged("0.13.0")
         hosts = (
@@ -589,7 +650,7 @@ class DriftTests(MigrateCase):
         planned = self.preview()
         self.assertEqual(planned["from_version"], "0.6.0")
         self.assertEqual(self.apply()["status"], "migrated")
-        self.assertEqual(self.new_lock()["starter"]["version"], "0.14.0")
+        self.assertEqual(self.new_lock()["starter"]["version"], cli.template_version())
 
     def test_component_pins_move_to_the_bundle_even_when_ahead(self):
         release = tagged("0.11.6")
@@ -649,7 +710,7 @@ class DriftTests(MigrateCase):
         self.assertTrue([f for f in planned["findings"] if "superpowers@fixture-local" in f])
         self.assertIn(
             ".codex/config.toml: superpowers@fixture-local was active and is now disabled, so "
-            "the gzlite-0-14-0 bundle is the only source of superpowers. To re-enable it, set "
+            f"the {cli.marketplace()} bundle is the only source of superpowers. To re-enable it, set "
             'enabled = true in [plugins."superpowers@fixture-local"] in .codex/config.toml; '
             "while gzlite's bundle provides superpowers, configure and status then refuse it "
             "as duplicate discovery",
@@ -891,6 +952,13 @@ class RefusalTests(MigrateCase):
     def test_revision_not_in_history(self):
         self.edit_lock(self.release, lambda d: d["starter"].update(revision="b" * 40))
         self.assertIn("history", self.refused())
+
+    def test_gzlite_revision_is_not_a_legacy_migration_source(self):
+        published = tagged("0.14.0")
+        self.edit_lock(self.release, lambda d: d["starter"].update(revision=published.revision))
+        skill = self.root / ".agents/skills/update-gz-template/SKILL.md"
+        skill.unlink()
+        self.assertIn("did not write legacy starter state", self.refused())
 
     def test_gzkit_project(self):
         (self.root / ".gzkit").mkdir()

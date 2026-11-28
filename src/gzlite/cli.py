@@ -91,12 +91,17 @@ def template_version() -> str:
     return version
 
 
-def require_tagged_release(ref: str, version: str) -> None:
-    """Require the publisher's tag to agree with the bundle being used."""
+def require_tagged_release(ref: str, version: str, *, match_bundle: bool = False) -> None:
+    """Verify release provenance and, when writing a new adoption, the running bundle."""
     release = tagged_release(ref, origin=ORIGIN)
     if release.version != version:
         raise AdoptionError(
             f"{ref} is {release.tag}; expected a published release for bundle version {version}"
+        )
+    if match_bundle and release.bundle != bundle():
+        raise AdoptionError(
+            f"the running gzlite bundle differs from {release.tag} at {ref}; "
+            "run gzlite from the published release you selected"
         )
 
 
@@ -703,7 +708,7 @@ def configure(
         )
     root = _adoption_root(project)
     validate_state_directory(root)
-    require_tagged_release(ref, template_version())
+    require_tagged_release(ref, template_version(), match_bundle=True)
     return _configure(root, ref, apply=apply, host=host, adr_policy=adr_policy)
 
 
@@ -861,7 +866,8 @@ def localize(project: Path, ref: str, *, host: str, apply: bool = False) -> dict
     version = template_version()
     validate_state_directory(root)
     lock = check_path(root, BUNDLE_LOCK)
-    if lock.exists():
+    adopted = lock.exists()
+    if adopted:
         record = json.loads(lock.read_text(encoding="utf-8"))
         parts = record["components"]
         # The pinned catalog keeps the name its own release published.
@@ -876,7 +882,7 @@ def localize(project: Path, ref: str, *, host: str, apply: bool = False) -> dict
             raise AdoptionError("existing adoption components need explicit reconciliation")
         if any(not SHA.fullmatch(p["revision"]) for p in parts):
             raise AdoptionError("existing adoption component pins must be full SHAs")
-    require_tagged_release(ref, version)
+    require_tagged_release(ref, version, match_bundle=not adopted)
     catalog = marketplace_name(version)
     names = [configuration_path(root, host)]
     if host == "claude" and (root / ".claude/settings.local.json").exists():
