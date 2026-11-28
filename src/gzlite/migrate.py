@@ -19,20 +19,25 @@ from __future__ import annotations
 
 import hashlib
 import os
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from gzlite import cli
 from gzlite import migrate_hosts as hosts_config
 from gzlite import migrate_legacy as legacy
-from gzlite.drift import EDITED, RECORD, DriftBuilder, Plan
+from gzlite.drift import (
+    EDITED,
+    RECORD,
+    DriftBuilder,
+    Plan,
+    apply_plan,
+    require_fingerprint,
+)
 from gzlite.fingerprint import fingerprint as compute_fingerprint
 from gzlite.history import Release, load_history
 from gzlite.native import update_skill_placement
 from gzlite.paths import BUNDLE_LOCK, MIGRATED_DIRECTORY, refuse_staging
 
-FINGERPRINT = re.compile(r"[0-9a-f]{64}\Z")
 FRAGMENT = "AGENTS.skills-first.md"
 PROFILE = ".gz-skills/settings.json"
 PYPROJECT = "pyproject.toml"
@@ -378,47 +383,16 @@ def plan_migration(project: Path, ref: str) -> MigrationPlan:
 
 def migrate(project: Path, *, apply: bool, fingerprint: str | None, ref: str) -> dict:
     """Preview the migration, or apply it when ``fingerprint`` matches the plan."""
-    if apply and (fingerprint is None or not FINGERPRINT.fullmatch(fingerprint)):
-        raise cli.AdoptionError(
-            "--apply needs --fingerprint with the 64-hex fingerprint of a reviewed preview"
-        )
+    require_fingerprint(apply, fingerprint)
     plan = plan_migration(project, ref)
     if not apply or plan.status == "nothing to migrate":
         return plan.result()
-    if fingerprint != plan.fingerprint:
-        raise cli.AdoptionError(
-            "the fingerprint does not match the current plan; preview again and review it; "
-            f"{legacy.UNCHANGED}"
-        )
-    try:
-        left = cli._apply_writes(
-            plan.root,
-            {name: cli.check_path(plan.root, name) for name in plan.writes},
-            plan.writes,
-            plan.before,
-            deletes=plan.deletes,
-            directories=plan.directories,
-            allow_legacy=True,
-            saved={item["path"]: item["saved_to"] for item in plan.replaced},
-        )
-    except cli.RollbackIncomplete:
-        raise
-    except (cli.AdoptionError, OSError, ValueError) as error:
-        kept = f"; the copies saved under {MIGRATED_DIRECTORY}/ were kept" if plan.replaced else ""
-        raise cli.AdoptionError(
-            f"migration failed and was rolled back ({error}){kept}; preview again"
-        ) from error
-    plan.status = "migrated"
-    if left:
-        plan.findings.append(
-            "staged originals could not be removed: " + ", ".join(left) + "; delete "
-            f"{cli.STAGING_DIRECTORY}/ by hand once nothing holds them open"
-        )
-    result = plan.result()
-    try:
-        result["post_apply_status"] = cli.status(plan.root)
-    except (cli.AdoptionError, OSError, ValueError, KeyError) as error:
-        # The writes succeeded; a failing status check is a finding, not a refusal.
-        result["post_apply_status"] = {"status": "unavailable", "error": str(error)}
-        result["findings"].append(f"post-apply status could not run: {error}")
-    return result
+    return apply_plan(
+        plan,
+        fingerprint,
+        failed="migration",
+        done="migrated",
+        deletes=plan.deletes,
+        directories=plan.directories,
+        allow_legacy=True,
+    )

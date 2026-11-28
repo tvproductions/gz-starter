@@ -31,10 +31,18 @@ from pathlib import Path
 from gzlite import cli
 from gzlite import migrate_hosts as hosts_config
 from gzlite import migrate_legacy as legacy
-from gzlite.drift import CARRIED_HOST, EDITED, RECORD, DriftBuilder, Plan
+from gzlite.drift import (
+    CARRIED_HOST,
+    EDITED,
+    RECORD,
+    DriftBuilder,
+    Plan,
+    apply_plan,
+    require_fingerprint,
+)
 from gzlite.fingerprint import fingerprint as compute_fingerprint
 from gzlite.history import Release, load_history
-from gzlite.migrate import FINGERPRINT, FRAGMENT, PROFILE
+from gzlite.migrate import FRAGMENT, PROFILE
 from gzlite.native import update_skill_path, update_skill_placement
 from gzlite.native_identity import STARTER_SOURCES, marketplace_name
 from gzlite.paths import BUNDLE_LOCK, MIGRATED_DIRECTORY, STATE_DIRECTORY, validate_state_directory
@@ -105,6 +113,9 @@ class FreshenPlan(Plan):
     from_revision: str = ""
     hosts: list[str] = field(default_factory=list)
     doctrine: list[dict[str, str]] = field(default_factory=list)
+
+    def finding(self, text: str) -> dict[str, str]:
+        return {"finding": text, "source": SPEC}
 
     def all_findings(self) -> list[dict[str, str]]:
         notes = [{"finding": text, "source": SPEC} for text in self.findings]
@@ -329,46 +340,8 @@ def plan_freshen(project: Path, ref: str) -> FreshenPlan:
 
 def freshen(project: Path, *, apply: bool, fingerprint: str | None, ref: str) -> dict:
     """Preview the freshen, or apply it when ``fingerprint`` matches the plan."""
-    if apply and (fingerprint is None or not FINGERPRINT.fullmatch(fingerprint)):
-        raise cli.AdoptionError(
-            "--apply needs --fingerprint with the 64-hex fingerprint of a reviewed preview"
-        )
+    require_fingerprint(apply, fingerprint)
     plan = plan_freshen(project, ref)
     if not apply or plan.status == "current":
         return plan.result()
-    if fingerprint != plan.fingerprint:
-        raise cli.AdoptionError(
-            "the fingerprint does not match the current plan; preview again and review it; "
-            f"{legacy.UNCHANGED}"
-        )
-    try:
-        left = cli._apply_writes(
-            plan.root,
-            {name: cli.check_path(plan.root, name) for name in plan.writes},
-            plan.writes,
-            plan.before,
-            saved={item["path"]: item["saved_to"] for item in plan.replaced},
-        )
-    except cli.RollbackIncomplete:
-        raise
-    except (cli.AdoptionError, OSError, ValueError) as error:
-        kept = "; the saved copies were kept" if plan.replaced else ""
-        raise cli.AdoptionError(
-            f"freshen failed and was rolled back ({error}){kept}; preview again"
-        ) from error
-    plan.status = "freshened"
-    if left:
-        plan.findings.append(
-            "staged originals could not be removed: " + ", ".join(left) + "; delete "
-            f"{cli.STAGING_DIRECTORY}/ by hand once nothing holds them open"
-        )
-    result = plan.result()
-    try:
-        result["post_apply_status"] = cli.status(plan.root)
-    except (cli.AdoptionError, OSError, ValueError, KeyError) as error:
-        # The writes succeeded; a failing status check is a finding, not a refusal.
-        result["post_apply_status"] = {"status": "unavailable", "error": str(error)}
-        result["findings"].append(
-            {"finding": f"post-apply status could not run: {error}", "source": SPEC}
-        )
-    return result
+    return apply_plan(plan, fingerprint, failed="freshen", done="freshened")

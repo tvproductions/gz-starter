@@ -10,6 +10,7 @@ target, retargeting each configured host and placing ``gzl-update``.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -23,12 +24,14 @@ from gzlite.native import (
     uncovered_hosts,
     update_skill_path,
 )
+from gzlite.paths import MIGRATED_DIRECTORY
 
 # Why a file was saved (the "why" of each replaced item).
 EDITED = "edited"
 RECORD = "record"
 # How a configured host appears in a plan's ``carried`` list.
 CARRIED_HOST = "host {host} ({path})"
+FINGERPRINT = re.compile(r"[0-9a-f]{64}\Z")
 
 
 @dataclass
@@ -48,6 +51,64 @@ class Plan:
     next: list[str] = field(default_factory=list)
     inputs: dict[str, bytes] = field(default_factory=dict)
     fingerprint: str | None = None
+
+    def result(self) -> dict:
+        """The command's JSON result."""
+        raise NotImplementedError
+
+    def finding(self, text: str) -> object:
+        """One finding in the shape this command reports."""
+        return text
+
+
+def require_fingerprint(apply: bool, fingerprint: str | None) -> None:
+    if apply and (fingerprint is None or not FINGERPRINT.fullmatch(fingerprint)):
+        raise cli.AdoptionError(
+            "--apply needs --fingerprint with the 64-hex fingerprint of a reviewed preview"
+        )
+
+
+def apply_plan(plan: Plan, fingerprint: str | None, *, failed: str, done: str, **changes) -> dict:
+    """Write a reviewed plan when ``fingerprint`` matches, then report ``status``.
+
+    ``changes`` passes deletes and directories through to ``cli._apply_writes``.
+    Saved copies are never undone; a failed status check after the writes is a
+    finding, not a refusal.
+    """
+    if fingerprint != plan.fingerprint:
+        raise cli.AdoptionError(
+            "the fingerprint does not match the current plan; preview again and review it; "
+            f"{legacy.UNCHANGED}"
+        )
+    try:
+        left = cli._apply_writes(
+            plan.root,
+            {name: cli.check_path(plan.root, name) for name in plan.writes},
+            plan.writes,
+            plan.before,
+            saved={item["path"]: item["saved_to"] for item in plan.replaced},
+            **changes,
+        )
+    except cli.RollbackIncomplete:
+        raise
+    except (cli.AdoptionError, OSError, ValueError) as error:
+        kept = f"; the copies saved under {MIGRATED_DIRECTORY}/ were kept" if plan.replaced else ""
+        raise cli.AdoptionError(
+            f"{failed} failed and was rolled back ({error}){kept}; preview again"
+        ) from error
+    plan.status = done
+    if left:
+        plan.findings.append(
+            "staged originals could not be removed: " + ", ".join(left) + "; delete "
+            f"{cli.STAGING_DIRECTORY}/ by hand once nothing holds them open"
+        )
+    result = plan.result()
+    try:
+        result["post_apply_status"] = cli.status(plan.root)
+    except (cli.AdoptionError, OSError, ValueError, KeyError) as error:
+        result["post_apply_status"] = {"status": "unavailable", "error": str(error)}
+        result["findings"].append(plan.finding(f"post-apply status could not run: {error}"))
+    return result
 
 
 class DriftBuilder[P: Plan]:
