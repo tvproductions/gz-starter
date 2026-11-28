@@ -1,6 +1,7 @@
 """Render repository-owned native settings without invoking global installers."""
 
 import json
+from collections.abc import Collection
 from pathlib import Path
 
 from gzlite.native_identity import retire_claude
@@ -28,6 +29,44 @@ def update_skill_path(host: str) -> str:
     """Select the host's native project skill discovery directory."""
     surface = ".claude" if host == "claude" else ".agents"
     return f"{surface}/skills/gzl-update/SKILL.md"
+
+
+# Project skill directories each host discovers. Claude reads .claude/skills and
+# Codex reads .agents/skills (docs/architecture.md). OpenCode reads .agents/skills
+# (docs/evidence/2026-10-31-three-host-repo-scope.md) and, by its Claude
+# compatibility, .claude/skills too; that second surface is not yet verified in
+# this repository's evidence, and is assumed so that no copy is duplicated.
+SKILL_SURFACES = {
+    "claude": (".claude/skills",),
+    "codex": (".agents/skills",),
+    "opencode": (".agents/skills", ".claude/skills"),
+}
+
+
+def skill_surface(host: str) -> str:
+    """The discovery directory that holds ``host``'s own update skill."""
+    return Path(update_skill_path(host)).parent.parent.as_posix()
+
+
+def update_skill_placement(hosts: Collection[str], recorded: str) -> tuple[str, ...]:
+    """Choose the surfaces that get the update skill for every configured host.
+
+    The recorded host's own surface always gets it. Each other host's surface
+    is added unless some configured host would then discover two copies.
+    """
+    chosen = [skill_surface(recorded)]
+    for host in sorted(hosts):
+        if skill_surface(host) in chosen:
+            continue
+        trial = [*chosen, skill_surface(host)]
+        if all(sum(s in trial for s in SKILL_SURFACES[h]) <= 1 for h in hosts):
+            chosen = trial
+    return tuple(chosen)
+
+
+def uncovered_hosts(hosts: Collection[str], placement: Collection[str]) -> list[str]:
+    """Configured hosts that discover no copy of the update skill."""
+    return [h for h in sorted(hosts) if not any(s in placement for s in SKILL_SURFACES[h])]
 
 
 def _merge_object(data: dict, key: str, additions: dict) -> None:

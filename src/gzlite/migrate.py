@@ -24,10 +24,18 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from gzlite import cli
+from gzlite import migrate_hosts as hosts_config
 from gzlite import migrate_legacy as legacy
 from gzlite.fingerprint import fingerprint as compute_fingerprint
 from gzlite.history import Release, load_history
-from gzlite.native import project_json, update_skill_path
+from gzlite.native import (
+    SKILL_SURFACES,
+    project_json,
+    skill_surface,
+    uncovered_hosts,
+    update_skill_path,
+    update_skill_placement,
+)
 from gzlite.paths import BUNDLE_LOCK, MIGRATED_DIRECTORY
 
 FINGERPRINT = re.compile(r"[0-9a-f]{64}\Z")
@@ -107,7 +115,10 @@ class _Builder:
         self.release = release
         self.lock = lock
         self.root = plan.root
+        self.placement: tuple[str, ...] = ()
         self.saved: dict[str, str] = {}
+        self.saved_from: dict[str, str] = {}
+        self.host_candidates: dict[str, dict[str, str]] = {}
         self.targets: dict[str, str] = {}
         self.replaceable: set[str] = set()
         self.delete_bytes: dict[str, bytes] = {}
@@ -134,22 +145,52 @@ class _Builder:
                 f"the lock was found in {state}/, but {release.version} kept state in "
                 f"{release.state_directory}/"
             )
+        old = {part["name"]: part["revision"] for part in lock.components}
+        new = {part["name"]: part["revision"] for part in self.parts}
+        moved = [
+            f"{name} {old.get(name, 'unpinned')} -> {new.get(name, 'removed')}"
+            for name in sorted(set(old) | set(new))
+            if old.get(name) != new.get(name)
+        ]
+        if moved:
+            findings.append(
+                f"component pins move to the gzlite {self.plan.to_version} bundle: "
+                + "; ".join(moved)
+                + f"; the old lock is saved under {MIGRATED_DIRECTORY}/{state}/"
+            )
 
     # Saving and retiring ------------------------------------------------------------
 
-    def save(self, name: str, text: str, fate: str = "replaced") -> None:
+    def save(
+        self, name: str, text: str, fate: str = "replaced", what: str = "locally edited"
+    ) -> None:
+        """Plan a copy of ``name`` under ``.gzlite/migrated/``; it is never undone."""
         saved_to = f"{MIGRATED_DIRECTORY}/{name}"
+        existing = self.reader.read(saved_to)
+        if existing is not None and existing != text.encode():
+            # A copy kept by an earlier, rolled-back attempt is never overwritten.
+            raise cli.AdoptionError(
+                f"{saved_to} already holds a different saved copy; move it aside after "
+                f"review; {legacy.UNCHANGED}"
+            )
         self.saved[saved_to] = text
-        self.plan.reasons[saved_to] = f"saves the locally edited {name} before it is {fate}"
+        self.saved_from[name] = saved_to
+        self.plan.reasons[saved_to] = f"saves the {what} {name} before it is {fate}"
         self.plan.replaced.append({"path": name, "saved_to": saved_to})
 
-    def retire(self, name: str, expected: str | None, reason: str) -> None:
-        """Delete a file the old release owned, saving it when it differs from ``expected``."""
+    def retire(self, name: str, expected: str | None, reason: str, always: bool = False) -> None:
+        """Delete a file the old release owned, saving it when it differs from ``expected``.
+
+        ``always`` saves it regardless: legacy state is kept as a record (old
+        pins and starter keys that gzlite does not carry stay readable).
+        """
         data = self.reader.read(name)
         if data is None:
             return
         text = legacy.decode(name, data)
-        if expected is None or legacy.normalized(text) != legacy.normalized(expected):
+        if always:
+            self.save(name, text, "removed", "legacy state file")
+        elif expected is None or legacy.normalized(text) != legacy.normalized(expected):
             self.save(name, text, "removed")
         self.delete_bytes[name] = data
         self.plan.deletes.append(name)
@@ -187,19 +228,12 @@ class _Builder:
                 else f"{name} is no longer a starter skill"
             )
             self.retire_tree(folder, expected, why)
-        adr = legacy.adr_copy_template(self.release, state, self.lock.adr_mode)
-        # The legacy lock is not saved: gzlite rewrites it and carries its extra keys.
-        expected: dict[str, str | None] = {f"{state}/{legacy.ADR_COPY}": adr}
-        lock_name = f"{state}/bundle.lock.json"
+        # Every legacy file, the lock included, is saved before it is removed, so a
+        # failed rollback can never leave the adoption without any record.
         reason = f"gzlite {to} keeps starter state in .gzlite/"
         files, directories = legacy.tree(self.root, state)
         for name in files:
-            if name == lock_name:
-                self.delete_bytes[name] = self.reader.read(name) or b""
-                self.plan.deletes.append(name)
-                self.plan.reasons[name] = reason
-            else:
-                self.retire(name, expected.get(name), reason)
+            self.retire(name, None, reason, always=True)
         # Removed last, after the skills: the legacy folder is the migration's marker.
         self.plan.directories += directories
         return [folder for folder, _ in trees]
@@ -219,7 +253,9 @@ class _Builder:
             ref = self.plan.to_revision
             project_json(text, "claude", ref, self.parts, self.current, retire=False)
 
-    def host_targets(self, configs: list[legacy.HostConfig], policy, working) -> dict[str, str]:
+    def host_targets(
+        self, configs: list[hosts_config.HostConfig], policy, working
+    ) -> dict[str, str]:
         to, ref, found = self.plan.to_version, self.plan.to_revision, {}
         for config in configs:
             paths = {
@@ -236,26 +272,22 @@ class _Builder:
                 carried=self.lock.extras,
             )
             payload = candidates[config.path]
-            if config.original is not None and legacy.lost_comments(
+            if config.original is not None and hosts_config.lost_comments(
                 config.host, config.original, payload
             ):
                 config.edits.append("local comments in removed starter entries")
             if config.edits and config.original is not None:
+                saved = f"{MIGRATED_DIRECTORY}/{config.path}"
                 self.save(config.path, config.original)
                 self.plan.findings.append(
                     f"{config.path}: starter entries differed from what {self.release.version} "
                     f"wrote ({'; '.join(config.edits)}); they were replaced by gzlite {to} "
-                    f"entries and the original is saved at {MIGRATED_DIRECTORY}/{config.path}"
+                    f"entries and the original is saved at {saved}"
                 )
+                self.plan.findings += config.guidance(saved, self.current)
             self.plan.carried.append(f"host {config.host} ({config.path})")
-            skill, recorded = update_skill_path(config.host), update_skill_path(self.lock.host)
-            if skill != recorded:
-                # configure refuses a second gzl-update copy on another discovery surface.
-                self.plan.findings.append(
-                    f"{config.host} is configured too, but {cli.UPDATE_SKILL} is installed only "
-                    f"for the recorded host {self.lock.host} at {recorded}, not at {skill}"
-                )
             self.plan.carried += config.carried
+            self.host_candidates[config.host] = candidates
             self.target(
                 config.path,
                 payload,
@@ -284,13 +316,7 @@ class _Builder:
         ):
             self.save(FRAGMENT, current)
         self.target(FRAGMENT, fragment, f"gzlite {to} fragment", replaceable=True)
-        skill = update_skill_path(lock.host)
-        existing = self.reader.text(skill)
-        if existing is not None and legacy.normalized(existing) != legacy.normalized(
-            candidates[skill]
-        ):
-            self.save(skill, existing)
-        self.target(skill, candidates[skill], f"gzlite {to} update skill {cli.UPDATE_SKILL}", True)
+        self.update_skills()
         if "AGENTS.md" in candidates:
             self.target(
                 "AGENTS.md",
@@ -299,6 +325,32 @@ class _Builder:
             )
         for name, payload in copies.items():
             self.target(name, payload, f"gzlite {to} keeps the local ADR policy copy in .gzlite/")
+
+    def update_skills(self) -> None:
+        """``gzl-update`` on each configured host's own surface, without duplicates."""
+        to, hosts = self.plan.to_version, list(self.host_candidates)
+        for surface in self.placement:
+            host = next(h for h in hosts if skill_surface(h) == surface)
+            skill = update_skill_path(host)
+            payload = self.host_candidates[host][skill]
+            existing = self.reader.text(skill)
+            if existing is not None and legacy.normalized(existing) != legacy.normalized(payload):
+                self.save(skill, existing)
+            self.target(skill, payload, f"gzlite {to} update skill {cli.UPDATE_SKILL}", True)
+        for host in hosts:
+            if host in uncovered_hosts([host], self.placement):
+                self.plan.findings.append(
+                    f"{host} is configured but gets no {cli.UPDATE_SKILL}: a copy on its "
+                    f"surface {skill_surface(host)} would be discovered twice by another "
+                    f"configured host; it is installed at {', '.join(self.placement)} only"
+                )
+            elif skill_surface(host) not in self.placement:
+                self.plan.findings.append(
+                    f"{host} is expected to discover {cli.UPDATE_SKILL} at "
+                    f"{', '.join(s for s in self.placement if s in SKILL_SURFACES[host])} "
+                    "(its compatibility surface); that discovery is not verified in gzlite's "
+                    "evidence"
+                )
 
     def pyproject(self) -> None:
         text = self.reader.text(PYPROJECT)
@@ -327,7 +379,7 @@ class _Builder:
         plan = self.plan
         candidates = {**self.saved, **self.targets}
         paths = {name: cli.check_path(self.root, name) for name in candidates}
-        replaceable = self.replaceable | set(self.saved)
+        replaceable = self.replaceable
         plan.writes, plan.before, _ = cli._plan_writes(paths, candidates, replaceable)
         plan.before.update(self.delete_bytes)
         plan.inputs = dict(self.reader.inputs)
@@ -367,6 +419,13 @@ def plan_migration(project: Path, ref: str) -> MigrationPlan:
         )
     root = cli._adoption_root(project)
     legacy.refuse_go_project(root)
+    staging = root / cli.STAGING_DIRECTORY
+    if os.path.lexists(staging):
+        # Only an incomplete rollback (or a failed cleanup) leaves staged originals.
+        raise cli.AdoptionError(
+            f"{cli.STAGING_DIRECTORY}/ holds originals from an interrupted migration; restore "
+            f"or delete them by hand first; {legacy.UNCHANGED}"
+        )
     state = legacy.legacy_directory(root)
     if state is None:
         empty = [name for name in legacy.LEGACY_DIRECTORIES if (root / name).is_dir()]
@@ -403,13 +462,16 @@ def plan_migration(project: Path, ref: str) -> MigrationPlan:
     # Read only to refuse an unsupported profile; it is never written or invented.
     cli.profile_check(cli.check_path(root, PROFILE))
     reader.read(PROFILE)
-    configs = legacy.host_configs(reader, lock, release.version, builder.parts, builder.current)
+    configs = hosts_config.host_configs(
+        reader, lock, release.version, builder.parts, builder.current
+    )
     hosts = [config.host for config in configs]
     if "claude" in hosts:
         builder.claude_local_check()
     policy, copies, working = cli._policy_candidates(root, ref, lock.adr_mode)
     retired = builder.retire_old_state(state, hosts)
-    cli._check_discovery(root, lock.host, skip=frozenset(retired))
+    builder.placement = update_skill_placement(hosts, lock.host)
+    cli._check_discovery(root, lock.host, skip=frozenset(retired), allowed=builder.placement)
     candidates = builder.host_targets(configs, policy, working)
     builder.managed_targets(candidates, copies)
     builder.pyproject()
@@ -431,16 +493,35 @@ def migrate(project: Path, *, apply: bool, fingerprint: str | None, ref: str) ->
             "the fingerprint does not match the current plan; preview again and review it; "
             f"{legacy.UNCHANGED}"
         )
-    cli._apply_writes(
-        plan.root,
-        {name: cli.check_path(plan.root, name) for name in plan.writes},
-        plan.writes,
-        plan.before,
-        deletes=plan.deletes,
-        directories=plan.directories,
-        allow_legacy=True,
-    )
+    try:
+        left = cli._apply_writes(
+            plan.root,
+            {name: cli.check_path(plan.root, name) for name in plan.writes},
+            plan.writes,
+            plan.before,
+            deletes=plan.deletes,
+            directories=plan.directories,
+            allow_legacy=True,
+            saved={item["path"]: item["saved_to"] for item in plan.replaced},
+        )
+    except cli.RollbackIncomplete:
+        raise
+    except (cli.AdoptionError, OSError, ValueError) as error:
+        kept = f"; the copies saved under {MIGRATED_DIRECTORY}/ were kept" if plan.replaced else ""
+        raise cli.AdoptionError(
+            f"migration failed and was rolled back ({error}){kept}; preview again"
+        ) from error
     plan.status = "migrated"
+    if left:
+        plan.findings.append(
+            "staged originals could not be removed: " + ", ".join(left) + "; delete "
+            f"{cli.STAGING_DIRECTORY}/ by hand once nothing holds them open"
+        )
     result = plan.result()
-    result["post_apply_status"] = cli.status(plan.root)
+    try:
+        result["post_apply_status"] = cli.status(plan.root)
+    except (cli.AdoptionError, OSError, ValueError, KeyError) as error:
+        # The writes succeeded; a failing status check is a finding, not a refusal.
+        result["post_apply_status"] = {"status": "unavailable", "error": str(error)}
+        result["findings"].append(f"post-apply status could not run: {error}")
     return result

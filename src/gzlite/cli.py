@@ -8,6 +8,7 @@ this tool writes project configuration and never edits their global caches.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import json
 import os
@@ -26,14 +27,18 @@ from gzlite.native import (
     HOST_PATHS,
     configuration_path,
     project_json,
+    skill_surface,
     update_skill_path,
+    update_skill_placement,
 )
 from gzlite.native_identity import STARTER_SOURCES, marketplace_name, retire_codex
+from gzlite.native_json import document as project_document
 from gzlite.native_launch import launch as launch_opencode
 from gzlite.native_scope import claude_scope, codex_scope, opencode_scope
 from gzlite.paths import (
     BUNDLE_LOCK,
     LOCAL_ADR_POLICY,
+    STATE_DIRECTORY,
     space_free,
     validate_state_directory,
 )
@@ -62,6 +67,8 @@ UPDATE_SKILL_SOURCE = f"templates/skills/{UPDATE_SKILL}/SKILL.md"
 UPDATE_SKILL_DESTINATION = f".agents/skills/{UPDATE_SKILL}/SKILL.md"
 ADR_POLICY_SOURCE = "docs/engineering/architectural-decisions.md"
 ADR_POLICY_DESTINATION = LOCAL_ADR_POLICY
+# Deleted files wait here until a change succeeds, so a rollback is a rename.
+STAGING_DIRECTORY = f"{STATE_DIRECTORY}/staging"
 # Top-level lock keys configure writes; any other key is project-owned and carried.
 MANAGED_LOCK_KEYS = frozenset({"schema_version", "starter", "components", "adr_policy", "host"})
 
@@ -220,10 +227,14 @@ def _adoption_root(project: Path) -> Path:
 
 
 def _check_discovery_entry(
-    surface: str, child: Path, owned_surface: str = ".agents/skills"
+    surface: str, child: Path, allowed: Collection[str] = (".agents/skills",)
 ) -> None:
-    """Preserve legacy and shared skill copies for explicit reconciliation."""
-    if child.name == UPDATE_SKILL and surface != owned_surface:
+    """Preserve legacy and shared skill copies for explicit reconciliation.
+
+    ``allowed`` lists the surfaces that may hold the update skill: one per
+    configured host, chosen so no host discovers two copies.
+    """
+    if child.name == UPDATE_SKILL and surface not in allowed:
         raise AdoptionError(f"duplicate template update skill at {surface}; reconcile first")
     if child.name in ("skills-first-start", "adopt-skills-stack", "python-engineering"):
         raise AdoptionError(
@@ -241,12 +252,53 @@ def _check_discovery_entry(
         )
 
 
-def _check_discovery(root: Path, host: str = "codex", skip: Collection[str] = frozenset()) -> None:
+def configured_hosts(root: Path, recorded: str) -> list[str]:
+    """The recorded host, then every other host whose file holds this release's entries."""
+    catalog = marketplace()
+    targets = {
+        f"git+{p['repository']}.git#{p['revision']}"
+        for p in bundle()["components"]
+        if p["enabled_by_default"]
+    }
+    found = [recorded]
+    for host in sorted(set(HOST_PATHS) - {recorded}):
+        try:
+            name = configuration_path(root, host)
+            path = check_path(root, name)
+            text = path.read_text(encoding="utf-8") if path.exists() else ""
+            if not text:
+                continue
+            if host == "codex":
+                present = catalog in tomllib.loads(text).get("marketplaces", {})
+            else:
+                data, _ = project_document(text)
+                if host == "claude":
+                    known = data.get("extraKnownMarketplaces")
+                    present = isinstance(known, dict) and catalog in known
+                else:
+                    plugins = data.get("plugins")
+                    present = isinstance(plugins, list) and bool(targets & set(plugins))
+        except AdoptionError, OSError, ValueError:
+            # An unreadable file of another host is not this host's concern.
+            continue
+        if present:
+            found.append(host)
+    return found
+
+
+def _check_discovery(
+    root: Path,
+    host: str = "codex",
+    skip: Collection[str] = frozenset(),
+    allowed: Collection[str] | None = None,
+) -> None:
     """Inspect all supported discovery surfaces without mutating their contents.
 
     ``skip`` names skill directories (``<surface>/<name>``) the caller removes.
+    ``allowed`` defaults to the update-skill placement for the configured hosts.
     """
-    owned_surface = Path(update_skill_path(host)).parent.parent.as_posix()
+    if allowed is None:
+        allowed = update_skill_placement(configured_hosts(root, host), host)
     for surface in (
         ".agents/skills",
         ".codex/skills",
@@ -261,7 +313,7 @@ def _check_discovery(root: Path, host: str = "codex", skip: Collection[str] = fr
             for child in folder.iterdir():
                 space_free(child)
                 if f"{surface}/{child.name}" not in skip:
-                    _check_discovery_entry(surface, child, owned_surface)
+                    _check_discovery_entry(surface, child, allowed)
 
 
 def _policy_candidates(
@@ -444,18 +496,29 @@ def _apply_writes(
     deletes: Collection[str] = (),
     directories: Collection[str] = (),
     allow_legacy: bool = False,
-) -> None:
+    saved: Mapping[str, str] | None = None,
+) -> list[str]:
     """Recheck each destination and roll completed writes back on failure.
 
-    After the writes, each of ``deletes`` is removed if it still holds its
-    ``before`` bytes, then each of ``directories`` in the given order (each must
-    be empty by then). The state folder must be valid at the end, with no
-    legacy state left. Any failure restores removed files, then undoes the
-    writes and removes the directories the writes created.
+    After the writes, each of ``deletes`` is moved (``os.replace``) into
+    ``STAGING_DIRECTORY`` if it still holds its ``before`` bytes, then each of
+    ``directories`` is removed in the given order (each must be empty by then).
+    The state folder must be valid at the end, with no legacy state left.
+    Staged files are removed last; any that cannot be are returned.
+
+    ``saved`` maps a deleted or replaced file to the copy of it this same call
+    writes (``migrate`` saves under ``.gzlite/migrated/``). Those copies are
+    never undone, so a failed restore cannot lose the only copy. On failure,
+    staged files are renamed back, then writes are undone. If any step of that
+    fails, undoing stops, everything left stays where it is, and
+    ``RollbackIncomplete`` names each affected file and where its copy is.
     """
     validate_state_directory(root, allow_legacy=allow_legacy)
+    saved = saved or {}
+    keep = set(saved.values())
     created = _missing_parents(root, writes)
-    completed, removed = [], []
+    completed: list[str] = []
+    staged: list[tuple[str, Path]] = []
     try:
         for name, payload in writes.items():
             path = check_path(root, name)
@@ -468,43 +531,121 @@ def _apply_writes(
             path = check_path(root, name)
             if not path.exists() or path.read_bytes() != before[name]:
                 raise AdoptionError(f"{name} changed during preview; retry after review")
-            path.unlink()
-            removed.append(name)
+            target = check_path(root, f"{STAGING_DIRECTORY}/{name}")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            os.replace(path, target)
+            staged.append((name, target))
         for name in directories:
             directory = space_free(root / name)
             if directory.is_symlink():
                 raise AdoptionError(f"refusing symlinked directory: {name}")
             os.rmdir(directory)
         validate_state_directory(root)
-    except BaseException:
-        for name in reversed(removed):
-            original = before[name]
-            try:
-                path = check_path(root, name)
-                if path.exists() or original is None:
-                    continue
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_bytes(original)
-            except AdoptionError, OSError, ValueError:
-                continue
-        for name in reversed(completed):
-            try:
-                path = check_path(root, name)
-                if path.read_bytes() != writes[name].encode():
-                    continue
-            except AdoptionError, OSError, ValueError:
-                continue
+    except BaseException as error:
+        problems = _roll_back(root, writes, before, completed, staged, created, keep, saved)
+        if problems:
+            raise RollbackIncomplete(
+                f"the change failed ({error}) and its rollback is incomplete; nothing more "
+                "was undone. Restore by hand: " + "; ".join(problems)
+            ) from error
+        raise
+    return _clear_staging(root, staged)
+
+
+class RollbackIncomplete(AdoptionError):
+    """A failed change could not be fully undone; files are left where they are."""
+
+
+def _relative(root: Path, path: Path) -> str:
+    return path.relative_to(root).as_posix()
+
+
+def _roll_back(
+    root: Path,
+    writes: dict[str, str],
+    before: dict[str, bytes | None],
+    completed: list[str],
+    staged: list[tuple[str, Path]],
+    created: list[Path],
+    keep: set[str],
+    saved: Mapping[str, str],
+) -> list[str]:
+    """Undo a failed change in reverse; on the first failure, stop and describe the rest."""
+
+    def copies(name: str) -> str:
+        return f" (saved copy at {saved[name]})" if name in saved else ""
+
+    for index in range(len(staged) - 1, -1, -1):
+        name, target = staged[index]
+        try:
+            path = check_path(root, name)
+            if path.exists():
+                raise AdoptionError(f"{name} exists again")
+            path.parent.mkdir(parents=True, exist_ok=True)
+            os.replace(target, path)
+        except (AdoptionError, OSError, ValueError) as error:
+            problems = [
+                f"{n} was not restored ({error}); its original is at "
+                f"{_relative(root, t)}{copies(n)}"
+                for n, t in reversed(staged[: index + 1])
+            ]
+            left = [n for n in completed if n not in keep]
+            if left:
+                problems.append("new content was left in " + ", ".join(left))
+            return problems
+    for index in range(len(completed) - 1, -1, -1):
+        name = completed[index]
+        if name in keep:
+            continue
+        try:
+            path = check_path(root, name)
+            if path.read_bytes() != writes[name].encode():
+                continue  # changed by someone else since; leave it
             original = before[name]
             if original is None:
                 path.unlink()
             else:
                 path.write_bytes(original)
-        for directory in reversed(created):
+        except (AdoptionError, OSError, ValueError) as error:
+            left = [n for n in completed[: index + 1] if n not in keep]
+            return [
+                f"{name} could not be undone ({error})",
+                "new content was left in " + ", ".join(left),
+                *(f"{n} is saved at {s}" for n, s in saved.items()),
+            ]
+    for directory in reversed(created):
+        try:
+            directory.rmdir()
+        except OSError:
+            continue  # it holds a kept copy, or someone else's file
+    _remove_empty(root, root / STAGING_DIRECTORY)
+    return []
+
+
+def _remove_empty(root: Path, folder: Path) -> None:
+    """Remove empty directories below and including ``folder``, deepest first."""
+    if not folder.is_dir() or folder.is_symlink():
+        return
+    for directory in sorted(folder.rglob("*"), key=lambda p: -len(p.parts)):
+        if directory.is_dir() and not directory.is_symlink():
             try:
                 directory.rmdir()
             except OSError:
                 continue
-        raise
+    with contextlib.suppress(OSError):
+        folder.rmdir()
+
+
+def _clear_staging(root: Path, staged: list[tuple[str, Path]]) -> list[str]:
+    """Remove staged files after success; report any that cannot be removed."""
+    left = []
+    for _, target in staged:
+        try:
+            target.unlink()
+        except OSError:
+            left.append(_relative(root, target))
+    _remove_empty(root, root / STAGING_DIRECTORY)
+    return left
 
 
 def configure(
@@ -571,6 +712,8 @@ def configure(
         "host": host,
         "starter": lock["starter"],
         "adr_policy": policy,
+        # Project-owned top-level lock keys, kept as recorded.
+        "carried_lock_keys": list(carried),
         "next": [
             "Review the project instructions fragment; link it from existing AGENTS.md if needed.",
             "Profile selection belongs to canonical gz-skills setup; no profile is inferred or created.",
@@ -589,15 +732,43 @@ def status(project: Path) -> dict:
     if not path.exists():
         return {"status": "not configured", "runtime_readiness": "unverified"}
     lock = json.loads(path.read_text(encoding="utf-8"))
-    expected = configure(root, lock["starter"]["revision"], host=lock.get("host", "codex"))
+    ref, host = lock["starter"]["revision"], lock.get("host", "codex")
+    expected = configure(root, ref, host=host)
+    hosts = configured_hosts(root, host)
+    pending = expected["writes"] + _other_host_pending(root, ref, host, hosts)
     return {
-        "status": "configured" if not expected["writes"] else "incomplete",
+        "status": "configured" if not pending else "incomplete",
         "runtime_readiness": "unverified",
-        "pending_files": expected["writes"],
+        "hosts": hosts,
+        "pending_files": pending,
         "starter": lock["starter"],
         "components": lock["components"],
         "adr_policy": lock["adr_policy"],
     }
+
+
+def _other_host_pending(root: Path, ref: str, recorded: str, hosts: list[str]) -> list[str]:
+    """Files of the hosts besides the recorded one that differ from this release's."""
+    policy, _, working = _policy_candidates(root, ref, None)
+    placement = update_skill_placement(hosts, recorded)
+    pending = []
+    for host in hosts:
+        if host == recorded:
+            continue
+        name = configuration_path(root, host)
+        paths = {name: check_path(root, name), "AGENTS.md": check_path(root, "AGENTS.md")}
+        candidates, _ = _configuration_candidates(
+            paths, ref, host, policy=policy, working_policy=working
+        )
+        expected = {name: candidates[name]}
+        skill = update_skill_path(host)
+        if skill_surface(host) in placement and skill_surface(host) != skill_surface(recorded):
+            expected[skill] = candidates[skill]
+        for item, payload in expected.items():
+            path = check_path(root, item)
+            if not path.exists() or path.read_bytes() != payload.encode():
+                pending.append(item)
+    return pending
 
 
 def _inherited_plugins(host: str) -> dict:

@@ -13,7 +13,13 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from fixtures_adopters import FIXTURE_COMPONENTS, host_config, lock, render_adopter
+from fixtures_adopters import (
+    FIXTURE_COMPONENTS,
+    host_config,
+    lock,
+    managed_files,
+    render_adopter,
+)
 
 from gzlite import cli
 from gzlite.fingerprint import fingerprint
@@ -78,6 +84,16 @@ class MigrateCase(unittest.TestCase):
         self.assertEqual(self.tree(root), before)
         return err
 
+    @staticmethod
+    def edits(planned: dict) -> list[dict]:
+        """Saved copies other than legacy state, which is always saved as a record."""
+        return [i for i in planned["replaced"] if i["path"].split("/")[0] not in LEGACY]
+
+    def saved_copies(self, root: Path | None = None) -> dict[str, bytes]:
+        root = root or self.root
+        folder = root / ".gzlite/migrated"
+        return self.tree(folder) if folder.exists() else {}
+
     def new_lock(self, root: Path | None = None) -> dict:
         return json.loads(((root or self.root) / ".gzlite/bundle.lock.json").read_bytes())
 
@@ -101,12 +117,18 @@ class EveryReleaseTests(MigrateCase):
     """Each tagged release, each host it supported, as its configure wrote it."""
 
     def check_migrated(self, root: Path, release, host: str) -> None:
+        legacy_files = {
+            name: data
+            for name, data in self.tree(root).items()
+            if name.startswith(release.state_directory + "/")
+        }
         planned = self.preview(root)
         self.assertEqual(planned["status"], "preview")
         self.assertEqual(planned["from_version"], release.version)
         self.assertEqual(planned["from_revision"], release.revision)
         self.assertEqual(planned["to_version"], "0.14.0")
-        self.assertEqual(planned["replaced"], [])
+        self.assertEqual(self.edits(planned), [])
+        self.assertTrue([f for f in planned["findings"] if "component pins move" in f])
         self.assertFalse([f for f in planned["findings"] if "never a tagged release" in f])
         written = [item["path"] for item in planned["writes"]]
         self.assertIn(".gzlite/bundle.lock.json", written)
@@ -126,7 +148,9 @@ class EveryReleaseTests(MigrateCase):
         self.assertEqual(new_lock.get("host", "codex"), host)
         for legacy in LEGACY:
             self.assertFalse((root / legacy).exists(), legacy)
-        self.assertFalse((root / ".gzlite/migrated").exists())
+        # Only the legacy state is saved, byte for byte, and nothing is left staged.
+        self.assertEqual(self.saved_copies(root), legacy_files)
+        self.assertFalse((root / cli.STAGING_DIRECTORY).exists())
         self.assertFalse((root / ".gz-skills").exists())
         skill = root / update_skill_path(host)
         self.assertEqual(
@@ -200,7 +224,7 @@ class EveryReleaseTests(MigrateCase):
         planned = self.preview()
         self.assertEqual(planned["from_version"], "0.3.2")
         self.assertEqual(planned["from_revision"], WINDOWS_HEALTH)
-        self.assertEqual(planned["replaced"], [])
+        self.assertEqual(self.edits(planned), [])
         notes = [f for f in planned["findings"] if "never a tagged release" in f]
         self.assertEqual(len(notes), 1)
         self.assertIn("0.3.2", notes[0])
@@ -239,7 +263,7 @@ class DriftTests(MigrateCase):
         config.write_text(config.read_text() + extra)
         planned = self.preview()
         self.assertTrue([c for c in planned["carried"] if "fixture-catalog" in c])
-        self.assertEqual(planned["replaced"], [])
+        self.assertEqual(self.edits(planned), [])
         self.apply()
         data = tomllib.loads(config.read_text())
         self.assertIn("fixture-catalog", data["marketplaces"])
@@ -264,7 +288,7 @@ class DriftTests(MigrateCase):
         fragment.write_bytes(edited)
         planned = self.preview()
         self.assertEqual(
-            planned["replaced"],
+            self.edits(planned),
             [
                 {
                     "path": "AGENTS.skills-first.md",
@@ -287,9 +311,9 @@ class DriftTests(MigrateCase):
                 path = self.root / name
                 path.write_bytes(path.read_bytes().replace(b"\n", b"\r\n"))
         planned = self.preview()
-        self.assertEqual(planned["replaced"], [])
+        self.assertEqual(self.edits(planned), [])
         self.apply()
-        self.assertFalse((self.root / ".gzlite/migrated").exists())
+        self.assertEqual(set(self.saved_copies()), {".gz-starter/bundle.lock.json"})
         self.assertEqual(cli.status(self.root)["pending_files"], [])
 
     def test_edited_update_skill_is_saved(self):
@@ -337,6 +361,11 @@ class DriftTests(MigrateCase):
             planned["replaced"],
         )
         self.assertTrue([f for f in planned["findings"] if ".codex/config.toml" in f])
+        guidance = [f for f in planned["findings"] if "To keep that catalog, re-add it" in f]
+        self.assertEqual(len(guidance), 1)
+        self.assertIn("catalog skills-first-starter pointed at", guidance[0])
+        self.assertIn("fixture-project.git", guidance[0])
+        self.assertIn("under a new name that no starter release uses", guidance[0])
         self.apply()
         self.assertEqual((self.root / ".gzlite/migrated/.codex/config.toml").read_text(), original)
         data = tomllib.loads(config.read_text())
@@ -346,17 +375,32 @@ class DriftTests(MigrateCase):
     def test_both_claude_and_codex_configured_while_lock_records_codex(self):
         release = tagged("0.13.0")
         render_adopter(self.root, release, "codex")
+        # Claude was configured by an earlier configure run, with its own update skill.
+        for name, text in managed_files(release, "claude").items():
+            if name.startswith(".claude/"):
+                (self.root / name).parent.mkdir(parents=True, exist_ok=True)
+                (self.root / name).write_text(text)
+        old_claude_skill = self.root / ".claude/skills/update-gz-template/SKILL.md"
+        self.assertTrue(old_claude_skill.is_file())
         claude = self.root / ".claude/settings.json"
-        claude.parent.mkdir()
-        claude.write_text(host_config(release, "claude", release.revision))
         planned = self.preview()
         written = [item["path"] for item in planned["writes"]]
         self.assertIn(".codex/config.toml", written)
         self.assertIn(".claude/settings.json", written)
+        self.assertIn(".claude/skills/gzl-update/SKILL.md", written)
+        self.assertIn(".agents/skills/gzl-update/SKILL.md", written)
+        self.assertEqual(self.edits(planned), [])
         self.assertTrue([c for c in planned["carried"] if "claude" in c])
-        self.assertTrue([f for f in planned["findings"] if ".claude/skills/gzl-update" in f])
         self.apply()
-        self.assertFalse((self.root / ".claude/skills").exists())
+        self.assertEqual(
+            sorted(p.name for p in (self.root / ".claude/skills").iterdir()), ["gzl-update"]
+        )
+        self.assertEqual(
+            sorted(p.name for p in (self.root / ".agents/skills").iterdir()), ["gzl-update"]
+        )
+        report = cli.status(self.root)
+        self.assertEqual(report["hosts"], ["codex", "claude"])
+        self.assertEqual(report["pending_files"], [])
         current = cli.marketplace()
         self.assertEqual(
             set(tomllib.loads((self.root / ".codex/config.toml").read_text())["marketplaces"]),
@@ -373,6 +417,75 @@ class DriftTests(MigrateCase):
         )
         self.assertNotIn("host", self.new_lock())
         self.assertEqual(cli.status(self.root)["pending_files"], [])
+        # status checks the second host too, not only the recorded one.
+        (self.root / ".claude/skills/gzl-update/SKILL.md").write_text("drifted\n")
+        self.assertEqual(
+            cli.status(self.root)["pending_files"], [".claude/skills/gzl-update/SKILL.md"]
+        )
+
+    def test_claude_and_opencode_share_one_copy_when_claude_is_recorded(self):
+        release = tagged("0.13.0")
+        render_adopter(self.root, release, "claude")
+        (self.root / "opencode.json").write_text(host_config(release, "opencode", REF))
+        planned = self.preview()
+        written = [item["path"] for item in planned["writes"]]
+        self.assertIn(".claude/skills/gzl-update/SKILL.md", written)
+        self.assertNotIn(".agents/skills/gzl-update/SKILL.md", written)
+        self.assertTrue(
+            [f for f in planned["findings"] if f.startswith("opencode is expected to discover")]
+        )
+        self.apply()
+        self.assertEqual(cli.status(self.root)["hosts"], ["claude", "opencode"])
+        self.assertEqual(cli.status(self.root)["pending_files"], [])
+
+    def test_unavoidable_duplicate_leaves_one_host_without_and_says_so(self):
+        release = tagged("0.13.0")
+        render_adopter(self.root, release, "opencode")
+        claude = self.root / ".claude/settings.json"
+        claude.parent.mkdir()
+        claude.write_text(host_config(release, "claude", release.revision))
+        planned = self.preview()
+        written = [item["path"] for item in planned["writes"]]
+        self.assertIn(".agents/skills/gzl-update/SKILL.md", written)
+        self.assertNotIn(".claude/skills/gzl-update/SKILL.md", written)
+        self.assertTrue([f for f in planned["findings"] if f.startswith("claude is configured")])
+        self.apply()
+        self.assertEqual(cli.status(self.root)["pending_files"], [])
+
+    def test_second_opencode_config_with_other_pins_is_migrated(self):
+        release = tagged("0.13.0")
+        render_adopter(self.root, release, "codex")
+        ahead = tuple(dict(part, revision="c" * 40) for part in FIXTURE_COMPONENTS)
+        opencode = self.root / "opencode.json"
+        original = host_config(release, "opencode", REF, ahead)
+        opencode.write_text(original)
+        planned = self.preview()
+        self.assertIn(
+            {"path": "opencode.json", "saved_to": ".gzlite/migrated/opencode.json"},
+            self.edits(planned),
+        )
+        self.apply()
+        data, _ = document(opencode.read_text())
+        self.assertFalse([p for p in data["plugins"] if "c" * 40 in p])
+        self.assertEqual((self.root / ".gzlite/migrated/opencode.json").read_text(), original)
+        self.assertEqual(cli.status(self.root)["hosts"], ["codex", "opencode"])
+        self.assertEqual(cli.status(self.root)["pending_files"], [])
+
+    def test_inline_comment_on_a_retired_table_is_saved(self):
+        release = tagged("0.13.0")
+        render_adopter(self.root, release, "codex")
+        config = self.root / ".codex/config.toml"
+        original = config.read_text().replace(
+            "enabled = true", "enabled = true # chosen for this project", 1
+        )
+        config.write_text(original)
+        planned = self.preview()
+        self.assertIn(
+            {"path": ".codex/config.toml", "saved_to": ".gzlite/migrated/.codex/config.toml"},
+            self.edits(planned),
+        )
+        self.apply()
+        self.assertEqual((self.root / ".gzlite/migrated/.codex/config.toml").read_text(), original)
 
     def test_opencode_jsonc_is_edited_in_place(self):
         release = tagged("0.10.0")
@@ -382,7 +495,7 @@ class DriftTests(MigrateCase):
         jsonc.write_text("// Project OpenCode settings.\n" + jsonc.read_text())
         planned = self.preview()
         self.assertIn("opencode.jsonc", [item["path"] for item in planned["writes"]])
-        self.assertEqual(planned["replaced"], [])
+        self.assertEqual(self.edits(planned), [])
         self.apply()
         self.assertFalse((self.root / "opencode.json").exists())
         text = jsonc.read_text()
@@ -463,6 +576,14 @@ class DriftTests(MigrateCase):
             planned["replaced"],
         )
         self.assertTrue([f for f in planned["findings"] if "superpowers@fixture-local" in f])
+        self.assertIn(
+            ".codex/config.toml: superpowers@fixture-local was active and is now disabled, so "
+            "the gzlite-0-14-0 bundle is the only source of superpowers. To re-enable it, set "
+            'enabled = true in [plugins."superpowers@fixture-local"] in .codex/config.toml; '
+            "while gzlite's bundle provides superpowers, configure and status then refuse it "
+            "as duplicate discovery",
+            planned["findings"],
+        )
         self.apply()
         data = tomllib.loads(config.read_text())
         self.assertIs(data["plugins"]["superpowers@fixture-local"]["enabled"], False)
@@ -528,7 +649,7 @@ class FingerprintAndRerunTests(MigrateCase):
         # A line-ending-only change leaves the plan alone but is a different input.
         fragment = self.root / "AGENTS.skills-first.md"
         fragment.write_bytes(fragment.read_bytes().replace(b"\n", b"\r\n"))
-        self.assertEqual(self.preview()["replaced"], [])
+        self.assertEqual(self.edits(self.preview()), [])
         self.refused("--apply", "--fingerprint", planned["fingerprint"])
 
     def test_rerun_after_apply_is_nothing_to_migrate(self):
@@ -549,16 +670,74 @@ class FingerprintAndRerunTests(MigrateCase):
 
         def fail_on_legacy(path, *args, **kwargs):
             # The legacy folder is removed last, after every write and delete.
-            if Path(path).name == ".gz-starter":
+            if Path(path).resolve() == (self.root / ".gz-starter").resolve():
                 raise OSError("fixture failure")
             return real_rmdir(path, *args, **kwargs)
 
         with mock.patch.object(cli.os, "rmdir", side_effect=fail_on_legacy):
             code, _, err = self.run_cli("--apply", "--fingerprint", planned["fingerprint"])
         self.assertEqual(code, 2, err)
-        self.assertEqual(self.tree(), before)
-        self.assertFalse((self.root / ".gzlite").exists())
-        self.assertEqual(self.preview()["fingerprint"], planned["fingerprint"])
+        self.assertIn("rolled back", err)
+        # Everything is as before, except that the saved copies are kept.
+        after = self.tree()
+        kept = {name: after.pop(name) for name in list(after) if name.startswith(".gzlite/")}
+        self.assertEqual(after, before)
+        self.assertEqual(
+            kept[".gzlite/migrated/.gz-starter/bundle.lock.json"],
+            before[".gz-starter/bundle.lock.json"],
+        )
+        self.assertTrue(all(name.startswith(".gzlite/migrated/") for name in kept))
+        self.assertFalse((self.root / cli.STAGING_DIRECTORY).exists())
+        # A retry plans again around the kept copies and succeeds.
+        self.assertEqual(self.apply()["status"], "migrated")
+
+    def test_failed_restore_keeps_every_copy_and_names_it(self):
+        planned = self.preview()
+        lock_bytes = (self.root / ".gz-starter/bundle.lock.json").read_bytes()
+        real_rmdir, real_replace = os.rmdir, os.replace
+        staging = (self.root / cli.STAGING_DIRECTORY).resolve()
+
+        def fail_on_legacy(path, *args, **kwargs):
+            if Path(path).resolve() == (self.root / ".gz-starter").resolve():
+                raise OSError("fixture failure")
+            return real_rmdir(path, *args, **kwargs)
+
+        def fail_restore(source, target, *args, **kwargs):
+            # Moving a staged original back is what fails (a delete-pending file).
+            if staging in Path(source).resolve().parents:
+                raise OSError("fixture restore failure")
+            return real_replace(source, target, *args, **kwargs)
+
+        with (
+            mock.patch.object(cli.os, "rmdir", side_effect=fail_on_legacy),
+            mock.patch.object(cli.os, "replace", side_effect=fail_restore),
+        ):
+            code, _, err = self.run_cli("--apply", "--fingerprint", planned["fingerprint"])
+        self.assertEqual(code, 2, err)
+        self.assertIn("rollback is incomplete", err)
+        self.assertIn(".gz-starter/bundle.lock.json was not restored", err)
+        self.assertIn(".gzlite/staging/.gz-starter/bundle.lock.json", err)
+        self.assertIn("saved copy at .gzlite/migrated/.gz-starter/bundle.lock.json", err)
+        self.assertEqual(
+            (self.root / ".gzlite/migrated/.gz-starter/bundle.lock.json").read_bytes(), lock_bytes
+        )
+        self.assertEqual(
+            (self.root / ".gzlite/staging/.gz-starter/bundle.lock.json").read_bytes(), lock_bytes
+        )
+        self.assertTrue((self.root / ".gzlite/bundle.lock.json").is_file())
+        # Nothing is retried blindly: the staging leftovers block a new migrate.
+        self.refused()
+
+    def test_failing_status_after_apply_is_a_finding(self):
+        planned = self.preview()
+        with mock.patch.object(cli, "status", side_effect=cli.AdoptionError("fixture")):
+            code, out, err = self.run_cli("--apply", "--fingerprint", planned["fingerprint"])
+        self.assertEqual(code, 0, err)
+        result = json.loads(out)
+        self.assertEqual(result["status"], "migrated")
+        self.assertEqual(result["post_apply_status"]["status"], "unavailable")
+        self.assertIn("post-apply status could not run: fixture", result["findings"])
+        self.assertFalse((self.root / ".gz-starter").exists())
 
 
 class RefusalTests(MigrateCase):

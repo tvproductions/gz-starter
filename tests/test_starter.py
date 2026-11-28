@@ -578,5 +578,54 @@ class AdoptionTests(unittest.TestCase):
             starter.configure(self.root, "main", apply=True)
 
 
+class CarriedLockKeyTests(unittest.TestCase):
+    """configure keeps project-owned top-level lock keys and says so."""
+
+    def setUp(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        self.root = Path(temp.name).resolve()
+        inherited = mock.patch.object(starter, "_inherited_plugins", return_value={})
+        inherited.start()
+        self.addCleanup(inherited.stop)
+        starter.configure(self.root, REF, apply=True)
+        self.lock = self.root / ".gzlite/bundle.lock.json"
+
+    def edit(self, change) -> None:
+        data = json.loads(self.lock.read_bytes())
+        change(data)
+        # Bytes, as configure writes them: write_text would add CR on Windows.
+        self.lock.write_bytes((json.dumps(data, indent=2) + "\n").encode())
+
+    def test_fresh_adoption_carries_nothing(self):
+        self.assertEqual(starter.configure(self.root, REF)["carried_lock_keys"], [])
+
+    def test_extra_top_level_key_is_carried_and_reported(self):
+        catalog = {"name": "fixture-catalog", "source": "project-local"}
+        self.edit(lambda data: data.update(catalog=catalog))
+        before = self.lock.read_bytes()
+        result = starter.configure(self.root, REF, apply=True)
+        self.assertEqual(result["carried_lock_keys"], ["catalog"])
+        self.assertEqual(result["writes"], [])
+        self.assertEqual(self.lock.read_bytes(), before)
+        self.assertEqual(starter.status(self.root)["status"], "configured")
+
+    def test_changes_inside_managed_keys_are_still_refused(self):
+        changes = {
+            "starter": lambda data: data["starter"].update(note="local"),
+            "components": lambda data: data["components"][0].update(revision="c" * 40),
+            "adr_policy": lambda data: data["adr_policy"].update(source_sha256="0" * 64),
+        }
+        original = self.lock.read_bytes()
+        for key, change in changes.items():
+            with self.subTest(key=key):
+                self.lock.write_bytes(original)
+                self.edit(change)
+                edited = self.lock.read_bytes()
+                with self.assertRaises(starter.AdoptionError):
+                    starter.configure(self.root, REF, apply=True)
+                self.assertEqual(self.lock.read_bytes(), edited)
+
+
 if __name__ == "__main__":
     unittest.main()
