@@ -1,12 +1,14 @@
 """Check the embedded starter release history without running git on this checkout.
 
-The history file is generated from the tagged releases by
+The history file is generated from the starter's commits by
 ``tools/build_release_history.py`` outside the gate. These tests read only the
-committed file, except the revision-map test, which builds a throwaway
-repository in a temporary directory.
+committed file, except the revision-map tests, which build a throwaway
+repository in a temporary directory. Blob ids and SHAs below were read once from
+this repository's history; the tests compare against them without running git.
 """
 
 import dataclasses
+import hashlib
 import importlib.util
 import json
 import subprocess
@@ -14,9 +16,17 @@ import tempfile
 import unittest
 from importlib.resources import files
 from pathlib import Path
+from typing import Any, cast
 
 from gzlite.gitenv import clean_git_env
-from gzlite.history import History, HistoryError, ManagedPath, Release, load_history
+from gzlite.history import (
+    History,
+    HistoryError,
+    ManagedPath,
+    Release,
+    load_history,
+    parse_history,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 BUILDER = ROOT / "tools/build_release_history.py"
@@ -48,11 +58,24 @@ TAGS = {
 }
 # windows-health's lock records 0.3.2 at this revision; 0.3.2 was never tagged.
 WINDOWS_HEALTH = "88928b2c6c663e37f739c80376dae42b5d8e5b4e"
+# Git blob ids of templates/AGENTS.skills-first.md at that revision and at v0.3.0.
+WINDOWS_HEALTH_FRAGMENT_BLOB = "47d3412f8855b435fb3094800f9373d1ecdc3758"
+V0_3_0_FRAGMENT_BLOB = "b8eb7cfd98087cc3ad370f174dc449fcda75dd91"
+# Untagged commits after v0.9.0 that already declare 0.10.0, before and after the
+# ADR policy placeholders entered the fragment.
+EARLY_0_10_0 = "1dd24b2a52249e22170a102bb0c363daae3e243b"
+EARLY_0_10_0_WITH_ADR = "e373f89cfed10dabd9311d16b3e1daea16930967"
 ORIGIN_BASE = "https://github.com/tvproductions/"
 
 
 def version_key(tag: str) -> tuple[int, ...]:
     return tuple(int(part) for part in tag.removeprefix("v").split("."))
+
+
+def blob_id(text: str) -> str:
+    """Compute the git blob id of ``text`` without running git."""
+    data = text.encode("utf-8")
+    return hashlib.sha1(b"blob %d\0" % len(data) + data, usedforsecurity=False).hexdigest()
 
 
 class HistoryTests(unittest.TestCase):
@@ -72,10 +95,25 @@ class HistoryTests(unittest.TestCase):
         for release in self.history.releases:
             self.assertEqual(release.version, release.tag.removeprefix("v"))
 
-    def test_untagged_adopter_revision_uses_nearest_earlier_tag(self):
+    def test_untagged_adopter_revision_uses_its_own_snapshot(self):
         release = self.history.release_for(WINDOWS_HEALTH)
+        self.assertEqual(release.version, "0.3.2")
         self.assertEqual(release.tag, "v0.3.0")
-        self.assertEqual(release.version, "0.3.0")
+        self.assertEqual(release.revision, WINDOWS_HEALTH)
+        self.assertEqual(blob_id(release.fragment_template), WINDOWS_HEALTH_FRAGMENT_BLOB)
+        self.assertEqual(blob_id(self.by_tag["v0.3.0"].fragment_template), V0_3_0_FRAGMENT_BLOB)
+        self.assertNotEqual(release.snapshot, self.by_tag["v0.3.0"].snapshot)
+
+    def test_commit_declaring_a_version_before_its_tag(self):
+        early = self.history.release_for(EARLY_0_10_0)
+        self.assertEqual((early.version, early.tag), ("0.10.0", "v0.9.0"))
+        self.assertFalse(early.adr_placeholders)
+        release = self.history.release_for(EARLY_0_10_0_WITH_ADR)
+        self.assertEqual((release.version, release.tag), ("0.10.0", "v0.9.0"))
+        self.assertTrue(release.adr_placeholders)
+        self.assertIn("{{ADR_POLICY_CANONICAL_URL}}", release.fragment_template)
+        self.assertIn("{{ADR_POLICY_WORKING_SOURCE}}", release.fragment_template)
+        self.assertIsNotNone(release.adr_policy_template)
 
     def test_tag_commits_resolve_to_their_own_release(self):
         for tag, revision in TAGS.items():
@@ -87,8 +125,15 @@ class HistoryTests(unittest.TestCase):
             self.history.release_for("b" * 40)
 
     def test_every_mapped_revision_names_a_listed_release(self):
-        self.assertTrue(set(self.history.revisions.values()) <= set(TAGS))
+        self.assertTrue({entry.tag for entry in self.history.revisions.values()} <= set(TAGS))
         self.assertTrue(set(TAGS.values()) <= set(self.history.revisions))
+        for release in self.history.releases:
+            self.assertEqual(self.history.revisions[release.revision].snapshot, release.snapshot)
+
+    def test_identical_snapshots_are_stored_once(self):
+        used = {entry.snapshot for entry in self.history.revisions.values()}
+        self.assertEqual(used, set(self.history.snapshots))
+        self.assertLess(len(self.history.snapshots), len(self.history.revisions))
 
     def test_state_directory_moves_at_0_12_1(self):
         for release in self.releases_between("v0.1.0", "v0.12.0"):
@@ -118,12 +163,12 @@ class HistoryTests(unittest.TestCase):
     def test_hosts_grow_at_0_8_0(self):
         for release in self.releases_between("v0.1.0", "v0.7.1"):
             with self.subTest(tag=release.tag):
-                self.assertEqual(release.hosts, ["codex"])
+                self.assertEqual(release.hosts, ("codex",))
         for release in self.releases_between("v0.8.0", "v0.13.0"):
             with self.subTest(tag=release.tag):
-                self.assertEqual(release.hosts, ["claude", "codex", "opencode"])
+                self.assertEqual(release.hosts, ("claude", "codex", "opencode"))
         for release in self.history.releases:
-            self.assertEqual(sorted(release.managed_paths), release.hosts)
+            self.assertEqual(tuple(sorted(release.managed_paths)), release.hosts)
 
     def test_managed_skills_follow_the_release(self):
         for release in self.history.releases:
@@ -160,7 +205,7 @@ class HistoryTests(unittest.TestCase):
 
     def test_managed_paths_match_each_release_configure(self):
         self.assertEqual(
-            self.by_tag["v0.1.0"].managed_paths["codex"],
+            list(self.by_tag["v0.1.0"].managed_paths["codex"]),
             [
                 "merged:.codex/config.toml",
                 ".skills-first/bundle.lock.json",
@@ -170,7 +215,7 @@ class HistoryTests(unittest.TestCase):
             ],
         )
         self.assertEqual(
-            self.by_tag["v0.3.0"].managed_paths["codex"],
+            list(self.by_tag["v0.3.0"].managed_paths["codex"]),
             [
                 "merged:.codex/config.toml",
                 ".skills-first/bundle.lock.json",
@@ -179,7 +224,7 @@ class HistoryTests(unittest.TestCase):
             ],
         )
         self.assertEqual(
-            self.by_tag["v0.13.0"].managed_paths["claude"],
+            list(self.by_tag["v0.13.0"].managed_paths["claude"]),
             [
                 "merged:.claude/settings.json",
                 ".gz-starter/bundle.lock.json",
@@ -190,7 +235,7 @@ class HistoryTests(unittest.TestCase):
             ],
         )
         self.assertEqual(
-            self.by_tag["v0.10.0"].managed_paths["opencode"],
+            list(self.by_tag["v0.10.0"].managed_paths["opencode"]),
             [
                 "merged:opencode.json",
                 "merged-if-exists:opencode.jsonc",
@@ -213,13 +258,14 @@ class HistoryTests(unittest.TestCase):
 
     def test_lock_keys_record_what_each_release_wrote(self):
         self.assertEqual(
-            self.by_tag["v0.1.0"].lock_keys, ["schema_version", "starter", "components"]
+            list(self.by_tag["v0.1.0"].lock_keys), ["schema_version", "starter", "components"]
         )
         self.assertEqual(
-            self.by_tag["v0.8.0"].lock_keys, ["schema_version", "starter", "components", "host"]
+            list(self.by_tag["v0.8.0"].lock_keys),
+            ["schema_version", "starter", "components", "host"],
         )
         self.assertEqual(
-            self.by_tag["v0.13.0"].lock_keys,
+            list(self.by_tag["v0.13.0"].lock_keys),
             ["schema_version", "starter", "components", "adr_policy", "host"],
         )
 
@@ -240,16 +286,42 @@ class HistoryTests(unittest.TestCase):
             .joinpath("resources/schemas/release-history.schema.json")
             .read_text(encoding="utf-8")
         )
-        fields = {field.name for field in dataclasses.fields(Release)}
-        release = schema["$defs"]["release"]
-        self.assertEqual(set(release["required"]), fields)
-        self.assertEqual(set(release["properties"]), fields)
+        identity = {"tag", "revision", "snapshot"}
+        fields = {field.name for field in dataclasses.fields(Release)} - identity
+        snapshot = schema["$defs"]["snapshot"]
+        self.assertEqual(set(snapshot["required"]), fields)
+        self.assertEqual(set(snapshot["properties"]), fields)
+        self.assertEqual(set(schema["$defs"]["release"]["required"]), identity)
+
+    def test_release_fields_are_immutable(self):
+        release = self.by_tag["v0.13.0"]
+        self.assertIsInstance(release.managed_paths["codex"], tuple)
+        self.assertIsInstance(release.lock_keys, tuple)
+        with self.assertRaises(TypeError):
+            cast(Any, release.managed_paths)["codex"] = ()
+
+    def test_loader_rejects_managed_paths_that_do_not_match_hosts(self):
+        raw = files("gzlite").joinpath("resources/release_history.json").read_text(encoding="utf-8")
+        data = json.loads(raw)
+        snapshot = data["snapshots"][self.by_tag["v0.13.0"].snapshot]
+        del snapshot["managed_paths"]["claude"]
+        with self.assertRaises(HistoryError):
+            parse_history(json.dumps(data))
 
 
 def git(cwd: Path, *args: str) -> str:
-    """Run git in a temporary repository with the isolated environment."""
+    """Run git in a temporary repository, isolated from inherited and global settings."""
+    settings = (
+        "user.name=t",
+        "user.email=t@example.invalid",
+        "commit.gpgsign=false",
+        "tag.gpgsign=false",
+        # A directory that never exists: no global hook can run in the fixture.
+        f"core.hooksPath={cwd.parent / 'no-hooks'}",
+    )
+    options = [item for setting in settings for item in ("-c", setting)]
     return subprocess.run(
-        ["git", "-C", str(cwd), "-c", "user.name=t", "-c", "user.email=t@example.invalid", *args],
+        ["git", "-C", str(cwd), *options, *args],
         cwd=cwd,
         env=clean_git_env(),
         check=True,
@@ -277,7 +349,7 @@ class RevisionMapTests(unittest.TestCase):
     def commit(self, name: str) -> str:
         (self.repo / f"{name}.txt").write_text(name, encoding="utf-8")
         git(self.repo, "add", "-A")
-        git(self.repo, "commit", "--no-verify", "--no-gpg-sign", "-q", "-m", name)
+        git(self.repo, "commit", "-q", "-m", name)
         return git(self.repo, "rev-parse", "HEAD")
 
     def test_each_commit_maps_to_its_latest_ancestor_tag(self):
@@ -309,6 +381,20 @@ class RevisionMapTests(unittest.TestCase):
         )
         self.assertNotIn(before, mapping)
         self.assertNotIn(after, mapping)
+
+    def test_tags_out_of_ancestry_order_stop_the_build(self):
+        self.commit("base")
+        git(self.repo, "checkout", "-q", "-b", "side")
+        self.commit("side")
+        git(self.repo, "tag", "v0.2.0")
+        git(self.repo, "checkout", "-q", "main")
+        self.commit("main")
+        git(self.repo, "tag", "v0.1.0")
+        git(self.repo, "merge", "--no-ff", "--no-edit", "-q", "side")
+        git(self.repo, "tag", "v0.3.0")
+
+        with self.assertRaises(self.builder.BuildError):
+            self.builder.revision_map(self.repo, ["v0.1.0", "v0.2.0"], "v0.3.0")
 
 
 if __name__ == "__main__":

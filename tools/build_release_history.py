@@ -1,15 +1,20 @@
-"""Build the embedded starter release history from the immutable release tags.
+"""Build the embedded starter release history from the starter's commits.
 
 Run from a full clone that has the tags ``v0.1.0`` to ``v0.13.0``:
 
     uv run --locked python tools/build_release_history.py [--check]
 
-For each tag, the builder reads that release's own ``configure`` code with
-``git show`` and derives, by static analysis (never by running historical code),
-what ``configure`` wrote: the managed paths per host, their conditions, the lock
-keys, and the templates as raw text with placeholders. It refuses to guess: any
-construct it does not recognize stops the build. The gate never runs this tool;
-it reads only the committed ``src/gzlite/resources/release_history.json``.
+Adopters record untagged revisions as well as tagged ones, and untagged commits
+often wrote different templates (and declared versions such as 0.3.2 that were
+never tagged). So for every commit reachable from ``v0.13.0`` that has a release
+tag among its ancestors, the builder reads that commit's own ``configure`` code
+with ``git cat-file`` and derives, by static analysis (never by running historical
+code), what ``configure`` wrote: the declared version, the managed paths per host,
+their conditions, the lock keys, and the templates as raw text with placeholders.
+Identical results are stored once, as a snapshot keyed by version and content
+hash. It refuses to guess: any construct it does not recognize stops the build.
+The gate never runs this tool; it reads only the committed
+``src/gzlite/resources/release_history.json``.
 
 Every git call strips inherited ``GIT_*`` variables and names the repository
 explicitly, so running under a hook never redirects git to another repository.
@@ -20,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import hashlib
 import json
 import re
 import subprocess
@@ -61,10 +67,10 @@ def git(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProce
     )
 
 
-def git_blob(repo: Path, tag: str, path: str) -> bytes:
-    """Read one file's exact bytes at ``tag``; templates must not be re-encoded."""
+def git_blob(repo: Path, commit: str, path: str) -> bytes:
+    """Read one file's exact bytes at ``commit``; templates must not be re-encoded."""
     return subprocess.run(
-        ["git", "-C", str(repo), "cat-file", "blob", f"{tag}:{path}"],
+        ["git", "-C", str(repo), "cat-file", "blob", f"{commit}:{path}"],
         cwd=repo,
         env=clean_git_env(),
         check=True,
@@ -102,9 +108,12 @@ def revision_map(repo: Path, tags: list[str], head: str) -> dict[str, str]:
     Commits with no tag among their ancestors are left out, so they stay unknown.
     """
     mapping: dict[str, str] = {}
-    for tag in sorted(tags, key=version_key):
-        if git(repo, "merge-base", "--is-ancestor", tag, head, check=False).returncode != 0:
-            raise BuildError(f"{tag} is not an ancestor of {head}")
+    ordered = sorted(tags, key=version_key)
+    # Version order must be ancestry order, or "latest tag" would be ambiguous.
+    for earlier, later in zip(ordered, [*ordered[1:], head], strict=True):
+        if git(repo, "merge-base", "--is-ancestor", earlier, later, check=False).returncode != 0:
+            raise BuildError(f"{earlier} is not an ancestor of {later}")
+    for tag in ordered:
         mapping[commit_of(repo, tag)] = tag
         # Descendants of the tag that are ancestors of head; a later tag overwrites.
         for line in git(repo, "rev-list", "--ancestry-path", f"{tag}..{head}").stdout.split():
@@ -222,30 +231,30 @@ def as_read_text(data: bytes) -> str:
     return data.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
 
 
-class Tag:
-    """The files of one release tag, read through git."""
+class Tree:
+    """The files of one starter commit, read through git."""
 
-    def __init__(self, repo: Path, tag: str) -> None:
+    def __init__(self, repo: Path, commit: str) -> None:
         self.repo = repo
-        self.tag = tag
-        self.files = set(git(repo, "ls-tree", "-r", "--name-only", tag).stdout.splitlines())
+        self.commit = commit
+        self.files = set(git(repo, "ls-tree", "-r", "--name-only", commit).stdout.splitlines())
 
     def read(self, path: str) -> bytes:
         if path not in self.files:
-            raise BuildError(f"{self.tag} has no {path}")
-        return git_blob(self.repo, self.tag, path)
+            raise BuildError(f"{self.commit} has no {path}")
+        return git_blob(self.repo, self.commit, path)
 
     def source(self, path: str) -> bytes:
         """Read a template; wheels carried a mirror that must match the checkout file."""
         data = self.read(path)
         mirror = f"{PACKAGE}/resources/{path}"
-        if mirror in self.files and git_blob(self.repo, self.tag, mirror) != data:
-            raise BuildError(f"{self.tag} wheel resource {mirror} differs from {path}")
+        if mirror in self.files and git_blob(self.repo, self.commit, mirror) != data:
+            raise BuildError(f"{self.commit} wheel resource {mirror} differs from {path}")
         return data
 
     def module(self, path: str) -> ast.Module | None:
         return (
-            ast.parse(self.read(path), filename=f"{self.tag}:{path}")
+            ast.parse(self.read(path), filename=f"{self.commit}:{path}")
             if path in self.files
             else None
         )
@@ -339,16 +348,16 @@ def adr_policy_url(cli: ast.Module, env: dict[str, str]) -> str | None:
     return only(sorted(urls), "ADR policy URL") if urls else None
 
 
-def marketplace(tag: Tag, env: dict[str, str], version: str) -> str:
+def marketplace(tree: Tree, env: dict[str, str], version: str) -> str:
     names = {
-        json.loads(tag.read(path))["name"]
+        json.loads(tree.read(path))["name"]
         for path in (".agents/plugins/marketplace.json", ".claude-plugin/marketplace.json")
     }
     name = only(sorted(names), "catalog name shared by both native catalogs")
     if "MARKETPLACE" in env and env["MARKETPLACE"] != name:
-        raise BuildError(f"{tag.tag} MARKETPLACE constant differs from its catalogs")
+        raise BuildError(f"{tree.commit} MARKETPLACE constant differs from its catalogs")
     if "MARKETPLACE" not in env and name != "gz-starter-" + version.replace(".", "-"):
-        raise BuildError(f"{tag.tag} catalog name does not follow the versioned rule")
+        raise BuildError(f"{tree.commit} catalog name does not follow the versioned rule")
     return name
 
 
@@ -386,47 +395,46 @@ def expand(
     return [key]
 
 
-def release(repo: Path, tag_name: str) -> dict:
-    tag = Tag(repo, tag_name)
-    packaged = f"{PACKAGE}/cli.py" in tag.files
-    cli = tag.module(f"{PACKAGE}/cli.py" if packaged else "starter.py")
-    native = tag.module(f"{PACKAGE}/native.py") if packaged else None
-    paths = tag.module(f"{PACKAGE}/paths.py") if packaged else None
+def snapshot(repo: Path, commit: str) -> dict:
+    """Derive what ``configure`` at commit ``commit`` wrote, from its code alone."""
+    tree = Tree(repo, commit)
+    packaged = f"{PACKAGE}/cli.py" in tree.files
+    cli = tree.module(f"{PACKAGE}/cli.py" if packaged else "starter.py")
+    native = tree.module(f"{PACKAGE}/native.py") if packaged else None
+    paths = tree.module(f"{PACKAGE}/paths.py") if packaged else None
     assert cli is not None
     env = constants(cli, constants(paths, {}) if paths else {})
-    version = json.loads(tag.read("bundle.json"))["template_version"]
-    if version != tag_name.removeprefix("v"):
-        raise BuildError(f"{tag_name} bundle.json records template_version {version}")
+    version = json.loads(tree.read("bundle.json"))["template_version"]
     origin = env["ORIGIN"]
     if native is not None:
         urls = {text for text in strings(native) if text.startswith(REPOSITORY_URL)}
         if urls - {origin}:
-            raise BuildError(f"{tag_name} native.py names another starter origin: {urls}")
+            raise BuildError(f"{commit} native.py names another starter origin: {urls}")
 
     table = only(assigned(cli, "candidates", ast.Dict), "configure candidates literal")
     assert isinstance(table, ast.Dict)
     keys = [candidate_key(key, env) for key in table.keys]
     hosts = host_paths(native, env)
     if native is None and ".codex/config.toml" not in keys:
-        raise BuildError(f"{tag_name} configure does not write the Codex configuration")
+        raise BuildError(f"{commit} configure does not write the Codex configuration")
     absent = conditional_candidates(cli, env)
     local = adr_local_copies(cli, env)
     if FRAGMENT_SOURCE not in here_sources(cli, env) or "AGENTS.skills-first.md" not in keys:
-        raise BuildError(f"{tag_name} does not write the fragment from {FRAGMENT_SOURCE}")
+        raise BuildError(f"{commit} does not write the fragment from {FRAGMENT_SOURCE}")
 
     update_skill = env.get("UPDATE_SKILL")
     update_template = None
     if update_skill is not None:
-        update_template = as_read_text(tag.source(env["UPDATE_SKILL_SOURCE"]))
+        update_template = as_read_text(tree.source(env["UPDATE_SKILL_SOURCE"]))
     front_door = front_template = None
     for key, value in zip(keys, table.values, strict=True):
         skill = key.removeprefix(".agents/skills/").removesuffix("/SKILL.md")
         if key.startswith(".agents/skills/") and "/" not in skill and skill != update_skill:
             if front_door is not None:
-                raise BuildError(f"{tag_name} writes more than one starter skill")
+                raise BuildError(f"{commit} writes more than one starter skill")
             front_door = skill
             front_template = as_read_text(
-                tag.source(only(here_sources(value, env), "skill source"))
+                tree.source(only(here_sources(value, env), "skill source"))
             )
 
     managed = {}
@@ -437,25 +445,23 @@ def release(repo: Path, tag_name: str) -> dict:
         if update_skill is not None and not any(
             entry.endswith(f"/skills/{update_skill}/SKILL.md") for entry in entries
         ):
-            raise BuildError(f"{tag_name} does not write {update_skill} for {host}")
+            raise BuildError(f"{commit} does not write {update_skill} for {host}")
         managed[host] = entries
     locks = [entry for entry in managed[sorted(hosts)[0]] if entry.endswith("/bundle.lock.json")]
     state_directory = only(locks, "bundle lock path").rpartition("/")[0]
 
-    fragment = as_read_text(tag.source(FRAGMENT_SOURCE))
+    fragment = as_read_text(tree.source(FRAGMENT_SOURCE))
     placeholders = all(text in strings(cli) for text in PLACEHOLDERS)
     if placeholders != all(text in fragment for text in PLACEHOLDERS):
-        raise BuildError(f"{tag_name} fragment placeholders and configure rendering disagree")
+        raise BuildError(f"{commit} fragment placeholders and configure rendering disagree")
     adr_source = env.get("ADR_POLICY_SOURCE")
     if (adr_source is None) != (not local):
-        raise BuildError(f"{tag_name} ADR policy source and local copy disagree")
+        raise BuildError(f"{commit} ADR policy source and local copy disagree")
     return {
         "version": version,
-        "tag": tag_name,
-        "revision": commit_of(repo, tag_name),
         "origin": origin,
         "state_directory": state_directory,
-        "marketplace": marketplace(tag, env, version),
+        "marketplace": marketplace(tree, env, version),
         "fragment_template": fragment,
         "update_skill": update_skill,
         "update_skill_template": update_template,
@@ -468,23 +474,46 @@ def release(repo: Path, tag_name: str) -> dict:
         "lock_keys": lock_keys(cli, env),
         "adr_policy_source": adr_source,
         # configure copied the policy with read_bytes, so its newlines are kept as-is.
-        "adr_policy_template": tag.source(adr_source).decode("utf-8") if adr_source else None,
+        "adr_policy_template": tree.source(adr_source).decode("utf-8") if adr_source else None,
         "adr_policy_url": adr_policy_url(cli, env),
     }
 
 
+def snapshot_id(data: dict) -> str:
+    """Name a snapshot by its declared version and a hash of its canonical JSON."""
+    canonical = json.dumps(data, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return f"{data['version']}-{hashlib.sha256(canonical).hexdigest()[:12]}"
+
+
 def build(repo: Path) -> str:
     tags = starter_tags(repo)
-    revisions = revision_map(repo, tags, LAST_STARTER_TAG)
+    nearest = revision_map(repo, tags, LAST_STARTER_TAG)
+    snapshots: dict[str, dict] = {}
+    revisions = {}
+    for commit in sorted(nearest):
+        data = snapshot(repo, commit)
+        ident = snapshot_id(data)
+        if snapshots.setdefault(ident, data) != data:
+            raise BuildError(f"snapshot id collision at {commit}")
+        revisions[commit] = {"snapshot": ident, "tag": nearest[commit]}
+    releases = []
+    for tag in tags:
+        commit = commit_of(repo, tag)
+        entry = revisions[commit]
+        version = snapshots[entry["snapshot"]]["version"]
+        if entry["tag"] != tag or version != tag.removeprefix("v"):
+            raise BuildError(f"{tag} bundle.json records template_version {version}")
+        releases.append({"tag": tag, "revision": commit, "snapshot": entry["snapshot"]})
     total = int(git(repo, "rev-list", "--count", LAST_STARTER_TAG).stdout)
     print(
-        f"{len(tags)} releases; {len(revisions)} of {total} commits mapped; "
-        f"{total - len(revisions)} predate {tags[0]}",
+        f"{len(tags)} releases; {len(revisions)} of {total} commits mapped to "
+        f"{len(snapshots)} snapshots; {total - len(revisions)} predate {tags[0]}",
         file=sys.stderr,
     )
     data = {
         "schema_version": SCHEMA_VERSION,
-        "releases": [release(repo, tag) for tag in tags],
+        "snapshots": snapshots,
+        "releases": releases,
         "revisions": revisions,
     }
     return json.dumps(data, indent=2, sort_keys=True) + "\n"
