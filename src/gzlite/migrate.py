@@ -248,6 +248,13 @@ class _Builder:
                     f"entries and the original is saved at {MIGRATED_DIRECTORY}/{config.path}"
                 )
             self.plan.carried.append(f"host {config.host} ({config.path})")
+            skill, recorded = update_skill_path(config.host), update_skill_path(self.lock.host)
+            if skill != recorded:
+                # configure refuses a second gzl-update copy on another discovery surface.
+                self.plan.findings.append(
+                    f"{config.host} is configured too, but {cli.UPDATE_SKILL} is installed only "
+                    f"for the recorded host {self.lock.host} at {recorded}, not at {skill}"
+                )
             self.plan.carried += config.carried
             self.target(
                 config.path,

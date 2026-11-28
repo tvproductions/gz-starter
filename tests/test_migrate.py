@@ -354,7 +354,9 @@ class DriftTests(MigrateCase):
         self.assertIn(".codex/config.toml", written)
         self.assertIn(".claude/settings.json", written)
         self.assertTrue([c for c in planned["carried"] if "claude" in c])
+        self.assertTrue([f for f in planned["findings"] if ".claude/skills/gzl-update" in f])
         self.apply()
+        self.assertFalse((self.root / ".claude/skills").exists())
         current = cli.marketplace()
         self.assertEqual(
             set(tomllib.loads((self.root / ".codex/config.toml").read_text())["marketplaces"]),
