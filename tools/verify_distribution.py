@@ -324,12 +324,29 @@ def verify_release_commands(
     if old_state.read_bytes() != before or (legacy / ".gzlite").exists():
         raise ValueError("Installed migrate preview wrote adopter state")
 
+    applied = json.loads(
+        run(
+            program,
+            "migrate",
+            "--project",
+            str(legacy),
+            *ref,
+            "--apply",
+            "--fingerprint",
+            migration["fingerprint"],
+            cwd=directory,
+            env=env,
+        ).stdout
+    )
+    if applied["status"] != "migrated" or old_state.exists():
+        raise ValueError("Installed helper did not apply the reviewed legacy migration")
+
     refresh = json.loads(
         run(
             program,
             "freshen",
             "--project",
-            str(target),
+            str(legacy),
             *ref,
             cwd=directory,
             env=env,

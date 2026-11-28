@@ -14,7 +14,6 @@ from __future__ import annotations
 import json
 import os
 import re
-import stat
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
@@ -32,6 +31,7 @@ from gzlite.paths import (
     MIGRATED_DIRECTORY,
     STATE_DIRECTORY,
     STATE_SETTINGS,
+    is_link,
     space_free,
 )
 
@@ -64,12 +64,16 @@ class Reader:
     def __init__(self, root: Path) -> None:
         self.root = root
         self.inputs: dict[str, bytes] = {}
+        self.missing: set[str] = set()
 
     def read(self, name: str) -> bytes | None:
         if name in self.inputs:
             return self.inputs[name]
+        if name in self.missing:
+            return None
         path = check_path(self.root, name)
         if not path.exists():
+            self.missing.add(name)
             return None
         data = path.read_bytes()
         self.inputs[name] = data
@@ -78,13 +82,6 @@ class Reader:
     def text(self, name: str) -> str | None:
         data = self.read(name)
         return None if data is None else decode(name, data)
-
-
-def is_link(path: Path) -> bool:
-    """Treat symlinks and Windows reparse points (junctions) alike."""
-    info = path.lstat()
-    attributes = getattr(info, "st_file_attributes", 0)
-    return stat.S_ISLNK(info.st_mode) or bool(attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT)
 
 
 def refuse_go_project(root: Path) -> None:

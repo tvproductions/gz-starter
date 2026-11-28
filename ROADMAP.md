@@ -13,8 +13,9 @@ distribution, CLI, marketplace, state folder and skill prefix, plus the new comm
 The [release-integrity tasks](docs/superpowers/plans/2026-11-27-gzlite-0.14.0.md#task-14-guard-1--adopters-pin-only-tagged-releases)
 enforce release provenance for adopters and for the publisher. Task 14 has
 [local verification evidence](docs/handoffs/2026-11-28-gzlite-0.14.0-resume-handoff.md#task-14-verification).
-Producer checks, repository rules, installed adopter-bridge acceptance and
-final review remain open.
+The producer checks, review corrections and installed adopter-bridge evidence
+are recorded in the [0.14.0 candidate receipt](docs/evidence/2026-11-28-0.14.0-release.md).
+Live repository rules have a separate approval and evidence path.
 
 The bundle still pins gz-skills v0.14.0. gzlite 0.14.1 then bumps the pin to gz-skills
 v0.15.0, which removes all executable code; gzglite 0.1.0 follows.

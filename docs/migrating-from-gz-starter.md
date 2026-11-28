@@ -5,6 +5,13 @@ Read the release notes, confirm the exact commit behind the annotated tag,
 and use its full SHA for every command. Run from the adopter root, with a clean
 Git worktree and the adopter's own instructions in scope.
 
+For an assistant handling the migration, use this instruction.
+
+> Use the published gzlite 0.14.0 commit and the adopter's project instructions.
+> Show me the migration preview and its fingerprint. Apply that preview only
+> when I name its fingerprint. Then show the freshen preview for separate
+> approval. Check the resulting lock, project diff, status and verifier output.
+
 ## Verify the release and preview the move
 
 ```console
@@ -40,6 +47,14 @@ project diff. Run `gzlite status --project .` using the same pinned command
 prefix. For adopters already using the verification extra, reconcile the
 project's verifier dependency and lock as shown in the findings, then run
 `uv run --locked gzlite verify --project .`.
+
+uv commonly stores the verifier requirement as `gz-starter[verification]`
+in the development group plus a `gz-starter` entry in `[tool.uv.sources]`.
+If that form remains after migration, change the requirement to
+`gzlite[verification]`, rename the source key to `gzlite`, and set its
+`git` URL to `https://github.com/tvproductions/gzlite.git` and its `rev`
+to the verified full release SHA. Keep existing markers and unrelated group
+entries. Run `uv lock`, inspect the diff, then run the locked verifier.
 
 The preview can report older untagged GZ Starter revisions supported by the
 embedded migration history. The new target must be tagged. Verify native

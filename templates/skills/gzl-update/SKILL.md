@@ -1,25 +1,28 @@
 ---
 name: gzl-update
-description: Update a project's adopted GZ Lite template with the gzlite commands, reviewing each preview with the maintainer. Use for GZ Lite version reviews and template upgrades, rather than general package or plugin updates.
+description: Review or migrate a project's adopted GZ Lite template using the pinned gzlite release and fingerprint-reviewed previews. Use for template updates and version reviews.
 ---
 
 # Update GZ Lite
 
-GZ Lite (`gzlite`, repository `tvproductions/gzlite`) is highly opinionated: my
-way or the highway. Adopters conform to its doctrine; do not bend the template
-to local habit. The commands enforce the rules, so run them and show what they
-report instead of reasoning around them.
+Work from the adopter root and follow its instructions. Resolve the selected
+release at `tvproductions/gzlite`. Confirm that its annotated tag peels to the
+full SHA advertised by the release. Use the same SHA for the command package
+and the target of each preview. The
+[adopter bridge](https://github.com/tvproductions/gzlite/blob/main/docs/migrating-from-gz-starter.md)
+shows how to check the tag and run the pinned CLI through uv.
 
-1. If `.gz-starter/` or `.skills-first/` exists, run
-   `gzlite migrate --project .` and show the preview and its findings.
-2. Run `gzlite freshen --project .`. Show the maintainer each preview and its
-   findings, unedited.
-3. Apply only the fingerprint the maintainer names:
-   `gzlite freshen --project . --apply --fingerprint <hash>`. Never choose or
-   infer a fingerprint, and never apply without one.
-4. Run `gzlite status`, and `gzlite verify` where the project uses it. Report
-   the results as observed.
-5. Work the remaining findings with Superpowers, one bounded change at a time.
+1. If the adopter has legacy state, preview
+   `gzlite migrate --project . --starter-ref FULL_RELEASE_SHA` using the
+   pinned CLI. Show the planned changes and findings. On approval, apply
+   only the named migration fingerprint. Finish the migration before
+   running freshen.
+2. Preview `gzlite freshen --project . --starter-ref FULL_RELEASE_SHA`.
+   Show the planned changes and findings. On approval, apply only the
+   named freshen fingerprint.
+3. After applying, run `gzlite status --project .` with the pinned CLI and
+   `uv run --locked gzlite verify --project .` if the adopter uses the
+   verification extra. Review the project diff and report the outcomes.
 
-`migrate` and `freshen` are the supported commands of this release. A review
-request authorizes steps 1 and 2 only.
+A version or freshness review authorizes previews only. Stop on a changed
+fingerprint and review the new plan before applying.

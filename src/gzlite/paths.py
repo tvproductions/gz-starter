@@ -17,6 +17,13 @@ _STATE_FILENAMES = tuple(
 )
 
 
+def is_link(path: Path) -> bool:
+    """Recognize links, including Windows junctions, without following the entry."""
+    info = path.lstat()
+    attributes = getattr(info, "st_file_attributes", 0)
+    return stat.S_ISLNK(info.st_mode) or bool(attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT)
+
+
 def _state_entry(root: Path, relative: str) -> int | None:
     try:
         info = (root / relative).lstat()

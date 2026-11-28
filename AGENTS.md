@@ -119,7 +119,7 @@ For OpenCode 2.2.0 project commands, use the
 
 Read [ownership](docs/structure.md) before changing catalogs, adoption tooling
 or skills. The starter owns the catalog, helper, marketplace adapters, guidance
-and only the narrow `update-gz-template` skill. Use its
+and only the narrow `gzl-update` skill. Use its
 [update contract](docs/updating.md) for adopters. This checkout publishes the
 template and never adopts it. Keep generic workflows and skills upstream,
 and operational skills and domain code project-owned. FDAU is a design precedent.

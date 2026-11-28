@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.14.0 — November 28, 2026
+
 - Rename the project, distribution, CLI and marketplace to gzlite. Retain
   `gz-starter` and `skills-first-starter` as CLI bridge aliases.
 - Move project state to `.gzlite/` and replace the update skill with

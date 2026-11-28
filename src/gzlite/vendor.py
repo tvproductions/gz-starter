@@ -313,20 +313,23 @@ def _entry_for(document: dict, name: str, installed_path: Path, lock_path: Path)
     return None
 
 
-def _replace_directory(source: Path, destination: Path) -> None:
-    """Swap a tree in through a staged copy, restoring the old tree on failure."""
+def _install_directory(source: Path, destination: Path, lock: Path, document: dict) -> None:
+    """Commit the lock before discarding the prior tree."""
     destination.parent.mkdir(parents=True, exist_ok=True)
     staging = destination.parent / f".{destination.name}.staging-{uuid.uuid4().hex}"
     backup = destination.parent / f".{destination.name}.backup-{uuid.uuid4().hex}"
-    shutil.copytree(source, staging)
+    installed = False
     try:
+        shutil.copytree(source, staging)
         if tree_sha256(staging) != tree_sha256(source):
             raise VendorError(f"staged copy hash mismatch for {destination.name}")
         if destination.exists():
             destination.rename(backup)
         staging.rename(destination)
-    except Exception:
-        if destination.exists() and backup.exists():
+        installed = True
+        _write_lock(lock, document)
+    except BaseException:
+        if installed:
             shutil.rmtree(destination)
         if backup.exists() and not destination.exists():
             backup.rename(destination)
@@ -381,7 +384,6 @@ def install(
         skill = catalog[name]
         installed_path = (destination / name).resolve()
         entry = _entry_for(document, name, installed_path, lock_path)
-        _replace_directory(Path(skill["path"]), installed_path)
         new_entry = {
             "name": name,
             "version": skill["version"],
@@ -398,8 +400,8 @@ def install(
         else:
             document["skills"][document["skills"].index(entry)] = new_entry
         document["skills"].sort(key=lambda item: (item["name"], item["installed_path"]))
-        # Written per skill so a later filesystem failure leaves a consistent lock.
-        _write_lock(lock_path, document)
+        # Commit each skill and its lock entry together.
+        _install_directory(Path(skill["path"]), installed_path, lock_path, document)
         installed.append({"name": name, "version": skill["version"], "path": str(installed_path)})
     return {"installed": installed, "lock": str(lock_path)}
 

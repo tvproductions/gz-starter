@@ -249,7 +249,10 @@ class _Builder(DriftBuilder[FreshenPlan]):
         # A file equal to its target apart from line endings is present, not written.
         candidates = {**self.saved, **self.targets}
         paths = {name: cli.check_path(self.root, name) for name in candidates}
-        plan.writes, plan.before, _ = cli._plan_writes(paths, candidates, self.replaceable)
+        observed = dict.fromkeys(self.reader.missing) | self.reader.inputs
+        plan.writes, plan.before, _ = cli._plan_writes(
+            paths, candidates, self.replaceable, observed=observed
+        )
         plan.inputs = dict(self.reader.inputs)
         to = plan.to_version
         if not plan.writes:

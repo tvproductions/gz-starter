@@ -196,7 +196,7 @@ codex plugin marketplace list --json
 codex plugin list --json
 ```
 
-The marketplace is named `skills-first-starter`. If the configured project
+The 0.14.0 marketplace is named `gzlite-0-14-0`. If the configured project
 marketplace is absent, inspect project-config loading and trust; do not work
 around it by silently changing global configuration. If the same components
 already appear under another marketplace or through a checkout, reconcile the
@@ -273,8 +273,8 @@ scope for installation:
 
 ```bash
 claude plugin marketplace add /path/to/reviewed-starter --scope project
-claude plugin install superpowers@skills-first-starter --scope project
-claude plugin install gz-skills@skills-first-starter --scope project
+claude plugin install superpowers@gzlite-0-14-0 --scope project
+claude plugin install gz-skills@gzlite-0-14-0 --scope project
 ```
 
 These exact scope options were checked with Claude Code 2.1.316 CLI help.

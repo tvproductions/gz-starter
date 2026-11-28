@@ -3,6 +3,8 @@
 import builtins
 import contextlib
 import io
+import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -17,6 +19,33 @@ REF = "a" * 40
 
 
 class PathContractTests(unittest.TestCase):
+    @unittest.skipUnless(os.name == "nt", "requires Windows junctions")
+    def test_refuses_managed_directory_junction_before_writes(self):
+        assume_published_release(self)
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = Path(directory).resolve()
+            project = fixture / "adopter"
+            external = fixture / "external"
+            project.mkdir()
+            external.mkdir()
+            sentinel = external / "sentinel"
+            sentinel.write_bytes(b"preserve this")
+            link = project / ".codex"
+            result = subprocess.run(
+                ["cmd", "/d", "/c", "mklink", "/J", str(link), str(external)],
+                cwd=project,
+                check=False,
+                capture_output=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            try:
+                with self.assertRaisesRegex(cli.AdoptionError, r"(linked|reparse).*\.codex"):
+                    cli.configure(project, REF)
+                self.assertEqual(list(external.iterdir()), [sentinel])
+                self.assertEqual(sentinel.read_bytes(), b"preserve this")
+            finally:
+                link.rmdir()
+
     def test_spaced_root_rejected_before_reads_or_parent_creation(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve() / "spaced project"
