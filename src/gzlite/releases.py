@@ -21,6 +21,8 @@ class ReleaseError(ValueError):
 
 @dataclass(frozen=True)
 class TaggedRelease:
+    """The annotated tag, peeled revision and bundle read from that commit."""
+
     tag: str
     version: str
     revision: str

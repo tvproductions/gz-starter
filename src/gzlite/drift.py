@@ -47,13 +47,16 @@ def renamed_skill_findings(reader: legacy.Reader) -> list[str]:
     findings = []
 
     def unreadable(path: Path, error: Exception) -> None:
+        """Record an optional Markdown scan failure with its project-relative path."""
         name = path.relative_to(root).as_posix()
         findings.append(f"{name}: review gz-skills references manually ({error})")
 
     def walk_error(error: OSError) -> None:
+        """Report a directory that the traversal could not enumerate."""
         unreadable(Path(str(error.filename)) if error.filename else docs, error)
 
     def unlinked(path: Path) -> bool:
+        """Allow ordinary entries and report metadata errors without traversing links."""
         try:
             return not is_link(path)
         except FileNotFoundError:

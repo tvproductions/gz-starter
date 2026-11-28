@@ -10,7 +10,7 @@ it is not another skill or an implementation of their discovery/workflow logic.
 ## Current checkout selection
 
 The bundle and both catalogs select released gz-skills v0.15.0 at
-`fa8bc11d05d57eb98484cbdae81033ea825db956` for the pending gzlite 0.14.1 patch.
+`fa8bc11d05d57eb98484cbdae81033ea825db956` for gzlite 0.14.1.
 It supplies 21 skills, including `gzs-architectural-decisions` and its template.
 The renamed pattern and cross-platform skills keep Python-specific instructions
 in their `references/python.md` files. Use `gzlite portability` for the

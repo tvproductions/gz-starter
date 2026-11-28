@@ -6,6 +6,10 @@ bridge aliases. Existing adopters use the
 [migration guide](docs/migrating-from-gz-starter.md) to move to `.gzlite/` and
 the `gzl-update` skill.
 
+Release **0.14.1** selects gz-skills v0.15.0 and updates the managed adopter
+fragment for three renamed skills. `gzlite migrate` and `gzlite freshen`
+report affected references in project-owned Markdown for manual review.
+
 Release **0.12.0** adds `gz-starter verify` for Python adopters. The same hook
 validates a preparatory checkout and requires real tests when authored assets
 appear. See the [adopter migration](docs/adoption-workflow.md#configure-the-adopter-verifier)
@@ -239,8 +243,8 @@ setup, invocation and the boundary against self-adoption.
 
 ## Quick start: an existing or empty project
 
-Use the **gzlite** repository, distribution and command. 0.14.0 publishes
-the `gzlite-0-14-0` marketplace and the `gzl-update` skill. The
+Use the **gzlite** repository, distribution and command. 0.14.1 publishes
+the `gzlite-0-14-1` marketplace and the `gzl-update` skill. The
 `gz-starter` and `skills-first-starter` commands remain bridge aliases.
 Use the [adopter bridge](docs/migrating-from-gz-starter.md) for existing
 GZ Starter projects.
@@ -330,7 +334,7 @@ those exact full commit SHAs, not moving branches.
 | Your app | Project-owned | Operational workflows, domain rules, code, evidence |
 
 Published templates retain the pins in their tagged `bundle.json`. The table
-shows this checkout's selection for the pending 0.14.1 patch. Deferred Backplane
+shows this checkout's selection for 0.14.1. Deferred Backplane
 does not constrain active SP/gz-skills updates, and its
 released status does not establish adoption or host readiness. This selection
 is not a blanket compatibility or ADR-feature certification. Native installed
