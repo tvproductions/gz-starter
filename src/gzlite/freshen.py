@@ -6,10 +6,10 @@ component pins move to this release's bundle with no exceptions; doctrine
 conformance that no managed file can fix is reported as findings, each citing
 its source, and is never written.
 
-The embedded history ends before gzlite, so a gzlite-era revision is usually
-not in it. A gzlite-owned file is therefore judged "save unless proven
-untouched": it is unchanged when it equals this release's target; it is
-replaced without a copy when it equals what the recorded revision's snapshot
+The embedded history includes published gzlite releases known at build time.
+A gzlite-owned file is judged "save unless proven untouched": it is unchanged
+when it equals this release's target and replaced without a copy when it equals
+what the recorded revision's snapshot
 wrote (if the history has it) or this release's template rendered with the
 recorded revision; otherwise it is saved under
 ``.gzlite/migrated/freshen-<12 hex of the recorded revision>/`` first. Text is
@@ -38,6 +38,7 @@ from gzlite.drift import (
     DriftBuilder,
     Plan,
     apply_plan,
+    renamed_skill_findings,
     require_fingerprint,
 )
 from gzlite.fingerprint import fingerprint as compute_fingerprint
@@ -298,7 +299,7 @@ def plan_freshen(project: Path, ref: str) -> FreshenPlan:
     root = cli._adoption_root(project)
     # Refuses legacy state (naming gzlite migrate) and staged leftovers.
     validate_state_directory(root)
-    cli.require_tagged_release(ref, cli.template_version())
+    cli.require_tagged_release(ref, cli.template_version(), match_bundle=True)
     reader = legacy.Reader(root)
     data = reader.read(BUNDLE_LOCK)
     if data is None:
@@ -338,6 +339,7 @@ def plan_freshen(project: Path, ref: str) -> FreshenPlan:
     plan.carried = [item for item in plan.carried if item not in listed]
     builder.managed_targets(candidates, copies)
     plan.doctrine = _doctrine(root, ref)
+    plan.findings.extend(renamed_skill_findings(reader))
     builder.finish()
     return plan
 

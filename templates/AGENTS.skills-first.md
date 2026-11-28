@@ -165,10 +165,11 @@ At adoption, Python-family changes, design, review and scoped maintenance, use
 versioned official documentation and
 `docs/engineering/python.md#version-aware-design` to assess idioms, stdlib changes
 and deprecations. Record concrete benefits, risks and adopt/defer decisions.
-For pattern and OS-seam work, use `docs/gz-skills-python.md` to find the selected
-gz-skills workflows, including `gzs-cross-platform-python`. Preserve the bound
-runtime policy, report missing or conflicting evidence, and verify the actual
-host separately.
+For pattern work, use `gzs-idiomatic-pattern-detect` and, after approval of a
+simplification, `gzs-idiomatic-pattern-apply`. Use `gzs-cross-platform` for OS
+seams. Follow the Python guidance in those skills and the bindings in
+`docs/gz-skills-python.md`. Preserve the runtime policy, report missing or
+conflicting evidence, and verify the actual host separately.
 
 ## Version and maintenance decisions
 

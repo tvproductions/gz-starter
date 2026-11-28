@@ -1,13 +1,13 @@
-# Move an adopter from GZ Starter to gzlite 0.14.0
+# Move an adopter from GZ Starter to gzlite 0.14.1
 
-Use the published [gzlite 0.14.0 release](https://github.com/tvproductions/gzlite/releases/tag/v0.14.0).
+Use the published [gzlite 0.14.1 release](https://github.com/tvproductions/gzlite/releases/tag/v0.14.1).
 Read the release notes, confirm the exact commit behind the annotated tag,
 and use its full SHA for every command. Run from the adopter root, with a clean
 Git worktree and the adopter's own instructions in scope.
 
 For an assistant handling the migration, use this instruction.
 
-> Use the published gzlite 0.14.0 commit and the adopter's project instructions.
+> Use the published gzlite 0.14.1 commit and the adopter's project instructions.
 > Show me the migration preview and its fingerprint. Apply that preview only
 > when I name its fingerprint. Then show the freshen preview for separate
 > approval. Check the resulting lock, project diff, status and verifier output.
@@ -15,11 +15,11 @@ For an assistant handling the migration, use this instruction.
 ## Verify the release and preview the move
 
 ```console
-gh release view v0.14.0 --repo tvproductions/gzlite --json tagName,targetCommitish
-git ls-remote --tags https://github.com/tvproductions/gzlite.git "refs/tags/v0.14.0*"
+gh release view v0.14.1 --repo tvproductions/gzlite --json tagName,targetCommitish
+git ls-remote --tags https://github.com/tvproductions/gzlite.git "refs/tags/v0.14.1*"
 ```
 
-Use the peeled commit shown on the `refs/tags/v0.14.0^{}` line. Confirm it equals
+Use the peeled commit shown on the `refs/tags/v0.14.1^{}` line. Confirm it equals
 the full release target. Replace `FULL_RELEASE_SHA` in the following commands.
 uv runs the named release using managed Python 3.14. Keep the same release SHA
 throughout the operation.
@@ -35,6 +35,10 @@ if the fingerprint changes. Keep the migration's saved copies until the
 tracked project diff has been reviewed.
 
 ## Preview the release reconciliation
+
+If the adopter already has `.gzlite/` state from 0.14.0, start here after
+verifying the release. Review any renamed skill references listed in the
+findings and update project-owned guidance separately.
 
 ```console
 uvx --managed-python --python 3.14 --from "gzlite @ git+https://github.com/tvproductions/gzlite.git@FULL_RELEASE_SHA" gzlite freshen --project . --starter-ref FULL_RELEASE_SHA

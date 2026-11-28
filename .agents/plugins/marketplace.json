@@ -1,5 +1,5 @@
 {
-  "name": "gzlite-0-14-0",
+  "name": "gzlite-0-14-1",
   "interface": {
     "displayName": "GZ Lite development stack"
   },
@@ -35,7 +35,7 @@
       "source": {
         "source": "url",
         "url": "https://github.com/tvproductions/gz-skills.git",
-        "ref": "0cbd2359c64b473d6c109e1296118f2475057fbc"
+        "ref": "fa8bc11d05d57eb98484cbdae81033ea825db956"
       },
       "policy": {
         "installation": "AVAILABLE",

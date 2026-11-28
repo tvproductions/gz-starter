@@ -119,7 +119,10 @@ def release_fixture(directory: Path, version: str) -> tuple[str, str, dict[str, 
         ).stdout.strip()
 
     git("init", "--quiet", "--initial-branch=main")
-    (origin / "bundle.json").write_text(json.dumps({"template_version": version}), encoding="utf-8")
+    bundle = (ROOT / "bundle.json").read_bytes()
+    if json.loads(bundle)["template_version"] != version:
+        raise ValueError("Fixture release version differs from the running bundle")
+    (origin / "bundle.json").write_bytes(bundle)
     git("add", "bundle.json")
     git("commit", "--quiet", "--message=Fixture release")
     pin = git("rev-parse", "HEAD")

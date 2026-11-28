@@ -21,9 +21,12 @@ class ReleaseError(ValueError):
 
 @dataclass(frozen=True)
 class TaggedRelease:
+    """The annotated tag, peeled revision and bundle read from that commit."""
+
     tag: str
     version: str
     revision: str
+    bundle: dict
 
 
 def _git(cwd: Path, *args: str) -> str:
@@ -95,4 +98,4 @@ def tagged_release(ref: str, *, origin: str) -> TaggedRelease:
             f"could not verify release {ref} on {origin}; check that Git, the origin, "
             "and the tagged bundle are available"
         ) from error
-    return TaggedRelease(name.removeprefix("refs/tags/"), version, ref)
+    return TaggedRelease(name.removeprefix("refs/tags/"), version, ref, bundle)

@@ -9,6 +9,11 @@ release records and their exact tagged revisions. Pull request CI makes a
 local annotated tag for the proposed release commit when that tag has yet
 to be created on the publisher. Main and local checks require the actual tag.
 
+Adoption commands that select a new bundle compare the running bundle with the
+bundle at the target tag. Run the helper from the same published revision you
+pass as `--starter-ref`. Development checkouts retain the published version
+number while their bundle can contain pending changes.
+
 The [GitHub ruleset definitions](../../tools/github_rules.json) require a PR and
 the `gate` and `release-integrity` checks on `main`, block force pushes and
 deletion of `main`, and block moving or deleting version tags. A separate rule

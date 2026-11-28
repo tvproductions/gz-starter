@@ -58,7 +58,8 @@ class TaggedReleaseTests(unittest.TestCase):
     @classmethod
     def commit_bundle(cls, version: str) -> str:
         path = cls.publisher / "bundle.json"
-        path.write_text(json.dumps({"template_version": version}), encoding="utf-8")
+        payload = {**cli.bundle(), "template_version": version}
+        path.write_text(json.dumps(payload), encoding="utf-8")
         cls.git("add", "bundle.json")
         cls.git("commit", "--quiet", "--message", version)
         return cls.git("rev-parse", "HEAD")
@@ -115,6 +116,16 @@ class TaggedReleaseTests(unittest.TestCase):
                 self.assertEqual(code, 2, output)
                 self.assertIn(ref, error)
                 self.assertEqual(list(self.project.iterdir()), [])
+
+    def test_configure_refuses_same_version_with_a_different_bundle(self):
+        development = cli.bundle()
+        development["components"][-1]["status"] = "fixture change after release"
+        with patch.object(cli, "bundle", return_value=development):
+            code, output, error = self.invoke("configure", "--starter-ref", self.tagged, "--apply")
+        self.assertEqual(code, 2, output)
+        self.assertIn(self.tagged, error)
+        self.assertIn("bundle differs", error)
+        self.assertEqual(list(self.project.iterdir()), [])
 
     def test_valid_release_configures_and_status_verifies_recorded_pin(self):
         code, output, error = self.invoke("configure", "--starter-ref", self.tagged, "--apply")

@@ -55,6 +55,7 @@ TAGS = {
     "v0.12.0": "7303deff043231d8bcbb789e52efdbdde6b7e2f0",
     "v0.12.1": "a1c3550eac441b0a7beaddc66fb00c58ce0f1e6a",
     "v0.13.0": "98acc5aeec3f3b6ad61171a647dbc0ab7a44b7c6",
+    "v0.14.0": "5cfbf9552cb6b4d1e63b582b90b3d4a9d92342b0",
 }
 # windows-health's lock records 0.3.2 at this revision; 0.3.2 was never tagged.
 WINDOWS_HEALTH = "88928b2c6c663e37f739c80376dae42b5d8e5b4e"
@@ -142,18 +143,21 @@ class HistoryTests(unittest.TestCase):
         for release in self.releases_between("v0.12.1", "v0.13.0"):
             with self.subTest(tag=release.tag):
                 self.assertEqual(release.state_directory, ".gz-starter")
+        self.assertEqual(self.by_tag["v0.14.0"].state_directory, ".gzlite")
 
     def test_marketplace_is_versioned_from_0_13_0(self):
         for release in self.releases_between("v0.1.0", "v0.12.1"):
             with self.subTest(tag=release.tag):
                 self.assertEqual(release.marketplace, "skills-first-starter")
         self.assertEqual(self.by_tag["v0.13.0"].marketplace, "gz-starter-0-13-0")
+        self.assertEqual(self.by_tag["v0.14.0"].marketplace, "gzlite-0-14-0")
 
     def test_origin_follows_repository_renames(self):
         ranges = (
             ("v0.1.0", "v0.3.0", "skills-first-starter.git"),
             ("v0.4.0", "v0.9.0", "gz-skills-first-starter.git"),
             ("v0.10.0", "v0.13.0", "gz-starter.git"),
+            ("v0.14.0", "v0.14.0", "gzlite.git"),
         )
         for first, last, name in ranges:
             for release in self.releases_between(first, last):
@@ -177,9 +181,14 @@ class HistoryTests(unittest.TestCase):
                     self.assertIsNone(release.update_skill)
                     self.assertIsNone(release.update_skill_template)
                 else:
-                    self.assertEqual(release.update_skill, "update-gz-template")
+                    skill = (
+                        "gzl-update"
+                        if version_key(release.tag) >= (0, 14, 0)
+                        else "update-gz-template"
+                    )
+                    self.assertEqual(release.update_skill, skill)
                     template = release.update_skill_template or ""
-                    self.assertTrue(template.startswith("---\nname: update-gz-template\n"))
+                    self.assertTrue(template.startswith(f"---\nname: {skill}\n"))
                 if release.tag in ("v0.1.0", "v0.2.0"):
                     self.assertEqual(release.front_door_skill, "skills-first-start")
                     template = release.front_door_skill_template or ""

@@ -1,5 +1,5 @@
 {
-  "name": "gzlite-0-14-0",
+  "name": "gzlite-0-14-1",
   "owner": {
     "name": "tvproductions"
   },
@@ -28,7 +28,7 @@
       "source": {
         "source": "url",
         "url": "https://github.com/tvproductions/gz-skills.git",
-        "sha": "0cbd2359c64b473d6c109e1296118f2475057fbc"
+        "sha": "fa8bc11d05d57eb98484cbdae81033ea825db956"
       },
       "description": "released"
     }

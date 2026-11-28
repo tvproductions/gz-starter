@@ -154,6 +154,47 @@ class FreshenCase(unittest.TestCase):
 
 
 class FreshenTests(FreshenCase):
+    def test_renamed_skill_findings_preserve_project_markdown(self):
+        self.configure()
+        docs = self.root / "docs/playbooks"
+        docs.mkdir(parents=True)
+        for name in ("AGENTS.md", "CLAUDE.md", "docs/playbooks/review.md"):
+            (self.root / name).write_bytes(b"Use `gzs-pythonic-pattern-detect`.\r\n")
+        before = self.tree()
+        planned = self.preview()
+        self.assertEqual(self.tree(), before)
+        applied = self.apply()
+        current = self.assert_current()
+        for name in ("AGENTS.md", "CLAUDE.md", "docs/playbooks/review.md"):
+            for report in (planned, applied, current):
+                self.assertTrue(
+                    any(
+                        name in text
+                        and "gzs-pythonic-pattern-detect" in text
+                        and "gzs-idiomatic-pattern-detect" in text
+                        for text in self.texts(report)
+                    ),
+                    report["findings"],
+                )
+            self.assertEqual((self.root / name).read_bytes(), before[name])
+
+    def test_published_0_14_0_fragment_updates_without_an_edit_copy(self):
+        release = HISTORY.release_for("5cfbf9552cb6b4d1e63b582b90b3d4a9d92342b0")
+        render_adopter(self.root, release, "codex")
+        fragment = self.root / "AGENTS.skills-first.md"
+        self.assertIn("gzs-cross-platform-python", fragment.read_text(encoding="utf-8"))
+        result = self.apply()
+        self.assertEqual(result["from_version"], "0.14.0")
+        self.assertFalse(any(item["why"] == "edited" for item in result["replaced"]))
+        guidance = fragment.read_text(encoding="utf-8")
+        self.assertNotIn("gzs-cross-platform-python", guidance)
+        for new in (
+            "gzs-cross-platform",
+            "gzs-idiomatic-pattern-detect",
+            "gzs-idiomatic-pattern-apply",
+        ):
+            self.assertIn(f"`{new}`", guidance)
+
     def test_older_revision_freshens_managed_files_and_pins(self):
         self.configure("codex")
         old_lock = (self.root / ".gzlite/bundle.lock.json").read_bytes()
@@ -189,7 +230,8 @@ class FreshenTests(FreshenCase):
         self.assertEqual(result["post_apply_status"]["pending_files"], [])
         lock = self.lock()
         self.assertEqual(
-            lock["starter"], {"repository": cli.ORIGIN, "version": "0.14.0", "revision": REF}
+            lock["starter"],
+            {"repository": cli.ORIGIN, "version": cli.template_version(), "revision": REF},
         )
         self.assertEqual(lock["components"], cli.bundle()["components"])
         config = tomllib.loads((self.root / ".codex/config.toml").read_text())
@@ -252,7 +294,7 @@ class FreshenTests(FreshenCase):
 
     def test_older_release_retires_its_catalog(self):
         # A 0.14.0 adopter, freshened by a later release that names its own catalog.
-        self.configure("claude", parts=tuple(cli.bundle()["components"]))
+        render_adopter(self.root, tagged("0.14.0"), "claude")
         with (
             mock.patch.object(cli, "template_version", return_value="0.14.1"),
             mock.patch.object(cli, "validate_bundle"),

@@ -1,3 +1,5 @@
+import contextlib
+import io
 import json
 import os
 import subprocess
@@ -140,7 +142,7 @@ class AdoptionTests(unittest.TestCase):
     def test_conflict_blocks_all_writes(self):
         (self.root / ".codex").mkdir()
         p = self.root / ".codex/config.toml"
-        p.write_text('[plugins."gz-skills@gzlite-0-14-0"]\nenabled = false\n')
+        p.write_text(f'[plugins."gz-skills@{starter.marketplace()}"]\nenabled = false\n')
         with self.assertRaises(starter.AdoptionError):
             self.configure(True)
         self.assertFalse((self.root / ".gzlite").exists())
@@ -289,14 +291,15 @@ class AdoptionTests(unittest.TestCase):
     def test_backplane_is_pinned_but_disabled(self):
         self.configure(True)
         data = tomllib.loads((self.root / ".codex/config.toml").read_text())
-        self.assertIs(data["plugins"]["superpowers-backplane@gzlite-0-14-0"]["enabled"], False)
-        self.assertIs(data["plugins"]["superpowers@gzlite-0-14-0"]["enabled"], True)
-        self.assertIs(data["plugins"]["gz-skills@gzlite-0-14-0"]["enabled"], True)
+        catalog = starter.marketplace()
+        self.assertIs(data["plugins"][f"superpowers-backplane@{catalog}"]["enabled"], False)
+        self.assertIs(data["plugins"][f"superpowers@{catalog}"]["enabled"], True)
+        self.assertIs(data["plugins"][f"gz-skills@{catalog}"]["enabled"], True)
 
     def test_active_backplane_is_not_silently_disabled(self):
         (self.root / ".codex").mkdir()
         p = self.root / ".codex/config.toml"
-        original = '[plugins."superpowers-backplane@gzlite-0-14-0"]\nenabled = true\n'
+        original = f'[plugins."superpowers-backplane@{starter.marketplace()}"]\nenabled = true\n'
         p.write_text(original)
         with self.assertRaises(starter.AdoptionError):
             self.configure(True)
@@ -480,6 +483,13 @@ class AdoptionTests(unittest.TestCase):
             {p["name"]: p["revision"] for p in starter.bundle()["components"]},
         )
 
+    def test_validate_accepts_the_released_gz_skills_pin(self):
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(starter.main(["validate"]), 0)
+        gz_skills = next(p for p in starter.bundle()["components"] if p["name"] == "gz-skills")
+        self.assertEqual(gz_skills["release"], "v0.15.0")
+        self.assertEqual(gz_skills["revision"], "fa8bc11d05d57eb98484cbdae81033ea825db956")
+
     def test_source_revision_recognizes_legacy_and_canonical_starter_origins(self):
         origins = (
             "https://github.com/tvproductions/gzlite.git",
@@ -526,7 +536,7 @@ class AdoptionTests(unittest.TestCase):
         config = tomllib.loads((self.root / ".codex/config.toml").read_text())
         lock = json.loads((self.root / ".gzlite/bundle.lock.json").read_bytes())
         canonical = "https://github.com/tvproductions/gzlite.git"
-        self.assertEqual(config["marketplaces"]["gzlite-0-14-0"]["source"], canonical)
+        self.assertEqual(config["marketplaces"][starter.marketplace()]["source"], canonical)
         self.assertEqual(lock["starter"]["repository"], canonical)
 
     def test_console_scripts_are_gzlite_with_bridge_aliases(self):

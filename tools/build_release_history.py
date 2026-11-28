@@ -1,6 +1,6 @@
 """Build the embedded starter release history from the starter's commits.
 
-Run from a full clone that has the tags ``v0.1.0`` to ``v0.13.0``:
+Run from a full clone that has the tags ``v0.1.0`` to ``v0.14.0``:
 
     uv run --locked python tools/build_release_history.py [--check]
 
@@ -13,6 +13,8 @@ code), what ``configure`` wrote: the declared version, the managed paths per hos
 their conditions, the lock keys, and the templates as raw text with placeholders.
 Identical results are stored once, as a snapshot keyed by version and content
 hash. It refuses to guess: any construct it does not recognize stops the build.
+From gzlite v0.14.0 onward, configure requires an exact published tag, so only
+the tagged release commits need snapshots for freshen.
 The gate never runs this tool; it reads only the committed
 ``src/gzlite/resources/release_history.json``.
 
@@ -38,8 +40,8 @@ from gzlite.release_check import released_versions
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = Path("src/gzlite/resources/release_history.json")
 SCHEMA_VERSION = 1
-# gzlite 0.14.0 and later keep their own state; only starter releases are history.
 LAST_STARTER_TAG = "v0.13.0"
+LAST_HISTORY_TAG = "v0.14.0"
 TAG = re.compile(r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\Z")
 PACKAGE = "src/skills_first_starter"
 FRAGMENT_SOURCE = "templates/AGENTS.skills-first.md"
@@ -86,16 +88,17 @@ def version_key(tag: str) -> tuple[int, ...]:
     return tuple(int(part) for part in match.groups())
 
 
-def starter_tags(repo: Path) -> list[str]:
-    """Return the starter release tags in version order, ending at the last one."""
+def history_tags(repo: Path) -> list[str]:
+    """Return the published tags included in this history build, in version order."""
     names = git(repo, "tag", "--list", "v*").stdout.split()
-    limit = version_key(LAST_STARTER_TAG)
+    limit = version_key(LAST_HISTORY_TAG)
     tags = sorted(
         (name for name in names if TAG.fullmatch(name) and version_key(name) <= limit),
         key=version_key,
     )
-    if not tags or tags[-1] != LAST_STARTER_TAG:
-        raise BuildError(f"{LAST_STARTER_TAG} is missing; build from a full clone with tags")
+    for required in (LAST_STARTER_TAG, LAST_HISTORY_TAG):
+        if required not in tags:
+            raise BuildError(f"{required} is missing; build from a full clone with tags")
     return tags
 
 
@@ -136,6 +139,10 @@ def static(node: ast.expr, env: dict[str, str]) -> str:
         case ast.IfExp(test=ast.Compare(left=left, ops=[ast.Eq()], comparators=[right])):
             chosen = node.body if static(left, env) == static(right, env) else node.orelse
             return static(chosen, env)
+        case ast.Call(
+            func=ast.Attribute(value=value, attr="removesuffix"), args=[suffix], keywords=[]
+        ):
+            return static(value, env).removesuffix(static(suffix, env))
     raise BuildError(f"cannot evaluate statically: {ast.unparse(node)}")
 
 
@@ -239,6 +246,7 @@ class Tree:
         self.repo = repo
         self.commit = commit
         self.files = set(git(repo, "ls-tree", "-r", "--name-only", commit).stdout.splitlines())
+        self.package = "src/gzlite" if "src/gzlite/cli.py" in self.files else PACKAGE
 
     def read(self, path: str) -> bytes:
         if path not in self.files:
@@ -248,7 +256,7 @@ class Tree:
     def source(self, path: str) -> bytes:
         """Read a template; wheels carried a mirror that must match the checkout file."""
         data = self.read(path)
-        mirror = f"{PACKAGE}/resources/{path}"
+        mirror = f"{self.package}/resources/{path}"
         if mirror in self.files and git_blob(self.repo, self.commit, mirror) != data:
             raise BuildError(f"{self.commit} wheel resource {mirror} differs from {path}")
         return data
@@ -357,7 +365,8 @@ def marketplace(tree: Tree, env: dict[str, str], version: str) -> str:
     name = only(sorted(names), "catalog name shared by both native catalogs")
     if "MARKETPLACE" in env and env["MARKETPLACE"] != name:
         raise BuildError(f"{tree.commit} MARKETPLACE constant differs from its catalogs")
-    if "MARKETPLACE" not in env and name != "gz-starter-" + version.replace(".", "-"):
+    prefix = "gzlite-" if tree.package == "src/gzlite" else "gz-starter-"
+    if "MARKETPLACE" not in env and name != prefix + version.replace(".", "-"):
         raise BuildError(f"{tree.commit} catalog name does not follow the versioned rule")
     return name
 
@@ -399,10 +408,10 @@ def expand(
 def snapshot(repo: Path, commit: str) -> dict:
     """Derive what ``configure`` at commit ``commit`` wrote, from its code alone."""
     tree = Tree(repo, commit)
-    packaged = f"{PACKAGE}/cli.py" in tree.files
-    cli = tree.module(f"{PACKAGE}/cli.py" if packaged else "starter.py")
-    native = tree.module(f"{PACKAGE}/native.py") if packaged else None
-    paths = tree.module(f"{PACKAGE}/paths.py") if packaged else None
+    packaged = f"{tree.package}/cli.py" in tree.files
+    cli = tree.module(f"{tree.package}/cli.py" if packaged else "starter.py")
+    native = tree.module(f"{tree.package}/native.py") if packaged else None
+    paths = tree.module(f"{tree.package}/paths.py") if packaged else None
     assert cli is not None
     env = constants(cli, constants(paths, {}) if paths else {})
     version = json.loads(tree.read("bundle.json"))["template_version"]
@@ -412,13 +421,15 @@ def snapshot(repo: Path, commit: str) -> dict:
         if urls - {origin}:
             raise BuildError(f"{commit} native.py names another starter origin: {urls}")
 
-    table = only(assigned(cli, "candidates", ast.Dict), "configure candidates literal")
+    gzlite = tree.package == "src/gzlite"
+    configuration = ast.Module(body=[function(cli, "_configuration_candidates")]) if gzlite else cli
+    table = only(assigned(configuration, "candidates", ast.Dict), "configure candidates literal")
     assert isinstance(table, ast.Dict)
     keys = [candidate_key(key, env) for key in table.keys]
     hosts = host_paths(native, env)
     if native is None and ".codex/config.toml" not in keys:
         raise BuildError(f"{commit} configure does not write the Codex configuration")
-    absent = conditional_candidates(cli, env)
+    absent = conditional_candidates(configuration, env)
     local = adr_local_copies(cli, env)
     if FRAGMENT_SOURCE not in here_sources(cli, env) or "AGENTS.skills-first.md" not in keys:
         raise BuildError(f"{commit} does not write the fragment from {FRAGMENT_SOURCE}")
@@ -472,11 +483,15 @@ def snapshot(repo: Path, commit: str) -> dict:
         "front_door_skill": front_door,
         "front_door_skill_template": front_template,
         "agents_md_template": only(list(absent.values()), "default AGENTS.md text"),
-        "lock_keys": lock_keys(cli, env),
+        "lock_keys": lock_keys(configuration, env),
         "adr_policy_source": adr_source,
         # configure copied the policy with read_bytes, so its newlines are kept as-is.
         "adr_policy_template": tree.source(adr_source).decode("utf-8") if adr_source else None,
-        "adr_policy_url": adr_policy_url(cli, env),
+        "adr_policy_url": (
+            call_static(cli, "_adr_policy_url", {**env, "ref": "{ref}"})
+            if gzlite
+            else adr_policy_url(cli, env)
+        ),
     }
 
 
@@ -501,8 +516,11 @@ def refuse_release_gaps(repo: Path) -> None:
 
 def build(repo: Path) -> str:
     refuse_release_gaps(repo)
-    tags = starter_tags(repo)
-    nearest = revision_map(repo, tags, LAST_STARTER_TAG)
+    tags = history_tags(repo)
+    starter_tags = tags[: tags.index(LAST_STARTER_TAG) + 1]
+    gzlite_tags = tags[len(starter_tags) :]
+    nearest = revision_map(repo, starter_tags, LAST_STARTER_TAG)
+    nearest.update({commit_of(repo, tag): tag for tag in gzlite_tags})
     snapshots: dict[str, dict] = {}
     revisions = {}
     for commit in sorted(nearest):
@@ -519,7 +537,7 @@ def build(repo: Path) -> str:
         if entry["tag"] != tag or version != tag.removeprefix("v"):
             raise BuildError(f"{tag} bundle.json records template_version {version}")
         releases.append({"tag": tag, "revision": commit, "snapshot": entry["snapshot"]})
-    total = int(git(repo, "rev-list", "--count", LAST_STARTER_TAG).stdout)
+    total = int(git(repo, "rev-list", "--count", LAST_STARTER_TAG).stdout) + len(gzlite_tags)
     print(
         f"{len(tags)} releases; {len(revisions)} of {total} commits mapped to "
         f"{len(snapshots)} snapshots; {total - len(revisions)} predate {tags[0]}",

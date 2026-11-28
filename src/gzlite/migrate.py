@@ -31,6 +31,7 @@ from gzlite.drift import (
     DriftBuilder,
     Plan,
     apply_plan,
+    renamed_skill_findings,
     require_fingerprint,
 )
 from gzlite.fingerprint import fingerprint as compute_fingerprint
@@ -330,7 +331,7 @@ def plan_migration(project: Path, ref: str) -> MigrationPlan:
     legacy.refuse_go_project(root)
     # Only an incomplete rollback (or a failed cleanup) leaves staged originals.
     refuse_staging(root)
-    cli.require_tagged_release(ref, cli.template_version())
+    cli.require_tagged_release(ref, cli.template_version(), match_bundle=True)
     state = legacy.legacy_directory(root)
     if state is None:
         empty = [name for name in legacy.LEGACY_DIRECTORIES if (root / name).is_dir()]
@@ -348,6 +349,11 @@ def plan_migration(project: Path, ref: str) -> MigrationPlan:
     lock = legacy.parse_lock(lock_name, data)
     history = load_history()
     release = history.release_for(lock.revision)
+    if release.state_directory not in legacy.LEGACY_DIRECTORIES:
+        raise cli.AdoptionError(
+            f"{lock.revision} is a gzlite release and did not write legacy starter state; "
+            f"reconcile {lock_name} by hand; {legacy.UNCHANGED}"
+        )
     if lock.host not in release.hosts:
         raise cli.AdoptionError(
             f"the lock records host {lock.host}, which {release.version} did not support; "
@@ -381,6 +387,7 @@ def plan_migration(project: Path, ref: str) -> MigrationPlan:
     candidates = builder.host_targets(configs, policy, working)
     builder.managed_targets(candidates, copies)
     builder.pyproject()
+    plan.findings.extend(renamed_skill_findings(reader))
     builder.finish()
     return plan
 
