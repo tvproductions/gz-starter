@@ -477,11 +477,11 @@ Release notes distinguish changes to [adopter range/selection policy](baseline-p
 from refreshes of tested exact pins within that policy. Adopters review constraints
 and their reasons rather than treating every checkout pin as a permanent requirement.
 
-The current manifest accepts numeric `MAJOR.MINOR.PATCH` versions. Development
-snapshots carry the next intended version plus their exact commit SHA; they are
-not stable releases until published. Prerelease suffixes would require a scoped
-manifest/CLI change. Stable Git tags use `vMAJOR.MINOR.PATCH` and must never be
-moved or reused after publication. Subsequent changes receive a new version.
+The manifest accepts numeric `MAJOR.MINOR.PATCH` versions. Starting with
+0.14.0, keep the published version in development commits. The release commit
+first sets the new version in both mirrors and dates its changelog entry.
+Tag that exact commit with an annotated `vMAJOR.MINOR.PATCH` tag. Preserve all
+published tag objects and use a new version for subsequent changes.
 
 Template version, bundle/lock `schema_version` and upstream component versions
 are separate. A template bump does not enable SP-BP, update a plugin or alter a
@@ -491,13 +491,12 @@ schema/migration decision.
 
 ## Adopter provenance and upgrades
 
-New adoption records the starter's repository, manifest version and full commit
-SHA in `.gz-starter/bundle.lock.json`. Configure preview/apply and status expose
-that starter record. Keep the SHA: multiple development commits may share the
-next intended version, and a label alone cannot identify their contents.
-The helper records the supplied/default SHA and manifest label; it does not prove
-that they match a published tag. Verify the checkout, tag and full commit before
-adoption. Native catalogs continue to pin upstream components by full SHA.
+New gzlite adoption records the publisher's repository, manifest version
+and full commit SHA in `.gzlite/bundle.lock.json`. Verify the checkout and
+release before adopting. gzlite requires the publisher's annotated tag to
+peel to the supplied commit and the tagged bundle to declare its version.
+Native catalogs continue to pin upstream components by full SHA. See the
+[legacy bridge](migrating-from-gz-starter.md) for earlier adoption records.
 
 Legacy records without a starter version have unknown version provenance.
 Do not infer their version from today's metadata or edit their recorded SHA.
@@ -519,22 +518,21 @@ repository or prove fresh-session skill discovery.
 1. Select the next version according to the adoption contract. For every major,
    including 1.0.0, write a new PRD and reference it in the release evidence.
    For a minor, identify the coherent change bundle in the existing backlog;
-   SP-BP may assist only after readiness and explicit adoption. Update
-   `bundle.json` and the starter's `pyproject.toml` together, then refresh `uv.lock`
-   with uv if its project metadata changed. Preserve independent plugin pins
-   unless their upgrade was explicitly scoped.
+   SP-BP may assist only after readiness and explicit adoption. Keep the
+   published version in preparatory commits and verify each independent plugin
+   pin and package dependency against the approved release scope.
 2. Add a changelog entry describing behavior, baseline/pin changes, adopter
    reconciliation steps, verification evidence and remaining limitations. Mark
    the entry unreleased while preparing it. Preserve historical evidence as-is.
 3. Run the documented repository checks on the exact Python pin and review the
    clean committed release candidate. For bundle changes, validate both native
    catalogs. Native loading/readiness evidence remains separate.
-4. When publication is authorized, mark the changelog entry released, commit the
-   final release metadata, tag that exact verified commit with an annotated
-   `vMAJOR.MINOR.PATCH` tag and publish the GitHub release with those notes. The
-   release must identify the full commit SHA and remaining host/Backplane gaps.
-   Verify the remote tag resolves to the intended commit; do not move it to fix
-   a release. Do not conflate an ordinary Git sync with release publication.
+4. With publication authorized, date the changelog entry and set the version
+   mirrors, catalogs and lock together in one release commit. Run
+   `gzlite release check` with the annotated tag on that exact verified commit.
+   Publish the tag and GitHub release with the full commit SHA and remaining
+   host and Backplane gaps. Run `gzlite release check --published` and verify
+   the remote tag and candidate CI. See [release safeguards](engineering/release-guards.md).
 
 The template's GitHub release is the adopter-facing distribution record. No
 package-registry upload, plugin installation or new release automation is

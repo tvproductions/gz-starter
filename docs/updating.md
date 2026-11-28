@@ -1,5 +1,10 @@
 # Canonical template updates
 
+For gzlite 0.14.0, use the [adopter bridge](migrating-from-gz-starter.md)
+from legacy GZ Starter state. For later gzlite releases, use the
+project-scoped `gzl-update` skill and review the `gzlite freshen` preview
+before applying its fingerprint. The runbook below describes older releases.
+
 This is the maintained entry for adopters checking or migrating the starter.
 Version 0.6.0 adds the single template-owned `update-gz-template` skill to make
 this method discoverable inside an adopting project. Version 0.5.0 and earlier

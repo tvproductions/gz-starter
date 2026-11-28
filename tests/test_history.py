@@ -352,6 +352,22 @@ class RevisionMapTests(unittest.TestCase):
         git(self.repo, "commit", "-q", "-m", name)
         return git(self.repo, "rev-parse", "HEAD")
 
+    def test_history_build_names_dated_release_without_a_tag(self):
+        (self.repo / "CHANGELOG.md").write_text(
+            "# Changelog\n\n## 0.13.0 — 2026-11-27\n", encoding="utf-8"
+        )
+        git(self.repo, "add", "CHANGELOG.md")
+        self.commit("baseline")
+        git(self.repo, "tag", "-a", "v0.13.0", "-m", "baseline")
+        (self.repo / "CHANGELOG.md").write_text(
+            "# Changelog\n\n## 0.14.0 — 2026-11-28\n\n## 0.13.0 — 2026-11-27\n",
+            encoding="utf-8",
+        )
+        git(self.repo, "add", "CHANGELOG.md")
+        revision = self.commit("dated release")
+        with self.assertRaisesRegex(self.builder.BuildError, f"0.14.0.*{revision}"):
+            self.builder.build(self.repo)
+
     def test_each_commit_maps_to_its_latest_ancestor_tag(self):
         before = self.commit("before")
         first = self.commit("first")

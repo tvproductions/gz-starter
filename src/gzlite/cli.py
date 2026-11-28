@@ -1158,6 +1158,14 @@ def main(argv: list[str] | None = None) -> int:
         catalog_actions.add_parser(action, help=text).add_argument(
             "--root", type=Path, default=Path.cwd()
         )
+    release_parser = sub.add_parser("release", help="inspect publisher release integrity")
+    release_commands = release_parser.add_subparsers(dest="release_command", required=True)
+    release_check = release_commands.add_parser("check", help="verify versions, changelog and tags")
+    release_check.add_argument("--project", type=Path, default=Path.cwd())
+    release_check.add_argument(
+        "--published", action="store_true", help="also verify GitHub releases"
+    )
+
     _add_vendor_parser(sub)
     sub.add_parser("validate", help="validate the three bundle pins and both native catalogs")
     sub.add_parser("version", help="show this checkout's template version; not a release receipt")
@@ -1196,6 +1204,22 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         print(json.dumps(result, indent=2))
         return 1 if result and args.catalog_command == "check" else 0
+    if args.command == "release":
+        from gzlite.release_check import check_release_integrity, local_tags, published_targets
+
+        try:
+            root = args.project.resolve(strict=True)
+            findings = check_release_integrity(
+                root,
+                published=args.published,
+                tags=local_tags(root),
+                releases=published_targets(root) if args.published else None,
+            )
+        except (OSError, ValueError, subprocess.SubprocessError, KeyError, TypeError) as error:
+            print(f"release check blocked: {error}", file=sys.stderr)
+            return 2
+        print(json.dumps(findings, indent=2))
+        return int(bool(findings))
     try:
         if args.command == "vendor":
             result, code = _vendor(args)

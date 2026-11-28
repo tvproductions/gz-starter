@@ -8,19 +8,43 @@ permissions:
   contents: read
 jobs:
   checks:
+    name: gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
-          version: '0.13.9'
+          version: '0.13.10'
           python-version: '3.14.10'
           enable-cache: false
       - run: uv sync --locked --all-groups --extra verification
       - run: uv run --locked pre-commit run --all-files
-      - run: uv run --locked gz-starter validate
+      - run: uv run --locked gzlite validate
       - run: uv build --no-sources
       - run: uv run --locked python tools/verify_distribution.py
+  release-integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          version: '0.13.10'
+          python-version: '3.14.10'
+          enable-cache: false
+      - name: Qualify the proposed tag in the PR checkout
+        if: github.event_name == 'pull_request'
+        env:
+          RELEASE_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          version="$(uv run --locked gzlite version | jq -r .template_version)"
+          tag="v$version"
+          if ! git show-ref --verify --quiet "refs/tags/$tag"; then
+            git -c user.name=release-integrity -c user.email=ci@example.invalid \
+              tag -a "$tag" "$RELEASE_HEAD" -m "Local release verification only"
+          fi
+      - run: uv run --locked gzlite release check
   xplane-baseline:
     runs-on: ubuntu-latest
     defaults:
@@ -30,7 +54,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
-          version: '0.13.9'
+          version: '0.13.10'
           python-version: '3.12.16'
           enable-cache: false
       - run: uv sync --locked --all-groups

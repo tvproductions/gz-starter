@@ -1,20 +1,20 @@
 # Development skills for this checkout; this is not template self-adoption.
 # Use the published, immutable catalog commit so discovery also works from nested directories.
-[marketplaces.skills-first-starter]
+[marketplaces.gz-starter-0-13-0]
 source_type = "git"
-source = "https://github.com/tvproductions/gz-starter.git"
-ref = "55f1a6e419f4bbcdc7bb525275dcf735f4039292"
+source = "https://github.com/tvproductions/gzlite.git"
+ref = "98acc5aeec3f3b6ad61171a647dbc0ab7a44b7c6"
 
-[plugins."superpowers@skills-first-starter"]
+[plugins."superpowers@gz-starter-0-13-0"]
 enabled = true
 
-[plugins."gz-skills@skills-first-starter"]
+[plugins."gz-skills@gz-starter-0-13-0"]
 enabled = true
 
 [plugins."gz-skills@gz-skills"]
 enabled = false
 
-[plugins."superpowers-backplane@skills-first-starter"]
+[plugins."superpowers-backplane@gz-starter-0-13-0"]
 enabled = false
 
 [plugins."superpowers@superpowers-dev"]

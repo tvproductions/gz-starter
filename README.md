@@ -1,4 +1,10 @@
-# GZ Starter
+# GZ Lite
+
+gzlite 0.14.0 is the continuation of GZ Starter. The distribution and CLI are
+`gzlite`. The `gz-starter` and `skills-first-starter` commands remain available as
+bridge aliases. Existing adopters use the
+[migration guide](docs/migrating-from-gz-starter.md) to move to `.gzlite/` and
+the `gzl-update` skill.
 
 Release **0.12.0** adds `gz-starter verify` for Python adopters. The same hook
 validates a preparatory checkout and requires real tests when authored assets

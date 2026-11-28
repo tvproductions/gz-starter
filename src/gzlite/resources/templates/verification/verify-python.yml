@@ -8,7 +8,7 @@ permissions:
 env:
   GIT_TERMINAL_PROMPT: '0'
   SKIP: ''
-  UV_VERSION: '0.13.9'
+  UV_VERSION: '0.13.10'
   PYTHON_VERSION: '3.14.10'
 jobs:
   macos:

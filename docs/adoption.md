@@ -1,5 +1,11 @@
 # Adoption and native loading
 
+Adopters moving to gzlite 0.14.0 start with the
+[migration guide](migrating-from-gz-starter.md). Use the release's full SHA
+with `gzlite configure` for a first adoption or `gzlite migrate` for legacy
+state. The 0.14.0 state directory is `.gzlite/` and the update skill is
+`gzl-update`. Earlier examples on this page describe their named versions.
+
 Apply the [application configuration contract](project-configuration.md) and
 [foundations](engineering/application-foundations.md) in both lanes. Each adopter
 identifies its deploying/configuring operator or host, selected location, schema,

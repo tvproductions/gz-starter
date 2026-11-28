@@ -1,4 +1,8 @@
-# GZ Starter
+# GZ Lite
+
+Use `gzlite` as the canonical command. Start release continuation at the
+[gzlite handoff](docs/handoffs/2026-11-28-gzlite-0.14.0-resume-handoff.md).
+Existing adopters start at [the migration guide](docs/migrating-from-gz-starter.md).
 
 Read `README.md` and `docs/architecture.md` before making changes. To continue
 starter development, start at the current resume point and remaining gates in

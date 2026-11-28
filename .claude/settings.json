@@ -1,16 +1,16 @@
 {
   "enabledPlugins": {
-    "superpowers@skills-first-starter": true,
-    "gz-skills@skills-first-starter": true,
+    "superpowers@gz-starter-0-13-0": true,
+    "gz-skills@gz-starter-0-13-0": true,
     "gz-skills@gz-skills": false,
-    "superpowers-backplane@skills-first-starter": false
+    "superpowers-backplane@gz-starter-0-13-0": false
   },
   "extraKnownMarketplaces": {
-    "skills-first-starter": {
+    "gz-starter-0-13-0": {
       "source": {
         "source": "git",
-        "url": "https://github.com/tvproductions/gz-starter.git",
-        "ref": "55f1a6e419f4bbcdc7bb525275dcf735f4039292"
+        "url": "https://github.com/tvproductions/gzlite.git",
+        "ref": "98acc5aeec3f3b6ad61171a647dbc0ab7a44b7c6"
       },
       "autoUpdate": false
     }
